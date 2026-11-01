@@ -7,6 +7,8 @@ import { guideCSV } from '../core/save.js';
 import { esc } from './panels.js';
 import { fishPicture } from './fishView.js';
 import { mountKey } from './keyUI.js';
+import { CARDS, CARD_ORDER } from '../content/items.js';
+import { hasCard } from '../npc/inventory.js';
 
 const TIER_CLASS = { unseen: 'unseen', seen: 'seen', caught: 'caught', identified: 'ident', mastered: 'master' };
 const pips = tier => { const n = G.TIERS.indexOf(tier); return `<span class="pips" role="img" aria-label="${G.TIER_LABEL[tier]}">${[1, 2, 3, 4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`; };
@@ -39,7 +41,7 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
     dispose();
     const counts = G.regionCounts(p), total = SPECIES.length;
     const doneAll = SPECIES.filter(s => G.atLeast(G.tierOf(p, s.id), 'identified')).length;
-    const list = reg === 'all' ? SPECIES : speciesInRegion(reg);
+    const sea = reg === 'seacountry', list = reg === 'all' || sea ? SPECIES : speciesInRegion(reg);
     const bay = G.bayHealth(p), st = G.stewardRating(p), comp = G.completion(p);
     body.innerHTML = `
       ${back ? '<p><button class="btn small" id="g-back">← Back to the decision</button></p>' : ''}
@@ -53,9 +55,11 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
       <div class="tabs" role="tablist">
         <button data-reg="all" class="${reg === 'all' ? 'on' : ''}">All ${doneAll}/${total}</button>
         ${counts.map(c => `<button data-reg="${c.key}" class="${reg === c.key ? 'on' : ''}">${esc(c.label)} ${c.done}/${c.total}</button>`).join('')}
+        <button data-reg="seacountry" class="${sea ? 'on' : ''}">Sea Country ${CARD_ORDER.filter(id => hasCard(p, id)).length}/${CARD_ORDER.length}</button>
       </div>
-      <p class="muted tiers-key">${['seen', 'caught', 'identified', 'mastered'].map((t, i) => `<span class="tk"><i class="t${i + 1}"></i>${G.TIER_LABEL[t]}</span>`).join('')}<span class="tk">Counters show fish Identified or better.</span></p>
-      <div class="gguide-grid">${list.map(s => cell(s)).join('')}</div>
+      ${sea ? seaCountry() : ''}
+      <p class="muted tiers-key" ${sea ? 'hidden' : ''}>${['seen', 'caught', 'identified', 'mastered'].map((t, i) => `<span class="tk"><i class="t${i + 1}"></i>${G.TIER_LABEL[t]}</span>`).join('')}<span class="tk">Counters show fish Identified or better.</span></p>
+      ${sea ? '' : `<div class="gguide-grid">${list.map(s => cell(s)).join('')}</div>`}
       <p class="g-foot"><button class="btn small" id="g-csv">Export Fish Guide (CSV)</button></p>`;
     body.querySelectorAll('[data-reg]').forEach(b => { b.onclick = () => { region = b.dataset.reg; renderList(region); }; });
     body.querySelectorAll('.gcell').forEach(b => { b.onclick = () => renderEntry(b.dataset.id); });
@@ -63,6 +67,13 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
     body.querySelector('#g-csv').onclick = () => game.exportGuideCSV();
     fillPictures(body);
   };
+  // Sea Country story cards, earned by talking with the Sea Country ranger (npc/): worksheet content only; each names its source.
+  const seaCountry = () => `<div class="sea">
+      <p class="muted">Story cards you have earned from Ranger Jo at the mangrove edge, Lake Illawarra. They are written from your class worksheets and describe living knowledge. For the real thing, ask your school to invite a Knowledge Holder through the local AECG.</p>
+      <div class="sea-cards">${CARD_ORDER.map(id => hasCard(p, id)
+    ? `<article class="sea-card"><h3>${esc(CARDS[id].title)}</h3><p>${esc(CARDS[id].text)}</p><small>Source: ${esc(CARDS[id].src)}</small></article>`
+    : `<article class="sea-card locked"><h3>🔒 ${esc(CARDS[id].title)}</h3><p>Earn this card by talking with Ranger Jo.</p></article>`).join('')}</div>
+    </div>`;
   const cell = s => {
     const t = G.tierOf(p, s.id), e = G.entryOf(p, s.id), flag = G.needsRekey(p, s.id), id = s.id;
     const named = G.atLeast(t, 'identified'), sub = t === 'unseen' ? 'Not seen yet' : t === 'seen' ? 'Seen: where and when?' : t === 'caught' ? (G.keyedAs(p, id) ? `Keyed as ${G.keyedAs(p, id)}` : 'Key it to name it') : t === 'identified' ? `Longest ${e.best ?? '?'} cm` : 'Mastered';

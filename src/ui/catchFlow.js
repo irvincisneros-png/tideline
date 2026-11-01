@@ -9,6 +9,7 @@ import { esc } from './panels.js';
 import { mountKey } from './keyUI.js';
 import { fishOnMat, fishPhoto } from './fishView.js';
 import { nameOf } from '../core/anglerData.js';
+import { hasItem } from '../npc/inventory.js';
 
 const AIR_LIMIT = 10; // seconds out of the water before it counts as too long
 const HOLD_S = 1.4;   // seconds to hold the unhook button
@@ -215,20 +216,25 @@ export class CatchFlow {
 
   // ---------------------------------------------------------------- 4. the quick release
   stepRelease() {
-    const g = this.game, deep = this.sp.deepWater;
+    const g = this.game, deep = this.sp.deepWater, tagKit = hasItem(this.p, 'tool-tagkit'), weightKit = deep && hasItem(this.p, 'tool-releaseweight');
     this.show(`<div class="flow release">
       <h2>Quick release</h2>
       <p class="sub">Get ${esc(this.sp.name)} back in the water fast, and gently. The clock is running.</p>
       <div class="air"><div class="air-bar"><i id="air-fill"></i><b></b></div><div class="air-t" id="air-t">0.0 s out of the water · aim for under ${AIR_LIMIT} s</div></div>
       <div class="rel-steps">
         <button class="btn" id="rel-wet" aria-pressed="false">💧 Wet your hands</button>
+        ${tagKit ? '<button class="btn" id="rel-tag" aria-pressed="false" title="Tag-and-release: a numbered tag shows scientists where it goes">🏷 Tag it</button>' : ''}
+        ${weightKit ? '<button class="btn" id="rel-weight" aria-pressed="false" title="A release weight sinks a deep-water fish back to depth">⚖ Clip on the release weight</button>' : ''}
         <button class="hold" id="rel-hold" aria-label="Hold to unhook the fish"><i id="hold-fill"></i><span>Hold to unhook</span></button>
       </div>
       <p class="muted" id="rel-hint">Dry hands rub off the slime that protects a fish from disease. Wet them first.</p>
-      ${deep ? `<div class="rule-card"><b>Deep-water fish</b>${esc(this.sp.name)} come from deep water, where the pressure is much higher. Pulled up fast, their gas bladder can swell (barotrauma). Later you will return them to depth with a release weight (gear coming soon). For now: unhook gently and be quick.</div>` : ''}
+      ${deep ? `<div class="rule-card"><b>Deep-water fish</b>${esc(this.sp.name)} come from deep water, where the pressure is much higher. Pulled up fast, their gas bladder can swell (barotrauma). ${weightKit ? 'You have a release weight: clip it on so the fish sinks back to depth.' : 'A release weight returns them to depth (Dr Priya at the dinghy landing has one for a good citizen scientist). For now: unhook gently and be quick.'}</div>` : ''}
     </div>`);
     const b = this.panel.body, wetBtn = b.querySelector('#rel-wet'), hold = b.querySelector('#rel-hold'), fill = b.querySelector('#hold-fill');
     const air = b.querySelector('#air-fill'), airT = b.querySelector('#air-t');
+    let tagged = false, weighted = false;
+    const toggle = (id, on, label) => { const el = b.querySelector(id); if (el) el.onclick = () => { const v = on(); el.setAttribute('aria-pressed', v); el.classList.toggle('on', v); el.textContent = v ? `${label} ✓` : label; }; };
+    toggle('#rel-tag', () => (tagged = !tagged), '🏷 Tag it'); toggle('#rel-weight', () => (weighted = !weighted), '⚖ Clip on the release weight');
     let wet = false, holdT = 0, holding = false, last = performance.now(), done = false;
     const t0 = performance.now();
     wetBtn.onclick = () => { wet = !wet; wetBtn.setAttribute('aria-pressed', wet); wetBtn.classList.toggle('on', wet); wetBtn.textContent = wet ? '💧 Hands wet ✓' : '💧 Wet your hands'; g.audio.play('smallSplash'); };
@@ -259,7 +265,7 @@ export class CatchFlow {
         <p class="sub">${secs.toFixed(1)} s out of the water · hands ${wet ? 'wet' : 'DRY'}</p>
         <p>${wet ? '' : 'You handled it with dry hands, which strips its protective slime. '}${secs > AIR_LIMIT ? `That was over ${AIR_LIMIT} seconds out of the water: fish cannot breathe in air, and every second counts. ` : ''}${ok ? 'Wet hands and a quick return give it the best chance to swim away strongly. (Most released fish survive when handled well.)' : 'Next time: wet your hands first and be back in the water in under 10 seconds.'}</p>
         <p><button class="btn primary" id="r-next">Continue</button></p></div>`);
-      const nx = this.panel.body.querySelector('#r-next'); nx.onclick = () => this.finalize({ wet, air: +secs.toFixed(1) }); nx.focus();
+      const nx = this.panel.body.querySelector('#r-next'); nx.onclick = () => this.finalize({ wet, air: +secs.toFixed(1), tagged, weighted }); nx.focus();
     };
     this.raf = requestAnimationFrame(tick);
     this.cleanup = () => { done = true; cancelAnimationFrame(this.raf); removeEventListener('keydown', kd); removeEventListener('keyup', ku); };
@@ -267,14 +273,14 @@ export class CatchFlow {
   }
 
   // ---------------------------------------------------------------- 5. write it all down
-  finalize({ wet, air }) {
+  finalize({ wet, air, tagged, weighted }) {
     this.cleanup?.(); this.cleanup = null; this.disposeKey();
     const g = this.game, p = this.p, id = this.id, c = this.c, ctx = c.ctx ?? {}, v = this.verdict, keep = this.keep;
     const e = G.entryOf(p, id);
     const label = G.atLeast(G.tierOf(p, id), 'identified') ? this.sp.name : `Unknown fish #${e.caught.n}`;
     p.catches ??= [];
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: this.sp.deepWater || undefined };
+      time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: this.sp.deepWater || undefined, tagged: tagged || undefined, weighted: weighted || undefined };
     p.catches.push(row);
     adjustStock(p, this.spot, id, keep ? (v.legal ? -1 : -4) : 1);
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));
@@ -288,6 +294,7 @@ export class CatchFlow {
       if (v.kind === 'protected' && !keep) o.protectedReleased = (o.protectedReleased ?? 0) + 1;
     }
     g.persist(); g.updateStats();
+    g.npcs?.onCatch({ id, length: c.length, keep, legal: v.legal, kind: v.kind });   // people nearby react: an undersize keep, a big legal catch
     const tier = G.tierOf(p, id);
     if (G.TIERS.indexOf(tier) > G.TIERS.indexOf(this.tierBefore) && tier === 'mastered') g.toast(`📗 Mastered: ${this.sp.name}! Its guide entry now shows its status, swap and rules.`, 'good');
     else if (tier === 'identified' && this.tierBefore !== 'identified') g.toast(`📗 Identified: ${this.sp.name}. Measure it accurately and make the right call to master it.`, 'good');

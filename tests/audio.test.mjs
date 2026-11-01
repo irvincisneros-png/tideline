@@ -38,7 +38,7 @@ test('every sound the game asks for exists', () => {
 
 test('vocal species exist in at least one ecosystem', async () => {
   const ids = new Set();
-  for (const f of readdirSync(new URL('../src/content/', import.meta.url))) {
+  for (const f of readdirSync(new URL('../src/content/', import.meta.url)).filter(f => !['npcs.js', 'items.js', 'quiz.js'].includes(f))) {
     const { species } = await import(`../src/content/${f}`);
     species.forEach(s => ids.add(s.id));
   }

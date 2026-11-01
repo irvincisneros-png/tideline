@@ -507,3 +507,54 @@ body.creator-open #touch, body.creator-open #hud { visibility: hidden; }
 }
 @media (max-height: 520px) and (min-width: 761px) { .cc-sub { display: none; } .cc-row { margin-bottom: 9px; } }
 @media (prefers-reduced-motion: reduce) { .cc-sw, .cc-sw:hover { transition: none; transform: none; } }
+
+/* ---------- Phase 3: the people of the coast ---------- */
+.dlg-bust.photo { width: 150px; height: auto; object-fit: contain; border: 0; background: none; }
+.dlg-note { color: var(--muted); font-weight: 800; font-size: 0.8em; }
+.dlg-text kbd { font-size: 0.8em; }
+.dlg-choice kbd { margin-right: 4px; font-size: 11px; min-width: 1.5em; padding: 0 4px; }
+body.touch .dlg-choice kbd { display: none; }
+.dlg-choice { text-align: left; }
+#hud-top .quest-btn { position: relative; }
+.qdot { display: none; position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--leaf); border: 3px solid var(--teal-ink); }
+body.quest-ready .qdot { display: block; }
+.t-talk { display: none !important; }
+body.npc-near .t-talk { display: flex !important; background: rgba(95, 207, 122, 0.92) !important; }
+.tb-rig.locked, .tb-bait.locked { opacity: 0.62; filter: grayscale(0.35); cursor: not-allowed; }
+.tb-rig.locked.sel { opacity: 1; }
+.tb-lock { display: block; margin-top: 3px; font-size: 11.5px; font-weight: 800; color: #c2570a; line-height: 1.25; font-family: var(--font); }
+.tb-bait .tb-lock { display: inline; margin: 0 0 0 4px; font-size: 11px; }
+.questlog h2 { margin-bottom: 2px; } .questlog .sub { color: var(--muted); margin: 0 0 6px; font-weight: 700; padding-right: 36px; }
+.questlog h3 { margin: 16px 0 6px; font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #c2570a; }
+.quests, .kit { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.quest { background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 18px; padding: 10px 14px; box-shadow: 0 4px 0 rgba(31, 95, 107, 0.35); }
+.quest.ready { background: var(--leaf-pale); border-color: var(--leaf-deep); }
+.quest.wait { opacity: 0.8; } .quest.done { padding: 6px 12px; box-shadow: none; opacity: 0.85; }
+.q-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.q-head b { font-family: var(--font-display); font-size: 16px; color: var(--teal-deep); }
+.q-state { font-size: 12px; font-weight: 800; padding: 1px 10px; border-radius: 99px; background: var(--turq-pale); border: 2px solid var(--teal-ink); }
+.quest.ready .q-state { background: #fff; border-color: var(--leaf-deep); color: var(--leaf-deep); }
+.q-who { color: var(--muted); font-size: 13px; font-weight: 800; margin: 2px 0 4px; }
+.q-what { font-size: 14px; line-height: 1.4; } .q-rew { font-size: 13px; font-weight: 800; color: #c2570a; margin-top: 4px; }
+.q-hint { font-size: 12.5px; color: var(--muted); font-weight: 700; margin-top: 4px; }
+.quest .meter { margin: 6px 0 0; }
+.kit li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 12px; }
+.kit li b { font-family: var(--font-display); } .kit li span { grid-column: 1; font-size: 13px; color: var(--muted); font-weight: 700; line-height: 1.35; } .kit li .btn { grid-column: 2; grid-row: 1 / span 2; }
+.sea-cards { display: grid; gap: 12px; margin-top: 8px; }
+.sea-card { background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 18px; padding: 10px 16px 12px; box-shadow: 0 4px 0 rgba(31, 95, 107, 0.35); }
+.sea-card h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 17px; color: var(--teal-deep); } .sea-card p { margin: 0 0 6px; line-height: 1.5; } .sea-card small { color: var(--muted); font-weight: 800; }
+.sea-card.locked { opacity: 0.6; }
+@media (max-width: 560px) { .dlg-bust.photo { width: 92px; } .dlg-choice { padding: 6px 10px; font-size: 13.5px; } }
+
+/* People's labels (npc/labels.js): HTML over the canvas */
+#npc-labels { position: fixed; inset: 0; pointer-events: none; z-index: 9; overflow: hidden; }
+.npc-label { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity 0.18s; will-change: transform; font-family: var(--font-display); }
+.npc-label.show { opacity: 1; }
+.npc-tag { display: flex; flex-direction: column; align-items: center; background: var(--cream); color: var(--teal-deep); border: 3px solid var(--teal-ink); border-radius: 14px; padding: 1px 12px 2px; box-shadow: 0 3px 0 rgba(31, 95, 107, 0.4); white-space: nowrap; }
+.npc-tag b { font-size: 15px; font-weight: 800; line-height: 1.2; } .npc-tag small { font-size: 11px; font-weight: 800; color: #c2570a; line-height: 1.1; }
+.npc-mark { width: 26px; height: 26px; border-radius: 50%; background: var(--coral); color: #fff; border: 3px solid var(--teal-ink); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; line-height: 1; }
+.npc-mark[data-kind="ok"] { background: var(--leaf); }
+.npc-bubble { max-width: 230px; background: var(--cream); color: var(--teal-deep); border: 3px solid var(--teal-ink); border-radius: 18px; padding: 6px 12px; font-size: 14px; font-weight: 800; line-height: 1.3; text-align: center; box-shadow: 0 4px 0 rgba(31, 95, 107, 0.4); }
+.npc-bubble::after { content: ''; position: absolute; left: 50%; bottom: -11px; width: 14px; height: 14px; background: var(--cream); border-right: 3px solid var(--teal-ink); border-bottom: 3px solid var(--teal-ink); transform: translateX(-50%) rotate(45deg); }
+@media (max-width: 560px) { .npc-tag b { font-size: 13px; } .npc-tag small { display: none; } .npc-bubble { max-width: 180px; font-size: 12.5px; } }
+body.creator-open #npc-labels { display: none; }

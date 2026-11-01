@@ -47,23 +47,32 @@ export class Dialogue {
     el.id = 'dialogue'; el.className = 'dlg hidden'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-live', 'polite');
     document.body.appendChild(el);
     addEventListener('keydown', e => {
-      if (!this.isOpen || !this.resolve || this.choices) return;
+      if (!this.isOpen || !this.resolve) return;
+      if (this.choices) {
+        // Choices: press 1-9 to pick one; Escape picks the "cancel" choice (the last one, "Bye" / "Back").
+        const n = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+        if (n && +n[1] <= this.choices.length) { e.preventDefault(); e.stopPropagation(); this.finish(+n[1] - 1); }
+        else if (e.code === 'Escape' && this.cancel != null) { e.preventDefault(); e.stopPropagation(); this.finish(this.cancel); }
+        return;
+      }
       if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); e.stopPropagation(); this.finish(0); }
     }, true);
   }
   get isOpen() { return !this.el.classList.contains('hidden'); }
 
   /** Show one line; resolves with the choice index (0 when there are no choices) once the player continues. */
-  say({ who, text, choices = null, button = 'Continue' }) {
+  say({ who, text, choices = null, button = 'Continue', cancel = null }) {
     return new Promise(resolve => {
-      this.resolve = resolve; this.choices = choices;
+      this.resolve = resolve; this.choices = choices; this.cancel = cancel;
       const w = who ?? {};
+      // A person from the coast has a rendered 3D bust (npc/portrait.js); the Fisheries Officer's old SVG bust is the fallback.
+      const bust = w.portraitUrl ? `<img class="dlg-bust photo" src="${w.portraitUrl}" alt="${esc(w.name ?? 'Portrait')}">` : portraitSVG(w.portrait);
       this.el.innerHTML = `
-        <div class="dlg-portrait">${portraitSVG(w.portrait)}</div>
+        <div class="dlg-portrait">${bust}</div>
         <div class="dlg-box">
           <div class="dlg-name">${esc(w.name ?? '')}${w.role ? `<small>${esc(w.role)}</small>` : ''}</div>
           <div class="dlg-text">${text}</div>
-          <div class="dlg-actions">${choices ? choices.map((c, i) => `<button class="btn dlg-choice" data-i="${i}">${esc(c)}</button>`).join('') : `<button class="btn primary dlg-next">${esc(button)}</button>`}</div>
+          <div class="dlg-actions">${choices ? choices.map((c, i) => `<button class="btn dlg-choice" data-i="${i}">${choices.length > 1 ? `<kbd>${i + 1}</kbd> ` : ''}${esc(c)}</button>`).join('') : `<button class="btn primary dlg-next">${esc(button)}</button>`}</div>
         </div>`;
       this.el.classList.remove('hidden');
       this.game.input?.clear?.();
@@ -76,7 +85,7 @@ export class Dialogue {
     for (let i = 0; i < lines.length; i++) await this.say({ who, text: lines[i], button: i === lines.length - 1 ? endButton : 'Continue' });
   }
   finish(i) {
-    const r = this.resolve; this.resolve = null; this.choices = null;
+    const r = this.resolve; this.resolve = null; this.choices = null; this.cancel = null;
     if (r) r(i);
   }
   /** Close the box (call when the conversation is over). */

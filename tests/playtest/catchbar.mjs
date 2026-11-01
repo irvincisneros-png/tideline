@@ -4,7 +4,7 @@
 // Exits 0 only if a fish was landed, the tackle box and bar behaved, and there were no console errors.
 import { launch } from './harness.mjs';
 const quality = process.argv[2] ?? 'high', site = process.argv[3] ?? 'rocky', mobile = process.argv[4] === 'mobile', narrow = process.argv[4] === 'narrow'; // mobile: touch controls, held with pointer events on the bar; narrow: 375 px wide
-const rigs = { rocky: ['float', 'greenweed'], seagrass: ['runningsinker', 'nipper'] }[site];
+const rigs = { rocky: ['paternoster', 'beachworm'], seagrass: ['runningsinker', 'prawn'] }[site];
 const tag = `${site}-${quality}${mobile ? '-touch' : narrow ? '-375' : ''}`;
 const t = await launch({ query: `eco=${site}&quality=${quality}&play=1&time=day&tide=rising&season=summer${mobile ? '&touch=1' : ''}`, outDir: `playtest-shots/catchbar/${tag}`, width: narrow ? 375 : 1280, height: narrow ? 667 : 720, mobile });
 const log = [], fail = msg => { log.push(['FAIL', msg]); ok = false; };

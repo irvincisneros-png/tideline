@@ -43,6 +43,10 @@ A sunny, hand-made diorama. Bright, clear, calm and friendly. Readable at a glan
 - A high third-person, near top-down follow camera (pitch about 60 degrees, 12-18 m back, damped, wheel / pinch zoom). The angler is a chunky, cel-shaded character with a big head and a bucket hat (`tools/blender/tideline.py`); colours are parameters (`setAppearance`). Hair (6), hats (5), sunnies (2) and shirt patterns (stripes, flowers, fishing shirt) are separate Blender meshes in the neutral colour slots (hair / hat / shirt / trim) plus a few fixed-colour parts, chosen in the character creator (`src/ui/creator.js`). Fish: tails, markings and lips match the key's features (`tests/looks.test.mjs`); a flat-bodied fish's tail is spread flat on the brag mat. Casts, the line (a thin dark curve) and the red and white float are all readable from above.
 - Tall things between the camera and the angler (canopies, roofs) are cut away with a stippled see-through hole.
 
+## People of the coast
+- Every NPC is the same chunky angler rig as the player with a fixed look (skin, hair, hat, shirt, shorts, sunnies) and one or two cosy props built in code (`src/npc/props.js`): an apron, clipboard, binoculars, rescue tube, litter picker and sack, bait tub, bucket, thermos, folding stool. A kid is the same body at 0.82 scale. Hats and clothes are the readable part from the high camera, so each person gets a distinct hat or hat colour.
+- Dialogue portraits are rendered from the real rig (head and shoulders, dark-teal ink outline, transparent background) into the cream dialogue box. Name tags, request markers and speech bubbles are cream HTML labels with the dark-teal outline, drawn over the canvas so the text stays crisp.
+
 ## Composition
 - Every site has hand-placed **hero landmarks** (coral bommies, boulders, a cay, a rock platform) with open
   sand channels between them, so every view has a focal point and a path.

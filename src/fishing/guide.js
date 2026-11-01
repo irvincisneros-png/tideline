@@ -144,7 +144,8 @@ export const bayLabel = v => (v >= 75 ? 'Thriving' : v >= 60 ? 'Healthy' : v >= 
 /**
  * Steward rating 1..5. Built from the good-practice ratio of every fish handled (a correct keep or release, and a proper wet-hands release),
  * litter pulled out of the water, and Fisheries Officer checks. A starting prior (3 good of 4) keeps a new player near 3 stars.
- *   score = 0.6 * practice + 0.15 * litter (10 pieces = full marks) + 0.25 * officer (clean checks), stars = 1 + 4 * score, less a fifth of a star for each fine beyond your clean checks.
+ *   score = 0.6 * practice + 0.15 * litter (10 pieces = full marks) + 0.25 * officer (clean checks), stars = 1 + 4 * score, less a fifth of a star for each fine beyond your clean checks
+ *   and 0.15 of a star for each safety mark (st.safety: staying on the rock platform in a big swell after the lifeguard's warning), up to 0.6.
  */
 export function stewardRating(p) {
   const rows = p.catches ?? [], st = p.steward ?? {};
@@ -157,6 +158,7 @@ export function stewardRating(p) {
   const officer = ((st.clean ?? 0) + 1) / ((st.clean ?? 0) + (st.fines ?? 0) + 2);
   const score = Math.max(0, Math.min(1, 0.6 * practice + 0.15 * litter + 0.25 * officer));
   const fined = Math.min(1, 0.2 * Math.max(0, (st.fines ?? 0) - (st.clean ?? 0)));   // each fine beyond your clean checks costs a fifth of a star
-  return { value: Math.max(1, 1 + 4 * score - fined), practice, litter, officer };
+  const unsafe = Math.min(0.6, 0.15 * (st.safety ?? 0));   // each safety mark (ignoring the lifeguard's warning on the rock platform) costs 0.15 of a star
+  return { value: Math.max(1, 1 + 4 * score - fined - unsafe), practice, litter, officer };
 }
 export const starsText = v => { const n = Math.max(1, Math.min(5, Math.round(v))); return '★'.repeat(n) + '☆'.repeat(5 - n); };

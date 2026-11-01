@@ -1,6 +1,7 @@
 // Tackle and the day's conditions. Rigs, baits, a small labelled diagram of each rig, the tackle-box panel HTML,
 // and DayConditions (tide, time of day, season, swell) which cycle with in-game time.
 import { TIDES } from './catches.js';
+import { rigUnlocked, baitUnlocked, lockHint, hasItem, LURE_COLOURS } from '../npc/inventory.js';
 
 const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -73,20 +74,25 @@ const DIAGRAMS = {
 };
 export const rigDiagram = id => `<svg viewBox="0 0 150 130" class="tb-svg" role="img" aria-label="${esc(RIGS[id].name)} diagram">${DIAGRAMS[id]().join('')}</svg>`;
 
-/** Tackle-box panel body. gear = { rig, bait }. */
-export function tackleBoxHTML(gear) {
+/** Tackle-box panel body. gear = { rig, bait }; p = the saved progress (its inventory decides which rigs and baits are unlocked; without it all are). */
+export function tackleBoxHTML(gear, p = null) {
   const lure = RIGS[gear.rig].lure;
+  const rigOpen = id => !p || rigUnlocked(p, id), baitOpen = id => !p || baitUnlocked(p, id);
+  const owns = id => !!p && hasItem(p, id);
+  const kit = [['tool-tagkit', '🏷 Tag kit'], ['tool-releaseweight', '⚖ Release weight'], ['bait-nipper', '🪈 Nipper pump']].filter(([id]) => owns(id)).map(([, n]) => n);
   return `<div class="tb">
     <h2>Tackle box</h2>
-    <p class="tb-sub">Pick the rig and bait for your next cast. Fish are fussy: the best tackle for one fish can be the wrong choice for another.</p>
+    <p class="tb-sub">Pick the rig and bait for your next cast. Fish are fussy: the best tackle for one fish can be the wrong choice for another. ${p ? 'Some tackle is locked until you earn it from the people on the coast.' : ''}</p>
     <h3>Rig</h3>
-    <div class="tb-rigs">${RIG_ORDER.map(id => `<button class="tb-rig ${gear.rig === id ? 'sel' : ''}" data-rig="${id}" title="${esc(RIGS[id].blurb)}" aria-pressed="${gear.rig === id}">
-      ${rigDiagram(id)}<b>${esc(RIGS[id].name)}</b></button>`).join('')}</div>
-    <p class="tb-desc"><b>${esc(RIGS[gear.rig].name)}:</b> ${esc(RIGS[gear.rig].blurb)}</p>
+    <div class="tb-rigs">${RIG_ORDER.map(id => { const open = rigOpen(id); return `<button class="tb-rig ${gear.rig === id ? 'sel' : ''} ${open ? '' : 'locked'}" data-rig="${id}" ${open ? '' : 'aria-disabled="true"'} title="${esc(open ? RIGS[id].blurb : `Locked. ${lockHint(p, 'rig', id)}`)}" aria-pressed="${gear.rig === id}">
+      ${rigDiagram(id)}<b>${esc(RIGS[id].name)}</b>${open ? '' : `<span class="tb-lock">🔒 ${esc(lockHint(p, 'rig', id) || 'Locked')}</span>`}</button>`; }).join('')}</div>
+    <p class="tb-desc" id="tb-desc"><b>${esc(RIGS[gear.rig].name)}:</b> ${esc(RIGS[gear.rig].blurb)}</p>
     <h3>Bait ${lure ? '<span class="tb-lure">lures need no bait</span>' : ''}</h3>
-    <div class="tb-baits ${lure ? 'off' : ''}">${BAIT_ORDER.map(id => `<button class="tb-bait ${!lure && gear.bait === id ? 'sel' : ''}" data-bait="${id}" ${lure ? 'disabled' : ''} aria-pressed="${!lure && gear.bait === id}" title="${esc(BAITS[id].note)}">
-      <i style="background:${BAITS[id].color}"></i>${esc(BAITS[id].name)}</button>`).join('')}</div>
-    <p class="tb-note">${lure ? 'Lures are cast and worked back. Pick a bait rig to use bait again.' : esc(BAITS[gear.bait]?.note ?? '')}</p>
+    <div class="tb-baits ${lure ? 'off' : ''}">${BAIT_ORDER.map(id => { const open = baitOpen(id); return `<button class="tb-bait ${!lure && gear.bait === id ? 'sel' : ''} ${open ? '' : 'locked'}" data-bait="${id}" ${lure ? 'disabled' : ''} ${open ? '' : 'aria-disabled="true"'} aria-pressed="${!lure && gear.bait === id}" title="${esc(open ? BAITS[id].note : `Locked. ${lockHint(p, 'bait', id)}`)}">
+      <i style="background:${BAITS[id].color}"></i>${esc(BAITS[id].name)}${open ? '' : `<span class="tb-lock">🔒 ${esc(lockHint(p, 'bait', id) || 'Locked')}</span>`}</button>`; }).join('')}</div>
+    <p class="tb-note" id="tb-note">${lure ? 'Lures are cast and worked back. Pick a bait rig to use bait again.' : esc(BAITS[gear.bait]?.note ?? '')}</p>
+    ${lure && owns('tool-lurecolours') ? `<h3>Lure colour</h3><div class="tb-baits" id="tb-lures">${LURE_COLOURS.map(c => `<button class="tb-bait tb-lurecol ${(p.inventory.lure ?? 'pink') === c.id ? 'sel' : ''}" data-lure="${c.id}" aria-pressed="${(p.inventory.lure ?? 'pink') === c.id}"><i style="background:${c.css}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
+    ${kit.length ? `<p class="tb-note">In your kit: ${kit.join(' · ')}</p>` : ''}
     <p class="tb-actions"><button class="btn primary" id="tb-done">Done <kbd>T</kbd></button></p>
   </div>`;
 }

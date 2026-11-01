@@ -109,6 +109,22 @@ export const LAND_BEHAVIOUR = {
   bluelinedoctopus: { type: 'octopus', radius: 0.08 },
 };
 
+
+/** An instanced flock of flapping gulls (also used by the NPC system's ambient birds, src/npc/birds.js). */
+export function flyingGullMesh(count) {
+  const geo = MODELS.silvergullFlying();
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide });
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.uTime = globalUniforms.uTime;
+    sh.vertexShader = 'attribute float aWing; uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      float ph = uTime * 4.2 + instanceMatrix[3].x * 0.7;
+      transformed.y += sin(ph) * aWing * 0.9 * abs(aWing) * 2.0;`);
+  };
+  mat.customProgramCacheKey = () => 'flyinggull';
+  const im = new THREE.InstancedMesh(geo, mat, count); im.frustumCulled = false;
+  return im;
+}
+
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _e = new THREE.Euler();
 
 export class LandLife {
@@ -140,16 +156,7 @@ export class LandLife {
     // Flying gulls wheel overhead (not photographable targets on their own; the standing gulls are).
     const nf = land.flyingGulls ?? 0;
     if (nf) {
-      const geo = MODELS.silvergullFlying();
-      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide });
-      mat.onBeforeCompile = sh => {
-        sh.uniforms.uTime = globalUniforms.uTime;
-        sh.vertexShader = 'attribute float aWing; uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-          float ph = uTime * 4.2 + instanceMatrix[3].x * 0.7;
-          transformed.y += sin(ph) * aWing * 0.9 * abs(aWing) * 2.0;`);
-      };
-      mat.customProgramCacheKey = () => 'flyinggull';
-      this.flyers = new THREE.InstancedMesh(geo, mat, nf); this.flyers.frustumCulled = false;
+      this.flyers = flyingGullMesh(nf);
       this.flyerState = Array.from({ length: nf }, (_, i) => ({ c: land.gullCircle ?? { x: 0, z: 100 }, r: 18 + this.rnd() * 25, h: 9 + this.rnd() * 10, w: (0.15 + this.rnd() * 0.12) * (this.rnd() < 0.5 ? 1 : -1), a: this.rnd() * 6.28 }));
       this.group.add(this.flyers);
     }

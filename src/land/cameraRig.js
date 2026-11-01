@@ -1,5 +1,5 @@
 // High third-person, near top-down follow camera (I Just Wanted to Fish style diorama view): pitch ~60 degrees,
-// 12-18 m back, smooth damping, wheel / pinch zoom, never inside the terrain. Q / E (or a right-button or touch drag)
+// 12-18 m back, smooth damping, wheel / pinch zoom, never inside the terrain. Z / C (or a right-button or touch drag)
 // turn it around the angler. While a line is out it frames the angler and the float together.
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
@@ -32,7 +32,7 @@ export class CameraRig {
       const sens = this.settings.sensitivity ?? 1;
       this.yaw -= mx * 0.0042 * sens;
       this.pitch = clamp(this.pitch - my * 0.0035 * sens * (this.settings.invertY ? -1 : 1), CAM.pitchMin, CAM.pitchMax);
-      const turn = (inp.down('KeyE') ? 1 : 0) - (inp.down('KeyQ') ? 1 : 0);
+      const turn = (inp.down('KeyC') ? 1 : 0) - (inp.down('KeyZ') ? 1 : 0);   // E talks and Q opens the quest log, so the camera turns on Z / C
       this.yaw += turn * 1.6 * (this.settings.sensitivity ?? 1) * dt;
       const z = inp.takeZoom();
       if (z) this.zoom = clamp(this.zoom * Math.pow(1.12, z), CAM.distMin, CAM.distMax);

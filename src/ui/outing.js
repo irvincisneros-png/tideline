@@ -52,6 +52,7 @@ export class Outing {
       o.home = (p.esky ?? []).filter(x => x.legal || o.officer.result === 'none').length;
       p.esky = [];
       o.t1 = Date.now(); o.bay1 = G.bayHealth(p); o.st1 = G.stewardRating(p).value;
+      g.npcs?.bumpDay();   // heading home ends the in-game day: failed quizzes can be tried again next outing
       g.persist(); g.updateStats();
       this.summary(o);
     } finally { this.busy = false; }
@@ -59,7 +60,7 @@ export class Outing {
 
   // ---------------------------------------------------------------- the Fisheries Officer
   async officer() {
-    const g = this.game, p = this.p, dlg = g.dialogue, who = PORTRAITS.officer, esky = p.esky ?? [];
+    const g = this.game, p = this.p, dlg = g.dialogue, who = g.npcs?.whoOf('officer') ?? PORTRAITS.officer, esky = p.esky ?? [];
     const st = p.steward; const before = G.stewardRating(p).value;
     g.audio.play('click');
     await dlg.say({ who, text: `G'day, ${esc(nameOf(p))}! I'm a Fisheries Officer. Just a routine check on the way out. Mind if I have a look in your esky?`, button: 'Sure, go ahead' });

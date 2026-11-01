@@ -7,8 +7,12 @@ const KEY = 'tideline.progress.v1';
 //   steward: { points, litter, checks, clean, fines }.  tips: one-line tips already shown.  stock: stock health (0-100) per 'spot:species'.
 //   angler (phase 2): { name, skin, hairStyle, hair, hatStyle, hat, sunnies, pattern, shirt, shorts, rod } from the character creator; null = not made yet
 //   (an older save has none, so the creator opens once before the next outing).
+//   inventory (phase 3): { have: { itemId: t }, cards: { sea country card id: t }, worn: hat item id | null, lure: lure colour id | null } — rewards from the coast's people
+//   (content/items.js). New saves start with only paternoster, running sinker, unweighted + prawn and beach worm; the rest unlock through trades.
+//   npc (phase 3): { day, met: { npcId: t }, accepted: { tradeId: t }, done: { tradeId: t }, quizFail: { tradeId: day }, rot: { key: n } } — the people's conversations and requests.
+//   steward.safety (phase 3): marks for staying on the rock platform in a big swell after the lifeguard's warning.
 //   journal: the old field guide (kept for the animal cards).  gear: last rig and bait.
-const blank = () => ({ v: 2, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], outing: null, tips: {}, angler: null });
+const blank = () => ({ v: 2, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} } });
 
 export function loadProgress() {
   try {

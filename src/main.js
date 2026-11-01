@@ -32,6 +32,9 @@ import { lookOf, nameOf } from './core/anglerData.js';
 import { DayConditions, RIGS, BAITS, tackleBoxHTML } from './fishing/gear.js';
 import { Panels, esc } from './ui/panels.js';
 import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
+import { NPCManager } from './npc/manager.js';
+import { rigUnlocked, baitUnlocked, lockHint } from './npc/inventory.js';
+import { openQuestLog } from './ui/questLog.js';
 
 const $ = s => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -63,6 +66,7 @@ class Game {
     this.catchFlow = new CatchFlow(this);
     this.creator = new Creator(this); this.creatorOpen = false;
     this.outing = new Outing(this);
+    this.npcs = new NPCManager(this);
     this.env = new Environment(this.scene, this.renderer, this.quality);
     this.fx = new Particles(this.scene, this.quality);
     this.world = new World(this.scene, this.renderer, this.env, this.fx, this.quality);
@@ -74,8 +78,8 @@ class Game {
     // The day: tide, time, season and swell cycle with in-game time (?season=winter&time=dusk&tide=low&swell=1.5 for testing).
     this.cond = new DayConditions({ season: params.get('season') ?? undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
     this.gear = { rig: 'runningsinker', bait: 'prawn', ...this.progress.gear };
-    if (!RIGS[this.gear.rig]) this.gear.rig = 'runningsinker';
-    if (!RIGS[this.gear.rig].lure && !BAITS[this.gear.bait]) this.gear.bait = 'prawn';
+    if (!RIGS[this.gear.rig] || !rigUnlocked(this.progress, this.gear.rig)) this.gear.rig = 'runningsinker';   // a rig you have not earned yet is not in your box
+    if (!RIGS[this.gear.rig].lure && (!BAITS[this.gear.bait] || !baitUnlocked(this.progress, this.gear.bait))) this.gear.bait = 'prawn';
     this.mode = 'loading';
     this.eco = ecoById(params.get('eco')) ?? ECOSYSTEMS[0];
     this.frame = 0; this.time = 0;
@@ -169,6 +173,7 @@ class Game {
     $('#btn-settings').onclick = () => this.openSettings();
     $('#btn-help').onclick = () => this.panels.help();
     $('#home-btn').onclick = () => this.outing.ask();
+    $('#quest-btn').onclick = () => this.questLog();
     this.updateProgressSummary();
   }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
@@ -244,8 +249,11 @@ class Game {
       if (c === 'KeyJ') this.openGuide();
       if (c === 'KeyL') openLogbook(this);
       if (c === 'KeyH') this.outing.ask();
+      if (c === 'KeyE') this.npcs.talkNearest();
+      if (c === 'KeyQ') this.questLog();
     });
   }
+  questLog() { openQuestLog(this); }
   setKeys(list) { $('#keys').innerHTML = list.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join(''); }
   pauseMenu() {
     this.panels.open(`<h2>Paused</h2><p>${esc(this.eco.name)}</p>
@@ -282,7 +290,8 @@ class Game {
     this.shoals = new Shoals(this.scene, this.quality);
     this.prints?.dispose();
     this.prints = new Footprints(this.scene, this.world); // footprints trail behind the angler on dry sand
-    // A school of a species passing within 8 m marks it Seen in the Fish Guide (an NPC's gossip will call guide.markSeen(id, 'npc:name') too).
+    // A school of a species passing within 8 m marks it Seen in the Fish Guide (an NPC's gossip calls guide.markSeen(id, 'gossip') too: npc/talk.js).
+    this.npcs.load(this.eco);   // the people of this site (src/npc/): built with the angler so the shader warm-up covers them
     this.shoals.onSeen = (id, src) => { if (G.markSeen(this.progress, id, src)) { this.persist(); this.toast('📗 You spotted a kind of fish you have not seen before. Check the Fish Guide (J) for where and when to find it.', 'good'); } };
   }
   /** Test and console hook: game.setAppearance({ skin, hairStyle, hatStyle, ... }) dresses the angler and saves it with the current name. */
@@ -314,7 +323,7 @@ class Game {
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Q / E', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['E', 'talk'], ['Q', 'quests'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
     this.updateStats();
     this.toast(L.intro);
@@ -353,10 +362,15 @@ class Game {
     this.world.waveMesh.update(null, this.time);
     if (!paused) this.cond.update(dt);
     if (this.frame % 6 === 0) this.updateChip();
-    if (f.active) { if (!paused) f.update(dt, this.time, this.input, this.world); }
+    if (f.active) {
+      if (!paused) f.update(dt, this.time, this.input, this.world);
+      const talk = !paused && ['ready', 'wait'].includes(f.state) ? this.npcs.promptText() : '';
+      if (talk) $('#prompt').innerHTML += '<br>' + this.hint(talk);
+    }
     else {
       const hz = this.eco.land.home, near = hz && Math.hypot(w.pos.x - hz.x, w.pos.z - hz.z) < hz.r;
-      $('#prompt').innerHTML = near && !paused ? this.hint(`Press <kbd>H</kbd> to head home from ${hz.label}`) : ''; w.frozen = false;
+      const talk = !paused ? this.npcs.promptText() : '';
+      $('#prompt').innerHTML = this.hint([talk, near && !paused ? `Press <kbd>H</kbd> to head home from ${hz.label}` : ''].filter(Boolean).join('<br>')); w.frozen = false;
     }
     // Camera: follows the angler, frames the float too while a line is out.
     const also = f.active && f.float.visible && ['wait', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
@@ -397,18 +411,21 @@ class Game {
   tackleBox() {
     if (!this.fishing.canChangeGear) { this.toast('Land or lose this fish first, then change your tackle.', 'warn'); return; }
     const render = () => {
-      this.panels.body.innerHTML = tackleBoxHTML(this.gear);
+      this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress);
+      const lockedMsg = (kind, id, name) => { this.panels.body.querySelector(kind === 'rig' ? '#tb-desc' : '#tb-note').innerHTML = `🔒 <b>${esc(name)}</b> is locked. ${esc(lockHint(this.progress, kind, id))}.`; };
+      for (const b of this.panels.body.querySelectorAll('.tb-lurecol')) b.onclick = () => { this.progress.inventory.lure = b.dataset.lure; this.persist(); render(); };
       for (const b of this.panels.body.querySelectorAll('.tb-rig')) b.onclick = () => {
+        if (!rigUnlocked(this.progress, b.dataset.rig)) { lockedMsg('rig', b.dataset.rig, RIGS[b.dataset.rig].name); return; }
         this.gear.rig = b.dataset.rig;
         if (RIGS[this.gear.rig].lure) this.gear.bait = 'none';
         else if (!BAITS[this.gear.bait]) this.gear.bait = this.lastBait ?? 'prawn';
         this.saveGear(); render(); this.panels.body.querySelector(`.tb-rig[data-rig="${this.gear.rig}"]`)?.focus({ preventScroll: true });
       };
-      for (const b of this.panels.body.querySelectorAll('.tb-bait')) b.onclick = () => { this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
+      for (const b of this.panels.body.querySelectorAll('.tb-bait:not(.tb-lurecol)')) b.onclick = () => { if (!baitUnlocked(this.progress, b.dataset.bait)) { lockedMsg('bait', b.dataset.bait, BAITS[b.dataset.bait].name); return; } this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
       this.panels.body.querySelector('#tb-done').onclick = () => this.panels.close();
     };
     this.tackleOpen = true;
-    this.panels.open(tackleBoxHTML(this.gear), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
+    this.panels.open(tackleBoxHTML(this.gear, this.progress), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
     render();
   }
   saveGear() { this.progress.gear = { ...this.gear }; this.persist(); }
@@ -498,6 +515,7 @@ class Game {
     this.env.update(dt, this.camera, depth, this.mode === 'land' ? this.focus : null);
     globalUniforms.uPlayer.value.set(this.walker.pos.x, this.mode === 'land' ? this.walker.pos.y : -999, this.walker.pos.z);
     this.world.props?.update(dt, this.time);
+    this.npcs.update(dt, this.time);
     this.shoals?.update(dt, this.time, this.world, this.mode === 'land' ? this.walker : null, this.eco);
     this.prints?.update(dt, this.mode === 'land' ? this.walker : null, this.eco.rockAt);
     this.world.ocean.update(this.camera, depth > 0);

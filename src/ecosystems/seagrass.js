@@ -173,7 +173,7 @@ export const seagrass = {
   land: {
     spawn: { x: JETTY.x - 5, z: shoreZ(JETTY.x - 5) + 8, yaw: 0 },
     bounds: { xMin: -80, xMax: 80, zMin: JETTY.z1 - 0.6, zMax: 130 },
-    intro: 'Welcome to Lake Illawarra. Walk out along the jetty (or wade the sand flats), press R for your rod and T for your tackle box, then cast over the flats, seagrass and channel. Rod and line only here: no crab traps or nets near the entrance.',
+    intro: 'Welcome to Lake Illawarra. Walk out along the jetty (or wade the sand flats), press R for your rod and T for your tackle box, then cast over the flats, seagrass and channel. Rod and line only here: no crab traps or nets near the entrance. Press E to chat with the people you meet.',
     life: {}, zones: {},
     home: { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 8, r: 7, label: 'the bait shop' }, // walk here (or press H) to head home and end the outing
   },

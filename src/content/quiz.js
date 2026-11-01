@@ -1,0 +1,36 @@
+// The worksheet quiz bank (dataset section F, ../tideline-content/species-and-rules.md): 30 questions, answers from the teacher worksheets.
+// `n` is the question number in the dataset, `src` the worksheet it comes from, `answer` the index of the correct option.
+// NPC quiz trades (src/content/npcs.js) refer to these by `n`. Option order is shuffled when asked (src/npc/talk.js).
+export const QUIZ = [
+  {"n": 1, "src": "worksheet 2.1.15", "q": "Total length is measured from the:", "options": ["Eye to the fork of the tail", "Tip of the snout to the tip of the tail", "Gill cover to the tail base", "Snout to the start of the dorsal fin"], "answer": 1},
+  {"n": 2, "src": "worksheet 2.1.15", "q": "Why is there a minimum size limit?", "options": ["Big fish are best breeders", "Small fish have not bred yet and need time to grow", "It stops too many fish being taken in a day", "Small fish taste bad"], "answer": 1},
+  {"n": 3, "src": "worksheet 2.1.15", "q": "Why is there a slot (maximum) size limit, such as for dusky flathead?", "options": ["Big fish are the best breeders, so they are released", "Big fish are dangerous", "Big fish can't be measured", "Big fish don't taste good"], "answer": 0},
+  {"n": 4, "src": "worksheet 2.1.15", "q": "Dusky flathead legal slot is:", "options": ["25 cm and above", "30 to 60 cm", "36 to 70 cm; release anything over 70", "27 cm and above"], "answer": 2},
+  {"n": 5, "src": "worksheet 2.1.15", "q": "A bream must be at least:", "options": ["25 cm", "27 cm", "30 cm", "36 cm"], "answer": 0},
+  {"n": 6, "src": "worksheet 2.1.14", "q": "The 1 month NSW recreational fishing fee is:", "options": ["$7", "$14", "$35", "$85"], "answer": 1},
+  {"n": 7, "src": "worksheet 2.1.14", "q": "Who does NOT have to pay the fishing fee?", "options": ["People under 18", "All adults with a Seniors Card", "People fishing from rocks", "Anyone with a Victorian licence"], "answer": 0},
+  {"n": 8, "src": "worksheet 2.1.14, 2.1.11", "q": "A 20-year-old digging beach worms needs the fee:", "options": ["No, bait collecting is exempt", "Yes, the fee is needed to collect bait as well as fish", "Only for beach fishing", "Only on weekends"], "answer": 1},
+  {"n": 9, "src": "worksheet 2.1.11", "q": "Pipis in NSW are:", "options": ["For eating only", "For bait only, not taken beyond 50 m from the high-tide mark", "Banned from beaches", "Bag limit 500"], "answer": 1},
+  {"n": 10, "src": "worksheet 2.1.11", "q": "The NSW saltwater nipper bag limit is:", "options": ["20", "50", "100", "200"], "answer": 2},
+  {"n": 11, "src": "worksheet 2.1.11", "q": "The beach worm limit is:", "options": ["20 whole or part in total", "50", "100", "No limit"], "answer": 0},
+  {"n": 12, "src": "worksheet 2.1.11", "q": "At Bushrangers Bay Aquatic Reserve (Bass Point) you can:", "options": ["Collect bait", "Fish with a rod", "Fish or collect nothing; it is no-take", "Take shells"], "answer": 2},
+  {"n": 13, "src": "worksheet 2.1.5", "q": "Where are crab traps banned at Lake Illawarra?", "options": ["The whole lake", "The entrance channel, breakwalls to about Bevans Island", "Only Mullet Creek", "Nowhere"], "answer": 1},
+  {"n": 14, "src": "worksheet 2.1.5", "q": "A mud crab carrying eggs (berried) must be:", "options": ["Kept", "Sold", "Returned to the water", "Cooked"], "answer": 2},
+  {"n": 15, "src": "worksheet 2.1.2", "q": "Must you wear a lifejacket rock fishing in Wollongong?", "options": ["No", "Only at night", "Yes, it is a declared high-risk area; penalty notice $100", "Only under 16"], "answer": 2},
+  {"n": 16, "src": "worksheet 2.1.2", "q": "Why is a rising tide dangerous on rock platforms?", "options": ["It covers the rocks and cuts off the way back", "It makes fish bite less", "It dries the rocks", "It lowers the swell"], "answer": 0},
+  {"n": 17, "src": "worksheet 2.1.12", "q": "A fish has swallowed the hook. You should:", "options": ["Pull it out", "Cut the line close to the hook and release the fish", "Keep it", "Throw it back with the hook pulled hard"], "answer": 1},
+  {"n": 18, "src": "worksheet 2.1.10", "q": "Why do anglers brine pilchards for casting?", "options": ["To make them smell stronger", "Salt toughens the flesh so the bait stays on the hook", "To make them thaw", "To make them sink"], "answer": 1},
+  {"n": 19, "src": "worksheet 2.1.9", "q": "In a running sinker rig the sinker slides so that:", "options": ["The line doesn't tangle", "The fish does not feel the weight and is less likely to drop the bait", "The hook is heavier", "The bait floats"], "answer": 1},
+  {"n": 20, "src": "worksheet 2.1.3", "q": "Which is demersal and which is pelagic?", "options": ["Flathead pelagic, tailor demersal", "Flathead demersal, tailor pelagic", "Both demersal", "Both pelagic"], "answer": 1},
+  {"n": 21, "src": "worksheet 2.1.3", "q": "Which feature tells luderick from bream?", "options": ["Forked tail", "Vertical bars along the sides", "Spotted back", "Flat head"], "answer": 1},
+  {"n": 22, "src": "worksheet 2.1.16", "q": "\"Handle fish with wet hands and use a net, return them quickly\" helps reduce:", "options": ["Lost tackle", "Litter and entanglement", "Released fish dying", "Bycatch"], "answer": 2},
+  {"n": 23, "src": "worksheet 2.1.13", "q": "On a sounder screen, arch shapes show:", "options": ["The bottom", "A school of baitfish", "Single big fish", "Weed"], "answer": 2},
+  {"n": 24, "src": "worksheet 2.2.3", "q": "Which net stays in one place while fish come to it?", "options": ["Trawl net", "Purse seine", "Gill net", "Seine net"], "answer": 2},
+  {"n": 25, "src": "worksheet 2.2.6", "q": "In the 2024 report 316 of 503 stocks were sustainable. About what percentage is that?", "options": ["36%", "63%", "85%", "50%"], "answer": 1},
+  {"n": 26, "src": "worksheet 2.2.7", "q": "A turtle excluder device (TED) is a grid with an escape hole that:", "options": ["Catches more prawns", "Stops turtles being caught as bycatch", "Cleans the net", "Counts fish"], "answer": 1},
+  {"n": 27, "src": "worksheet 2.2.1", "q": "How does Aboriginal cultural fishing differ from recreational fishing?", "options": ["It is for culture, family and community, not for sale; size limits still apply", "Size limits don't apply", "Fish are sold", "A licence is required for all"], "answer": 0},
+  {"n": 28, "src": "worksheet 2.1.1", "q": "The Brewarrina fish traps (Baiame's Ngunnhu) are on whose Country?", "options": ["Dharawal", "Ngemba", "Gweagal", "Yuin"], "answer": 1},
+  {"n": 29, "src": "worksheet 5.1.1", "q": "In the D'harawal calendar, when marrai'uo (Gossamer Wattle) flowers it tells people:", "options": ["Eels are heading to the ocean", "Fish are swimming in the rivers", "Storms are coming", "Shellfish can be eaten again"], "answer": 1},
+  {"n": 30, "src": "worksheet 2.2.5", "q": "Why set a quota such as for southern bluefin tuna?", "options": ["To raise prices", "To stop overfishing so the stock does not collapse", "To close ports", "To make boats bigger"], "answer": 1},
+];
+export const QUIZ_BY_N = Object.fromEntries(QUIZ.map(q => [q.n, q]));
