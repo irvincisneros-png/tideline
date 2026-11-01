@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>TideLine — Cosy Fishing on the Illawarra Coast</title>
+  <meta name="description" content="A cosy 3D fishing game on the Illawarra coast: cast, catch, measure and decide what to keep. For NSW Stage 5 Aquatic Technology (Aquatic harvesting)." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 40c10-18 26-26 44-22-8 2-14 8-16 16 6-6 16-8 28-2-12 0-20 8-22 20H4z' fill='%230fb5c9'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/build/three.module.js", "three/examples/jsm/": "./vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <canvas id="gl" aria-label="3D game view"></canvas>
+
+  <!-- Screen effects -->
+  <div id="fx-vignette" class="fx"></div>
+  <div id="fx-uw" class="fx"></div>
+
+  <!-- Loading -->
+  <div id="loading" class="screen show">
+    <div class="load-box">
+      <div class="logo">Tide<span>Line</span></div>
+      <div class="bar"><i id="load-bar"></i></div>
+      <p id="load-msg">Filling the tide pools…</p>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div id="menu" class="screen">
+    <div class="menu-inner">
+      <header class="menu-head">
+        <div class="logo big">Tide<span>Line</span></div>
+        <p class="tag">Walk down to the water. Cast a line. Learn what to keep.</p>
+      </header>
+      <section class="eco-pick" aria-label="Choose a spot">
+        <h2>Choose a spot</h2>
+        <div id="eco-cards" class="eco-cards"></div>
+      </section>
+      <div class="menu-actions">
+        <button id="btn-play" class="btn primary">Start fishing</button>
+        <button id="btn-journal" class="btn ghost">Field guide</button>
+        <button id="btn-settings" class="btn ghost">Settings</button>
+        <button id="btn-help" class="btn ghost">How to play</button>
+        <button id="btn-fullscreen" class="btn ghost hidden">⛶ Full screen</button>
+      </div>
+      <footer class="menu-foot">
+        <span>NSW Aquatic Technology 7–10 · Aquatic harvesting</span> · <a href="teacher.html">Teacher page</a> · <a href="https://irvincisneros-png.github.io/">← Learning Hub</a> · <span id="progress-sum"></span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div id="site-name"></div>
+    </div>
+    <div id="prompt" class="prompt"></div>
+    <div id="toast"></div>
+    <div id="land-hud">
+      <div id="crosshair"></div>
+      <div id="target-label"></div>
+    </div>
+    <div id="keys" class="keys"></div>
+  </div>
+
+  <!-- Panels -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="panel">
+      <button class="close" id="modal-close" aria-label="Close">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="click-to-play" class="hidden"><div>Click to look around<br><small>Esc releases the mouse</small></div></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

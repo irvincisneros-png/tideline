@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TideLine — Teacher page</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    html, body { overflow: auto; height: auto; }
+    body { background: radial-gradient(ellipse at 50% 0%, #0b4a5e, #021620 60%); min-height: 100vh; }
+    main { width: min(980px, 100%); margin: 0 auto; padding: clamp(16px, 4vw, 40px); }
+    .t-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .t-card { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .t-card h3 { margin: 0 0 6px; text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 17px; }
+    .t-card p { font-size: 14px; color: #cfe6eb; line-height: 1.45; }
+    .t-card canvas { width: 120px; height: 120px; image-rendering: pixelated; border-radius: 8px; float: right; margin-left: 10px; }
+    .t-card input { width: 100%; background: #08303e; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+    .opts { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 20px; font-size: 14px; }
+    h2.eco { margin: 28px 0 10px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="logo">Tide<span>Line</span> · Teacher page</div>
+    <p>Share a spot link or QR code. Students open it in Chrome/Edge on a laptop (keyboard + mouse) or on a tablet. Nothing is uploaded: field guides and catch logs stay on each device; students can export a CSV from their field guide.</p>
+    <div class="opts">
+      <label>Graphics <select id="o-q"><option value="">Auto</option><option value="low">Low (school laptops)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+    </div>
+    <div id="list"></div>
+    <h2 class="eco">Syllabus links</h2>
+    <p>Designed for NSW Aquatic Technology 7–10, option Aquatic harvesting: recreational fishing, matching tackle and technique to the target species, size and bag limits, catch and release, and keeping a catch record (species identification, measuring, exporting data).</p>
+    <p><a href="index.html">← Back to TideLine</a></p>
+  </main>
+  <script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js", "three/examples/jsm/": "./vendor/three/examples/jsm/" } }</script>
+  <script type="module">
+    import { ECOSYSTEMS } from './src/ecosystems/index.js';
+    import { qrEncode, drawQR } from './src/ui/qr.js';
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const base = new URL('index.html', location.href).href;
+    function render() {
+      const q = document.querySelector('#o-q').value;
+      document.querySelector('#list').innerHTML = `<h2 class="eco">Spots</h2><div class="t-grid">${ECOSYSTEMS.map(e => {
+        const p = new URLSearchParams({ eco: e.id, play: '1' }); if (q) p.set('quality', q);
+        const url = `${base}?${p}`;
+        return `<div class="t-card"><canvas data-url="${esc(url)}"></canvas><h3>${esc(e.name)}</h3><p>${esc(e.place)} — ${esc(e.blurb)}</p><input readonly value="${esc(url)}" onclick="this.select()"></div>`;
+      }).join('')}</div>`;
+      document.querySelectorAll('canvas[data-url]').forEach(c => { try { drawQR(c, qrEncode(c.dataset.url), 4); } catch { c.remove(); } });
+    }
+    document.querySelector('#o-q').onchange = render;
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "tideline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A cosy 3D fishing game on the Illawarra coast for NSW Stage 5 Aquatic Technology (Aquatic harvesting).",
+  "scripts": {
+    "serve": "python3 devserver.py 8451",
+    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs"
+  }
+}
