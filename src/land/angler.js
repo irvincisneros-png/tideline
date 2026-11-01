@@ -1,14 +1,37 @@
 // The visible angler: a chunky, cel-shaded character built from the Blender parts in assets/models/tideline_cosy.glb
 // (tools/blender/tideline.py). Each part is its own mesh with its joint at the object origin, so posing is just rotating
-// joints. Colours are parameters (character creation comes next): setAppearance({ skin, hair, hat, shirt, shorts }).
+// joints. Everything the character creator offers is a real mesh or a colour slot: hair (6), hats (5), sunnies (2), shirt patterns (3),
+// colours for skin, hair, hat, shirt, shorts and the rod. The meshes for an option are only built when it is chosen.
+//   setAppearance({ skin, hair, hairStyle, hatStyle, hat, shirt, pattern, shorts, sunnies, rod })   (colours as 0xRRGGBB or CSS strings)
 // Procedural animation: idle, walk, wind-up, cast, wait, fight (rod bends, leans back), hold up the catch.
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
 import { patchUnderwater } from '../ocean/shaders.js';
 
-export const DEFAULT_LOOK = { skin: 0xc58c5e, hair: 0x4a2f1d, hat: 0xe9d9a6, shirt: 0xf0715a, shorts: 0x2f5496 };
-const SLOTS = ['skin', 'hair', 'hat', 'shirt', 'shorts'];
-const ROD_COL = 0x3b525c, ROD_LEN = 2.25;
+import { DEFAULT_LOOK } from './angler-defaults.js';
+export { DEFAULT_LOOK };
+const SLOTS = ['skin', 'hair', 'hat', 'shirt', 'shorts', 'trim'];
+/** Which meshes each option shows (tools/blender/tideline.py). `hideUnderHat` parts disappear when a hat is worn (a bun or the top curls would poke through). */
+export const OPTION_MESHES = {
+  hairStyle: { short: ['ang_hairShort_hair'], long: ['ang_hairLong_hair'], pony: ['ang_hairPony_hair'], buzz: ['ang_hairBuzz_hair'], curly: ['ang_hairCurly_hair', 'ang_hairCurlyTop_hair'], bun: ['ang_hairBun_hair', 'ang_hairBunKnot_hair'] },
+  hatStyle: { none: [], bucket: ['ang_hatBucket_hat', 'ang_hatBucketBand_band'], cap: ['ang_hatCap_hat'], straw: ['ang_hatStraw_hat', 'ang_hatStrawBand_band'], beanie: ['ang_hatBeanie_hat'], wide: ['ang_hatWide_hat', 'ang_hatWideBand_band'] },
+  sunnies: { none: [], round: ['ang_sunRound_sun'], sport: ['ang_sunSport_sun'] },
+  pattern: {
+    plain: [], stripes: ['ang_torso_stripes_trim', 'ang_armL_stripes_trim', 'ang_armR_stripes_trim'],
+    flowers: ['ang_torso_flowers_trim', 'ang_torso_flowerdots_dots', 'ang_armL_flowers_trim', 'ang_armL_flowerdots_dots', 'ang_armR_flowers_trim', 'ang_armR_flowerdots_dots'],
+    fishing: ['ang_torso_pocket_shirt'],
+  },
+};
+export const HIDE_UNDER_HAT = new Set(['ang_hairBunKnot_hair', 'ang_hairCurlyTop_hair']);
+const BASE_PARTS = {
+  ang_hips_shorts: 'hips', ang_torso_shirt: 'torso', ang_torso_skin: 'torso', ang_head_skin: 'head', ang_head_face: 'head',
+  ang_armL_shirt: 'armL', ang_armL_skin: 'armL', ang_armR_shirt: 'armR', ang_armR_skin: 'armR', ang_foreL_skin: 'elbowL', ang_foreR_skin: 'elbowR',
+  ang_thighL_shorts: 'thighL', ang_thighL_skin: 'thighL', ang_thighR_shorts: 'thighR', ang_thighR_skin: 'thighR', ang_shinL_skin: 'kneeL', ang_shinR_skin: 'kneeR', ang_footL_shoe: 'ankleL', ang_footR_shoe: 'ankleR',
+};
+const jointOf = name => BASE_PARTS[name] ?? (name.startsWith('ang_armL') ? 'armL' : name.startsWith('ang_armR') ? 'armR' : name.startsWith('ang_torso') ? 'torso' : 'head');
+const ROD_LEN = 2.25;
+/** The stripe / petal colour that reads against a shirt colour: cream on dark shirts, deep teal on light ones. */
+export function trimFor(shirt) { const c = new THREE.Color(shirt), l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return l > 0.5 ? 0x1f5f6b : 0xfff3dc; }
 
 // Joint positions in the standing pose (must match PIV in tools/blender/tideline.py).
 const P = { hips: [0, .52, 0], head: [0, .98, 0], armL: [.27, .90, 0], armR: [-.27, .90, 0], elbowL: [.27, .62, 0], elbowR: [-.27, .62, 0], thighL: [.12, .50, 0], thighR: [-.12, .50, 0], kneeL: [.12, .26, 0], kneeR: [-.12, .26, 0], ankleL: [.12, .07, 0], ankleR: [-.12, .07, 0] };
@@ -17,12 +40,14 @@ const ease = k => k * k * (3 - 2 * k);
 
 export class Angler {
   /** @param {Map<string, THREE.BufferGeometry>} models the tideline_cosy.glb set */
-  constructor(scene, models, look = {}) {
+  constructor(scene, models, look = {}, { lo = false, shadows = false } = {}) {
+    this.models = models; this.lo = lo; this.shadowOn = shadows;
     this.look = { ...DEFAULT_LOOK, ...look };
     this.root = new THREE.Group(); this.root.name = 'angler';
     this.mats = {};
     for (const s of SLOTS) this.mats[s] = this.material(0xffffff);
     this.fixed = this.material(0xffffff);
+    this.optionMeshes = new Map();   // name -> mesh, built on first use
     const J = {}; this.joints = J;
     const joint = (name, parent, at) => { const g = new THREE.Group(); g.name = name; g.position.set(...at); parent.add(g); J[name] = g; return g; };
     joint('hips', this.root, P.hips);
@@ -33,18 +58,7 @@ export class Angler {
     joint('head', J.torso, rel('head', 'hips'));
     joint('armL', J.torso, rel('armL', 'hips')); joint('armR', J.torso, rel('armR', 'hips'));
     joint('elbowL', J.armL, rel('elbowL', 'armL')); joint('elbowR', J.armR, rel('elbowR', 'armR'));
-    const attach = (name, jointName) => {
-      const geo = models.get(name); if (!geo) { console.warn('Angler part missing:', name); return; }
-      const slot = name.split('_').pop();
-      const m = new THREE.Mesh(geo, SLOTS.includes(slot) ? this.mats[slot] : this.fixed);
-      m.name = name; m.userData.noOutline = true;
-      J[jointName].add(m);
-    };
-    for (const [n, j] of Object.entries({
-      ang_hips_shorts: 'hips', ang_torso_shirt: 'torso', ang_torso_skin: 'torso', ang_head_skin: 'head', ang_head_hair: 'head', ang_head_face: 'head', ang_hat: 'head', ang_hat_band: 'head',
-      ang_armL_shirt: 'armL', ang_armL_skin: 'armL', ang_armR_shirt: 'armR', ang_armR_skin: 'armR', ang_foreL_skin: 'elbowL', ang_foreR_skin: 'elbowR',
-      ang_thighL_shorts: 'thighL', ang_thighL_skin: 'thighL', ang_thighR_shorts: 'thighR', ang_thighR_skin: 'thighR', ang_shinL_skin: 'kneeL', ang_shinR_skin: 'kneeR', ang_footL_shoe: 'ankleL', ang_footR_shoe: 'ankleR',
-    })) attach(n, j);
+    for (const [n, j] of Object.entries(BASE_PARTS)) this.makePart(n, j);
     this.buildRod(models);
     // The catch is held out to the left in the raised hand, lying flat so it reads from the high camera.
     this.holder = new THREE.Group(); this.root.add(this.holder); this.holder.position.set(0.8, 1.3, 0.2);
@@ -58,20 +72,41 @@ export class Angler {
     const m = new THREE.MeshStandardMaterial({ color, vertexColors: true, roughness: 0.85, metalness: 0 });
     return patchUnderwater(m, { key: 'angler' });
   }
-  /** Character creation hook: any of { skin, hair, hat, shirt, shorts } as 0xRRGGBB or CSS colour strings. */
+  /** A mesh for a named Blender part on its joint (the low-poly _lo version on the low tier when there is one). */
+  makePart(name, jointName = jointOf(name)) {
+    const geo = (this.lo && this.models.get(name + '_lo')) || this.models.get(name);
+    if (!geo) { console.warn('Angler part missing:', name); return null; }
+    const slot = name.split('_').pop();
+    const m = new THREE.Mesh(geo, SLOTS.includes(slot) ? this.mats[slot] : this.fixed);
+    m.name = name; m.userData.noOutline = true; m.castShadow = this.shadowOn; m.receiveShadow = this.shadowOn;
+    this.joints[jointName].add(m);
+    return m;
+  }
+  /** Character creation hook: any of { skin, hair, hairStyle, hatStyle, hat, shirt, pattern, shorts, sunnies, rod }. Colours are 0xRRGGBB or CSS strings. */
   setAppearance(a = {}) {
     Object.assign(this.look, a);
-    for (const s of SLOTS) this.mats[s].color.set(this.look[s]);
+    const L = this.look;
+    for (const s of SLOTS) if (s !== 'trim') this.mats[s].color.set(L[s]);
+    this.mats.trim.color.set(trimFor(L.shirt));
+    if (this.rodMat) this.rodMat.color.set(L.rod);
+    // Show only the meshes the chosen options use.
+    const want = new Set();
+    for (const [key, table] of Object.entries(OPTION_MESHES)) for (const n of table[L[key]] ?? []) want.add(n);
+    const hatOn = (L.hatStyle ?? 'none') !== 'none';
+    for (const n of want) {
+      if (!this.optionMeshes.has(n)) this.optionMeshes.set(n, this.makePart(n));
+    }
+    for (const [n, m] of this.optionMeshes) if (m) m.visible = want.has(n) && !(hatOn && HIDE_UNDER_HAT.has(n));
     return { ...this.look };
   }
-  castShadows(on) { this.root.traverse(o => { if (o.isMesh) o.castShadow = on; }); }
+  castShadows(on) { this.shadowOn = on; this.root.traverse(o => { if (o.isMesh) { o.castShadow = on; o.receiveShadow = on; } }); }
 
   buildRod(models) {
     const J = this.joints;
     // The mount follows the right hand but is oriented in world space each frame (so the rod points where the pose says).
     this.rodMount = new THREE.Group(); J.elbowR.add(this.rodMount); this.rodMount.position.set(0, -0.32, 0.02);
     this.rod = new THREE.Group(); this.rodMount.add(this.rod); this.rod.position.y = -0.1;
-    const blank = new THREE.MeshStandardMaterial({ color: ROD_COL, roughness: 0.55 });
+    const blank = this.rodMat = new THREE.MeshStandardMaterial({ color: this.look.rod, roughness: 0.55 });
     const grip = models.get('rod_grip');
     if (grip) { const g = new THREE.Mesh(grip, this.material(0xffffff)); g.material.vertexColors = true; g.scale.setScalar(1.35); this.rod.add(g); }
     const reel = models.get('rod_reel');
@@ -151,6 +186,7 @@ export class Angler {
     } else if (state === 'landed') {
       aLx = -0.5 + Math.sin(t * 7) * 0.08; eLx = -0.5; aLz = 2.15 + Math.sin(t * 7) * 0.05; aRx = -0.85; eRx = -0.7; phi = 0.8; lean = -0.04; headX = -0.15;
     }
+    if (ctx.phi != null) phi = ctx.phi;   // the character creator holds the rod up beside the head
     if (rodOut && speed > 0.4) { aRx = THREE.MathUtils.lerp(aRx, -0.85, 0.7); }
     const d = (j, p, v) => { j.rotation[p] = damp(j.rotation[p], v, rate, dt); };
     d(J.armR, 'x', aRx); d(J.armR, 'z', aRz); d(J.elbowR, 'x', eRx);

@@ -27,8 +27,9 @@ import { openGuide, guideRows } from './ui/fishGuideUI.js';
 import { openLogbook } from './ui/logbookUI.js';
 import { Outing } from './ui/outing.js';
 import { Footprints } from './world/beachProps.js';
+import { Creator } from './ui/creator.js';
+import { lookOf, nameOf } from './core/anglerData.js';
 import { DayConditions, RIGS, BAITS, tackleBoxHTML } from './fishing/gear.js';
-import { snapshot } from './ui/snapshot.js';
 import { Panels, esc } from './ui/panels.js';
 import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
 
@@ -60,6 +61,7 @@ class Game {
     this.panels = new Panels(this);
     this.dialogue = new Dialogue(this);
     this.catchFlow = new CatchFlow(this);
+    this.creator = new Creator(this); this.creatorOpen = false;
     this.outing = new Outing(this);
     this.env = new Environment(this.scene, this.renderer, this.quality);
     this.fx = new Particles(this.scene, this.quality);
@@ -147,7 +149,8 @@ class Game {
     $('#loading').classList.remove('show');
     this.clock = new THREE.Clock();
     this.enterMenu();
-    if (params.has('play')) this.startLand(null); // skip the title (tests, teacher links)
+    // ?play skips the title (tests, teacher links) and the creator too (add ?creator to see it).
+    if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); }
     this.renderer.setAnimationLoop(() => this.loop());
   }
 
@@ -159,13 +162,27 @@ class Game {
     cards.innerHTML = ECOSYSTEMS.map(e => { const c = rc[regionOf[e.id]]; return `<button class="eco-card ${e.id === this.eco.id ? 'sel' : ''}" data-id="${e.id}">
       <b>${esc(e.name)}</b><small>${esc(e.place)} — ${esc(e.blurb)}</small>${c ? `<span class="chip">${esc(c.label)} ${c.done}/${c.total}</span>` : ''}</button>`; }).join('');
     cards.querySelectorAll('.eco-card').forEach(b => b.onclick = () => this.switchEco(b.dataset.id));
-    $('#btn-play').onclick = () => { this.audio.start(); this.startLand(null); };
+    $('#btn-play').onclick = () => { this.audio.start(); this.beginPlay(); };
+    $('#btn-angler').onclick = () => this.creator.open({});
     $('#btn-journal').onclick = () => this.openGuide();
     $('#btn-logbook').onclick = () => openLogbook(this);
     $('#btn-settings').onclick = () => this.openSettings();
     $('#btn-help').onclick = () => this.panels.help();
     $('#home-btn').onclick = () => this.outing.ask();
     this.updateProgressSummary();
+  }
+  /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
+  beginPlay() {
+    if (!this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) });
+    else this.startLand(null);
+  }
+  /** Done in the character creator: save { name, ...look } and dress the angler in the world. */
+  applyAngler(a) {
+    this.progress.angler = a;
+    this.angler.setAppearance(lookOf(a));
+    this.persist();
+    $('#btn-angler')?.setAttribute('title', `Edit ${a.name || 'my angler'}`);
+    if (this.mode === 'menu') this.angler.update(1 / 60, this.time, { state: 'off' });
   }
   async switchEco(id) {
     if (id === this.eco.id || this.loading) return;
@@ -219,7 +236,7 @@ class Game {
   bindKeys() {
     addEventListener('keydown', e => {
       if (e.code === 'KeyT' && this.tackleOpen && this.panels.isOpen) { this.panels.close(); return; }
-      if (this.panels.isOpen || this.dialogue.isOpen || this.mode !== 'land') return;
+      if (this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen || this.mode !== 'land') return;
       const c = e.code;
       if (c === 'KeyP') this.pauseMenu();
       if (c === 'KeyR' && this.eco.fishing) this.toggleRod();
@@ -240,6 +257,7 @@ class Game {
   }
   openSettings() {
     this.panels.settings(this.settings, (k, v) => {
+      if (k === 'editAngler') { this.panels.close(true); this.creator.open({}); return; }
       if (k === 'resetProgress') { resetProgress(); this.progress = loadProgress(); this.panels.close(); this.updateProgressSummary(); return; }
       this.settings[k] = v; saveSettings(this.settings);
       if (k === 'volume') this.audio.setVolume(v);
@@ -258,7 +276,7 @@ class Game {
   }
   /** The angler and the shoals live in the scene across sites; built once, then re-used. Character creation: game.setAppearance({ skin, hair, hat, shirt, shorts }). */
   makeAngler() {
-    if (!this.angler) this.angler = new Angler(this.scene, this.world.models, this.progress.look);
+    if (!this.angler) this.angler = new Angler(this.scene, this.world.models, lookOf(this.progress.angler), { lo: this.settings.quality === 'low', shadows: !!this.quality.shadows });
     this.angler.castShadows(!!this.quality.shadows);
     this.shoals?.dispose();
     this.shoals = new Shoals(this.scene, this.quality);
@@ -267,7 +285,8 @@ class Game {
     // A school of a species passing within 8 m marks it Seen in the Fish Guide (an NPC's gossip will call guide.markSeen(id, 'npc:name') too).
     this.shoals.onSeen = (id, src) => { if (G.markSeen(this.progress, id, src)) { this.persist(); this.toast('📗 You spotted a kind of fish you have not seen before. Check the Fish Guide (J) for where and when to find it.', 'good'); } };
   }
-  setAppearance(a) { const look = this.angler.setAppearance(a); this.progress.look = look; this.persist(); return look; }
+  /** Test and console hook: game.setAppearance({ skin, hairStyle, hatStyle, ... }) dresses the angler and saves it with the current name. */
+  setAppearance(a) { const look = this.angler.setAppearance(a); this.progress.angler = { ...(this.progress.angler ?? {}), name: this.progress.angler?.name ?? '', ...look }; this.persist(); return look; }
   onPanelClosed() {
     if (this.mode === 'menu') this.updateProgressSummary();
   }
@@ -404,11 +423,8 @@ class Game {
   }
   /** A fish is in your hands: identify it (key), measure it (brag mat), decide keep or release, write it to the logbook (ui/catchFlow.js). */
   onFishLanded(c, spot, done) {
-    this.pendingCatch = c; // the picture of the angler holding it is grabbed after the next render (the Fish Guide photo)
     this.catchFlow.run(c, spot, done);
   }
-  /** Fish Guide photo for a landed fish: the first catch keeps its picture; a longer one replaces it. */
-  storeCatch(c, img) { if (img && G.setPhoto(this.progress, c.id, img, c.length)) this.persist(); }
   /** HUD chips: the esky and the Steward rating. */
   updateStats() {
     const p = this.progress, esky = p.esky ?? [], bad = esky.filter(x => !x.legal).length, st = G.stewardRating(p);
@@ -469,7 +485,7 @@ class Game {
     this.time += dt; this.frame++;
     globalUniforms.uTime.value = this.time;
     this.world.time = this.time;
-    const paused = this.panels.isOpen || this.dialogue.isOpen;
+    const paused = this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen;
     this.input.gameplay = !paused && this.mode === 'land';
     if (this.mode === 'menu') this.updateMenu(dt);
     else if (this.mode === 'land') this.updateLand(dt, paused);
@@ -492,14 +508,13 @@ class Game {
     this.audio.update(dt, { mode: this.mode, depth, camera: this.listener, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1 });
     $('#fx-uw').style.opacity = depth > 0 ? 1 : 0;
     this.touch?.update();
-    if (skipRender) { this.input.endFrame(); return; }
+    if (skipRender || this.creatorOpen) { this.input.endFrame(); return; }   // the creator covers the whole screen: no need to draw the world behind it
     if (this.gradePass) {
       // ShaderPass copies its uniforms, so feed it the live fog and underwater state each frame.
       const u = this.gradePass.material.uniforms;
       u.uFogDensity.value = globalUniforms.uFogDensity.value; u.uUnder.value = globalUniforms.uUnderwater.value;
     }
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
-    if (this.pendingCatch) { const img = snapshot(this.renderer.domElement); this.storeCatch(this.pendingCatch, img); this.pendingCatch = null; }
     this.input.endFrame();
   }
 

@@ -40,7 +40,7 @@ A sunny, hand-made diorama. Bright, clear, calm and friendly. Readable at a glan
 - Soft blue gradient, a few big puffy rounded clouds with gentle shading (no hard noisy edges).
 
 ## Camera and characters
-- A high third-person, near top-down follow camera (pitch about 60 degrees, 12-18 m back, damped, wheel / pinch zoom). The angler is a chunky, cel-shaded character with a big head and a bucket hat (`tools/blender/tideline.py`); colours are parameters (`setAppearance`). Casts, the line (a thin dark curve) and the red and white float are all readable from above.
+- A high third-person, near top-down follow camera (pitch about 60 degrees, 12-18 m back, damped, wheel / pinch zoom). The angler is a chunky, cel-shaded character with a big head and a bucket hat (`tools/blender/tideline.py`); colours are parameters (`setAppearance`). Hair (6), hats (5), sunnies (2) and shirt patterns (stripes, flowers, fishing shirt) are separate Blender meshes in the neutral colour slots (hair / hat / shirt / trim) plus a few fixed-colour parts, chosen in the character creator (`src/ui/creator.js`). Fish: tails, markings and lips match the key's features (`tests/looks.test.mjs`); a flat-bodied fish's tail is spread flat on the brag mat. Casts, the line (a thin dark curve) and the red and white float are all readable from above.
 - Tall things between the camera and the angler (canopies, roofs) are cut away with a stippled see-through hole.
 
 ## Composition

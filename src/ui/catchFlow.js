@@ -7,7 +7,8 @@ import { judge, RULES, adjustStock } from '../fishing/catches.js';
 import * as G from '../fishing/guide.js';
 import { esc } from './panels.js';
 import { mountKey } from './keyUI.js';
-import { fishOnMat } from './fishView.js';
+import { fishOnMat, fishPhoto } from './fishView.js';
+import { nameOf } from '../core/anglerData.js';
 
 const AIR_LIMIT = 10; // seconds out of the water before it counts as too long
 const HOLD_S = 1.4;   // seconds to hold the unhook button
@@ -33,6 +34,7 @@ export class CatchFlow {
     this.tierBefore = G.tierOf(p, this.id);
     G.recordCatch(p, this.id, { length: landed.length });
     this.entry = G.entryOf(p, this.id);
+    G.setPhoto(p, this.id, fishPhoto(this.id), landed.length);   // the Fish Guide picture: a close-up render of the fish itself on the brag mat
     this.measured = null; this.accurate = null; this.decision = null; this.verdict = null;
     this.t0 = performance.now();
     g.panels.open('', null, { locked: true, flow: 'flow' });
@@ -57,7 +59,7 @@ export class CatchFlow {
     const n = this.entry.caught.n;
     this.keyView = mountKey(this.panel.body, {
       id: this.id, title: `Unknown fish #${n}`,
-      sub: p.guide.e[this.id]?.keys?.length ? 'You keyed this fish before. Look again, and check each answer against the fish.' : undefined,
+      sub: `Nice catch, ${nameOf(p)}! ` + (p.guide.e[this.id]?.keys?.length ? 'You keyed this fish before. Look again, and check each answer against the fish.' : 'Look the fish over, then work through the key. Every question is about something you can see.'),
       onConfirm: leaf => {
         const as = SPECIES_BY_ID[leaf];
         G.recordKey(p, this.id, leaf, 'catch');
@@ -77,7 +79,7 @@ export class CatchFlow {
     const top = fishOnMat(this.id, this.sp.feat?.body === 'flattened');
     this.show(`<div class="flow measure">
       <h2>Measure it</h2>
-      <p class="sub">${esc(this.nameNow())}. Mouth closed, snout on the 0 stop, read the tip of the tail.</p>
+      <p class="sub">Nice catch, ${esc(nameOf(p))}! ${esc(this.nameNow())}. Mouth closed, snout on the 0 stop, read the tip of the tail.</p>
       ${first ? '<p class="tip">Tip: total length runs from the tip of the snout (mouth closed) to the tip of the tail. Slide the marker to the tail tip.</p>' : ''}
       <div class="mat" id="mat">
         <svg class="mat-ruler" id="mat-ruler" aria-hidden="true"></svg>
@@ -193,7 +195,7 @@ export class CatchFlow {
     const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPossession).legal !== legal;
     const head = keep
       ? (legal ? { cls: 'good', t: '✔ A legal keep', d: 'It goes in the esky.' } : { cls: 'bad', t: '✖ That fish is not legal to keep', d: 'It goes in the esky marked ILLEGAL. The right call was to release it. A Fisheries Officer who checks your esky would fine you.' })
-      : (legal ? { cls: 'good', t: '✔ Released: always allowed', d: 'Catch and release is always allowed. You could also have kept this one.' } : { cls: 'good', t: '✔ Right call: it had to go back', d: 'It was not legal to keep.' });
+      : (legal ? { cls: 'good', t: '✔ Released: always allowed', d: 'Catch and release is always allowed. You could also have kept this one. (A legal fish released is neutral: Mastery needs a legal keep, or a correct release of a fish you couldn\'t keep.)' } : { cls: 'good', t: '✔ Right call: it had to go back', d: 'It was not legal to keep.' });
     g.audio.play(head.cls === 'good' ? 'correct' : 'wrong');
     this.show(`<div class="flow verdict ${head.cls}">
       <h2>${head.t}</h2>
@@ -275,7 +277,7 @@ export class CatchFlow {
       time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: this.sp.deepWater || undefined };
     p.catches.push(row);
     adjustStock(p, this.spot, id, keep ? (v.legal ? -1 : -4) : 1);
-    G.recordDecision(p, id, this.correct);
+    G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));
     if (keep) (p.esky ??= []).push({ id, label, length: c.length, legal: v.legal, kind: v.kind, reason: v.reason, time: row.time });
     const o = p.outing;
     if (o) {

@@ -108,7 +108,8 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
     const list = t !== 'unseen' && t !== 'seen' ? `<h3>Mastery</h3><ul class="mastery">
         ${check(e.ident, 'Identified: solved the key and named it correctly')}
         ${check(meas.acc > 0, `An accurate measure, within 1 cm (${meas.acc} of ${meas.n} so far)`)}
-        ${check(dec.ok > 0, s.rules.protected ? 'A correct release (protected: it can never be kept)' : 'A correct keep or release decision')}</ul>` : '';
+        ${check(dec.ok > 0, s.rules.protected ? 'A correct release (protected: it can never be kept)' : 'A legal keep, or a correct release of a fish you could not keep')}</ul>
+        <p class="muted mastery-hint">${esc(G.MASTERY_HINT)}${dec.neutral ? ` (Releasing a legal fish is allowed but does not count: ${dec.neutral} so far.)` : ''}</p>` : '';
     // Mastered: stock status, swap, rules and the fact.
     let secrets = '';
     if (master) {

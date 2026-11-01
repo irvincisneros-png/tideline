@@ -6,18 +6,20 @@
 import * as THREE from 'three';
 import { buildFish } from '../life/fishModel.js';
 import { LOOKS } from '../life/looks.js';
+import { SPECIES_BY_ID } from '../fishing/species.js';
 
 const models = new Map();
 /** The geometry and skin of a species (built once). bbox is in model metres: x runs tail -> snout. */
-export function fishModel(id) {
-  let m = models.get(id);
+export function fishModel(id, opts = {}) {
+  const key = opts.flatTail ? `${id}|flatTail` : id;
+  let m = models.get(key);
   if (m) return m;
   const look = LOOKS[id];
   if (!look) throw new Error(`No look registered for ${id}`);
-  const built = buildFish(look);
+  const built = buildFish(look, opts);
   built.geometry.computeBoundingBox();
   m = { geometry: built.geometry, texture: built.texture, bbox: built.geometry.boundingBox.clone() };
-  models.set(id, m);
+  models.set(key, m);
   return m;
 }
 const skin = (m, silhouette) => (silhouette
@@ -168,7 +170,8 @@ export function fishOnMat(id, flat = false, w = 1100) {
 export function fishTopDown(id, w = 1100) {
   const key = `${id}|top|${w}`;
   if (pictures.has(key)) return pictures.get(key);
-  const m = fishModel(id), s = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
+  // A flat fish's tail lies spread on the mat.
+  const m = fishModel(id, { flatTail: SPECIES_BY_ID[id]?.feat?.body === 'flattened' }), s = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
   // Frame the body, not the wide pectoral wings of a flat fish (they are cropped): only the length matters on the mat.
   const look = LOOKS[id], zExt = Math.min(s.z, (look.width ?? 0.2) * look.length * 1.5);
   const aspect = Math.max(0.1, (zExt * 1.08) / s.x), h = Math.round(w * aspect);
@@ -176,4 +179,61 @@ export function fishTopDown(id, w = 1100) {
   cam.position.set(c.x, 5, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, 0, c.z);
   const out = { url: snap(id, cam, w, h, false), aspect };
   pictures.set(key, out); return out;
+}
+
+// ------------------------------------------------------------------ the catch photo
+let photoRig = null;
+/** The Fish Guide picture for a landed fish: the real 3D fish model, lying on a cream brag mat with a cm ruler and a soft shadow, seen from a
+ *  close three-quarter angle, head to the left (flat fish lie on their bellies, the rest on their side). Rendered off-screen: a JPEG data URL, or
+ *  null if the browser cannot make one. */
+export function fishPhoto(id, { w = 360, h = 225, flat = null } = {}) {
+  try {
+    const onBelly = flat ?? SPECIES_BY_ID[id]?.feat?.body === 'flattened';
+    const m = fishModel(id, { flatTail: onBelly });
+    const size = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
+    const L = size.x;
+    if (!photoRig) {
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.NeutralToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
+      photoRig = { renderer };
+    }
+    const { renderer } = photoRig;
+    renderer.setSize(w, h, false);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xcdeee9);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xbfe9f5, 1.7));
+    const sun = new THREE.DirectionalLight(0xfff1d0, 2.4); sun.position.set(-L * 0.5, L * 2.2, L * 1.4); sun.castShadow = true;
+    Object.assign(sun.shadow.camera, { left: -L, right: L, top: L, bottom: -L, near: 0.1, far: L * 6 }); sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 5; sun.shadow.bias = -0.0008;
+    scene.add(sun);
+    // The mat: pale teal with a darker border and a centimetre ruler along the near edge (0 at the left stop).
+    const mw = L * 1.5, md = Math.max(size.z, size.y) * 1.9 + L * 0.2;
+    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = Math.round(1024 * md / mw);
+    const g = cv.getContext('2d'); g.fillStyle = '#d9f4ef'; g.fillRect(0, 0, cv.width, cv.height);
+    g.strokeStyle = '#1f5f6b'; g.lineWidth = 10; g.strokeRect(5, 5, cv.width - 10, cv.height - 10);
+    const pxm = cv.width / mw, left = L * 0.06 * pxm; g.fillStyle = '#1f5f6b'; g.font = '800 26px sans-serif'; g.textAlign = 'center';
+    g.fillRect(left - 8, cv.height - 66, 8, 56);
+    for (let cm = 0; cm * 0.01 <= mw - L * 0.06; cm++) {
+      const x = left + cm * 0.01 * pxm, major = cm % 10 === 0;
+      g.fillRect(x, cv.height - 18 - (major ? 30 : cm % 5 === 0 ? 20 : 12), major ? 3 : 2, major ? 30 : cm % 5 === 0 ? 20 : 12);
+      if (major && cm > 0) g.fillText(String(cm), x, cv.height - 56);
+    }
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const mat = new THREE.Mesh(new THREE.BoxGeometry(mw, 0.012, md), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 })); mat.receiveShadow = true; scene.add(mat);
+    mat.position.set(-L / 2 - L * 0.03 - left / pxm + mw / 2, -0.006, 0);   // the 0 stop sits just in front of the snout
+    // The fish: head (the +x end) to the left; on its belly (flat fish) or lying on its side.
+    const fish = new THREE.Mesh(m.geometry, skin(m, false)); fish.castShadow = true;
+    fish.position.copy(c).multiplyScalar(-1);
+    const holder = new THREE.Group(); holder.add(fish); scene.add(holder);
+    if (!onBelly) holder.rotation.x = Math.PI / 2;
+    const lift = onBelly ? size.y / 2 : size.z / 2;
+    const pivot = new THREE.Group(); pivot.add(holder); scene.add(pivot);
+    pivot.rotation.y = Math.PI + 0.06; pivot.position.set(0, lift + 0.004, -md * 0.08);
+    const cam = new THREE.PerspectiveCamera(30, w / h, 0.01, 20);
+    const tan = Math.tan(THREE.MathUtils.degToRad(15)) * (w / h), dist = (L * 1.32 / 2) / tan;
+    cam.position.set(L * 0.02, dist * 0.8, dist * 0.62 + md * 0.04); cam.lookAt(L * 0.02, 0, md * 0.02);
+    renderer.render(scene, cam);
+    const url = renderer.domElement.toDataURL('image/jpeg', 0.82);
+    scene.traverse(o => { o.geometry && o !== fish && o.geometry.dispose?.(); o.material?.dispose?.(); }); tex.dispose();
+    return url;
+  } catch (e) { console.warn('Catch photo failed', e); return null; }
 }

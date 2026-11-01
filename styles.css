@@ -455,3 +455,55 @@ body.touch #catchbar { right: calc(118px + env(safe-area-inset-right)); padding:
 
 /* Phone-width overrides for the phase 1b panels (after the base rules so they win) */
 @media (max-width: 560px) { .gguide-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; } .gnm { padding: 5px 7px 7px; font-size: 12px; } .gnm small { font-size: 10.5px; } .g-stat .stars.big { font-size: 11px; } .g-stat { overflow: hidden; } .lb .c-tide, .lb .c-time { display: none; } #site-name { display: none; } .fv-hint { display: none; } .fv-wrap { position: sticky; top: -4px; z-index: 4; background: var(--cream); padding-bottom: 6px; } }
+
+/* ---------- Character creator ---------- */
+.creator { position: fixed; inset: 0; z-index: 50; background: linear-gradient(180deg, var(--sky) 0%, #e6f7f3 45%, var(--cream) 100%); overflow: hidden; }
+.cc-wrap { height: 100%; max-width: 1180px; margin: 0 auto; padding: clamp(10px, 2.2vw, 22px); display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: clamp(10px, 2vw, 20px); }
+.cc-stage { position: relative; min-height: 0; border: var(--outline); border-radius: 26px; overflow: hidden; background: #cdeee9; box-shadow: 0 8px 0 rgba(31, 95, 107, 0.4), 0 20px 40px rgba(20, 67, 77, 0.2); }
+.cc-stage-host { position: absolute; inset: 0; }
+.cc-canvas { display: block; cursor: grab; }
+.cc-canvas:active { cursor: grabbing; }
+.cc-turn { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; }
+.cc-turn .btn { min-width: 46px; min-height: 40px; font-size: 20px; padding: 2px 12px; }
+.cc-hello { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--cream); color: var(--teal-deep); border: 3px solid var(--teal-ink); border-radius: 99px; padding: 5px 18px; font-family: var(--font-display); font-weight: 800; font-size: 18px; box-shadow: var(--shadow-sm); pointer-events: none; }
+.cc-panel { position: relative; min-height: 0; display: flex; flex-direction: column; background: var(--cream); color: var(--teal-ink); border: var(--outline); border-radius: 26px; padding: clamp(14px, 2vw, 22px); box-shadow: 0 8px 0 rgba(31, 95, 107, 0.4), 0 20px 40px rgba(20, 67, 77, 0.2); }
+.cc-panel h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 28px; color: var(--teal-deep); line-height: 1.15; }
+.cc-panel h2:focus { outline: none; }
+.cc-sub { margin: 4px 0 10px; color: var(--muted); font-weight: 700; line-height: 1.4; }
+.cc-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; padding: 8px 6px 4px 2px; border-top: 3px dotted rgba(31, 95, 107, 0.3); scrollbar-color: var(--teal-ink) transparent; }
+.cc-row { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.cc-row legend { padding: 0; font-family: var(--font-display); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: #c2570a; }
+.cc-row legend label { cursor: pointer; }
+.cc-cur { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 800; margin-left: 8px; font-size: 13px; }
+.cc-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.cc-sw { position: relative; width: 40px; height: 40px; padding: 0; border-radius: 50%; border: 3px solid var(--teal-ink); background: var(--c); cursor: pointer; box-shadow: 0 3px 0 rgba(31, 95, 107, 0.4); transition: transform 0.08s; }
+.cc-sw:hover { transform: translateY(-2px); }
+.cc-sw i { display: none; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--teal-ink); box-sizing: border-box; }
+.cc-sw[aria-checked="true"] { outline: 4px solid var(--coral); outline-offset: 2px; }
+.cc-sw[aria-checked="true"] i { display: block; }
+.cc-pill { padding: 8px 14px; min-height: 40px; border-radius: 99px; border: 3px solid var(--teal-ink); background: var(--cream3); color: var(--teal-ink); font-family: var(--font-display); font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 3px 0 rgba(31, 95, 107, 0.4); }
+.cc-pill:hover { background: #fff; }
+.cc-pill[aria-checked="true"] { background: var(--turq2); color: var(--cream3); text-shadow: 0 2px 0 rgba(20, 67, 77, 0.45); }
+.cc-name input { width: 100%; margin-top: 6px; padding: 11px 14px; border-radius: 16px; border: 3px solid var(--teal-ink); background: #fff; color: var(--teal-deep); font-family: var(--font-display); font-weight: 800; font-size: 18px; }
+.cc-name input[aria-invalid="true"] { border-color: var(--tomato); background: var(--tomato-pale); }
+.cc-msg { display: block; margin-top: 5px; color: var(--muted); font-weight: 700; }
+.cc-msg.bad { color: var(--tomato); font-weight: 800; }
+.cc-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 3px dotted rgba(31, 95, 107, 0.3); }
+.cc-live { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.creator-open #touch, body.creator-open #hud { visibility: hidden; }
+@media (max-width: 760px) {
+  .cc-wrap { grid-template-columns: 1fr; grid-template-rows: clamp(190px, 33vh, 300px) minmax(0, 1fr); padding: 8px; gap: 8px; }
+  .cc-stage { border-width: 3px; border-radius: 22px; box-shadow: 0 5px 0 rgba(31, 95, 107, 0.4); }
+  .cc-panel { border-width: 3px; border-radius: 22px; padding: 10px 12px 12px; box-shadow: 0 5px 0 rgba(31, 95, 107, 0.4); }
+  .cc-panel h2 { font-size: 21px; }
+  .cc-sub { display: none; }
+  .cc-hello { font-size: 15px; padding: 3px 14px; top: 8px; }
+  .cc-turn { left: 8px; bottom: 8px; }
+  .cc-row { margin-bottom: 11px; }
+  .cc-group { gap: 6px; }
+  .cc-sw { width: 35px; height: 35px; }
+  .cc-foot { gap: 8px; padding-top: 8px; }
+  .cc-foot .btn { padding: 8px 14px; font-size: 15px; }
+}
+@media (max-height: 520px) and (min-width: 761px) { .cc-sub { display: none; } .cc-row { margin-bottom: 9px; } }
+@media (prefers-reduced-motion: reduce) { .cc-sw, .cc-sw:hover { transition: none; transform: none; } }

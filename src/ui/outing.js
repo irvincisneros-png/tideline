@@ -6,6 +6,7 @@ import { stockOf } from '../fishing/catches.js';
 import { PORTRAITS } from './dialogue.js';
 import { WHY } from './catchFlow.js';
 import { esc } from './panels.js';
+import { nameOf } from '../core/anglerData.js';
 
 export const OFFICER_CHANCE = 1 / 3;
 
@@ -61,7 +62,7 @@ export class Outing {
     const g = this.game, p = this.p, dlg = g.dialogue, who = PORTRAITS.officer, esky = p.esky ?? [];
     const st = p.steward; const before = G.stewardRating(p).value;
     g.audio.play('click');
-    await dlg.say({ who, text: "G'day! I'm a Fisheries Officer. Just a routine check on the way out. Mind if I have a look in your esky?", button: 'Sure, go ahead' });
+    await dlg.say({ who, text: `G'day, ${esc(nameOf(p))}! I'm a Fisheries Officer. Just a routine check on the way out. Mind if I have a look in your esky?`, button: 'Sure, go ahead' });
     let result;
     if (!esky.length) {
       await dlg.say({ who, text: 'Nothing in it at all. Catch and release is great for the bay: every fish you let go can keep breeding. Thanks for looking after the water.' });
@@ -81,7 +82,7 @@ export class Outing {
         result = { result: 'fine', lost, illegal: bad.length };
       } else {
         st.checks++; st.clean++;
-        await dlg.say({ who, text: 'Every fish in here is legal and you are inside your bag limits. Beauty. That is how you keep fishing healthy for everyone. Well done!' });
+        await dlg.say({ who, text: 'Every fish in here is legal and you are inside your bag limits. Beauty. That is how you keep fishing healthy for everyone. Well done, ' + esc(nameOf(p)) + '!' });
         g.audio.play('correct');
         result = { result: 'clean', lost: 0 };
       }

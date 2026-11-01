@@ -78,11 +78,14 @@ function paintSkin(look, W = 512, H = 512) {
   return tex;
 }
 
-/** Build fish geometry. Returns { geometry, texture, length }. */
-export function buildFish(look) {
+/** Build fish geometry. Returns { geometry, texture, length }.
+ *  opts.flatTail: spread the tail fin flat (horizontal), as it lies on a brag mat: used for the top-down picture of flat-bodied fish.
+ *  look.arms (squid): that many arms plus two long tentacles, taking the front `armsFrac` of the length; look.lips: thick lips. */
+export function buildFish(look, opts = {}) {
   const L = look.length;
   const tailFrac = look.tailFrac ?? 0.2;
-  const bodyLen = L * (1 - tailFrac);
+  const armsL = look.arms ? (look.armsFrac ?? 0.24) * L : 0;
+  const bodyLen = L * (1 - tailFrac) - armsL;
   const C = cosy();
   const depth = look.depth * L, width = look.width * L * (C ? 1.18 : 1);
   const RINGS = C ? 32 : 26, SEG = C ? 24 : 18;
@@ -114,7 +117,7 @@ export function buildFish(look) {
   }
   // Fins: thin double-sided sheets. Each is a strip from base curve to edge curve.
   const addFin = (base, edge, n, vBand, uOf) => {
-    const vertical = C && Math.abs(base(0.5)[2]) < 1e-6 && Math.abs(edge(0.5)[2]) < 1e-6;
+    const vertical = C && [0.25, 0.5, 0.75].every(k => Math.abs(base(k)[2]) < 1e-6 && Math.abs(edge(k)[2]) < 1e-6);
     if (vertical) {
       // Two layers (z = +t and -t), thickest at the base and tapering to a rounded edge.
       const T = Math.max(0.004, L * 0.022), M = 3, start = pos.length / 3;
@@ -180,8 +183,9 @@ export function buildFish(look) {
     const tl = tailFrac * L;
     const xb = x0 + 0.005;
     const n = 12;
+    const flat = !!opts.flatTail;
     addFin(
-      k => [xb, (k - 0.5) * depth * 0.5 * (look.peduncle ?? 0.14) * 1.4, 0],
+      k => (flat ? [xb, 0, (k - 0.5) * Math.max(depth, width * 0.5) * 0.5 * (look.peduncle ?? 0.14) * 1.4] : [xb, (k - 0.5) * depth * 0.5 * (look.peduncle ?? 0.14) * 1.4, 0]),
       k => {
         const y = (k - 0.5) * 2; // -1..1
         let x;
@@ -189,11 +193,38 @@ export function buildFish(look) {
         else if (tail === 'lunate') x = xb - tl * (0.45 + 0.55 * Math.pow(Math.abs(y), 0.6));
         else if (tail === 'round') x = xb - tl * (1 - 0.35 * y * y);
         else if (tail === 'heterocercal') x = xb - tl * (y > 0 ? 0.4 + 0.6 * Math.pow(y, 0.7) : 0.35 + 0.35 * Math.pow(-y, 0.8));
-        else x = xb - tl * (0.9 + 0.1 * Math.abs(y)); // truncate
+        else x = xb - tl * (1 - 0.14 * Math.pow(Math.abs(y), 2.4)); // truncate: a nearly straight edge with softly rounded corners (never forked)
         let yy = y * span;
         if (tail === 'heterocercal') yy = y > 0 ? y * span * 1.15 + tl * 0.25 * y : y * span * 0.6;
-        return [x, yy, 0];
+        return flat ? [x, 0, yy] : [x, yy, 0];
       }, n, 0.5, k => 0.02 + 0.06 * Math.abs(k - 0.5));
+  }
+  // Squid: eight arms and two longer tentacles fanned out from the front of the mantle (the key's "tentacles" feature is visible on the model).
+  if (look.arms) {
+    const t0 = 0.9, x1 = bodyX(1), hh0 = depth * 0.5 * bodyProfile(t0, look), ww0 = width * 0.5 * bodyProfile(t0, look);
+    const arm = (a, len, r0, spread, droop) => {
+      const SEGS = 5, RING = 6, start = pos.length / 3;
+      for (let i = 0; i <= 8; i++) {
+        const k = i / 8, r = r0 * (1 - 0.82 * k) + 0.0015;
+        const cx = bodyX(t0) + (x1 - bodyX(t0) + len) * k, cy = Math.cos(a) * (hh0 * 0.45 + spread * k * k) - droop * k * k, cz = Math.sin(a) * (ww0 * 0.45 + spread * k * k);
+        for (let j = 0; j < RING; j++) { const q = (j / RING) * TAU; pos.push(cx, cy + Math.cos(q) * r, cz + Math.sin(q) * r); uv.push(0.9, 0.78); fin.push(0, -1); }
+      }
+      for (let i = 0; i < 8; i++) for (let j = 0; j < RING; j++) { const a0 = start + i * RING + j, a1 = start + i * RING + (j + 1) % RING, b0 = a0 + RING, b1 = a1 + RING; idx.push(a0, a1, b0, a1, b1, b0); }
+    };
+    for (let i = 0; i < look.arms; i++) arm((i / look.arms) * TAU + 0.3, armsL * 0.92, depth * 0.085, depth * 0.1, depth * 0.05);
+    for (const a of [0.6, Math.PI + 0.6]) arm(a, armsL * 1.35 - (x1 - bodyX(t0)) * 0.0, depth * 0.045, depth * 0.05, depth * 0.1);
+  }
+  // Thick lips: two soft pads at the front of the jaws.
+  if (look.lips) {
+    const x1 = bodyX(1), r = depth * 0.1, S = 10, R = 6;
+    for (const [dy, rx, ry, rz] of [[-depth * 0.045, r * 1.15, r * 0.62, r * 1.0], [-depth * 0.13, r * 1.05, r * 0.6, r * 0.9]]) {
+      const start = pos.length / 3;
+      for (let i = 0; i <= R; i++) for (let j = 0; j <= S; j++) {
+        const a = (i / R) * Math.PI, th = (j / S) * TAU;
+        pos.push(x1 - rx * 0.55 + Math.cos(a) * rx, dy + Math.sin(a) * Math.sin(th) * ry, Math.sin(a) * Math.cos(th) * rz); uv.push(0.9, 0.8); fin.push(0, -1);
+      }
+      for (let i = 0; i < R; i++) for (let j = 0; j < S; j++) { const a0 = start + i * (S + 1) + j, b0 = a0 + S + 1; idx.push(a0, a0 + 1, b0, a0 + 1, b0 + 1, b0); }
+    }
   }
   // Pectoral fins (pair)
   const pecL = (look.pectoral ?? 0.12) * L;

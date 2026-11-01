@@ -250,7 +250,7 @@ PIV = {'hips': (0, .52, 0), 'torso': (0, .52, 0), 'head': (0, .98, 0),
        'ankleL': (.12, .07, 0), 'ankleR': (-.12, .07, 0)}
 PARTS = {  # object name -> pivot key
     'ang_hips_shorts': 'hips', 'ang_torso_shirt': 'torso', 'ang_torso_skin': 'torso',
-    'ang_head_skin': 'head', 'ang_head_hair': 'head', 'ang_head_face': 'head', 'ang_hat': 'head', 'ang_hat_band': 'head',
+    'ang_head_skin': 'head', 'ang_head_face': 'head',
     'ang_armL_shirt': 'armL', 'ang_armL_skin': 'armL', 'ang_armR_shirt': 'armR', 'ang_armR_skin': 'armR',
     'ang_foreL_skin': 'elbowL', 'ang_foreR_skin': 'elbowR',
     'ang_thighL_shorts': 'thighL', 'ang_thighL_skin': 'thighL', 'ang_thighR_shorts': 'thighR', 'ang_thighR_skin': 'thighR',
@@ -289,42 +289,6 @@ def a_head_face():
         pts.append(Vector((x, y, head_sf(x, y) - .002)))
     for a, b in zip(pts, pts[1:]): tube3(m, a, b, .0062, .0062, 0x8a4a46, 4)
     for p in (pts[0], pts[-1]): ell(m, p, (.0075, .0075, .0075), 0x8a4a46, 6, 4)
-    return m
-
-def a_head_hair():
-    m = Mesh(); N = neutral(1.0, 1.4, .84, 1.0)
-    part = p_sphere(28, 16)
-    c0, r0 = Vector((0, 1.185, -.012)), Vector((.247, .232, .241))
-    bmesh.ops.transform(part, matrix=M3(c0, None, r0), verts=part.verts)
-    dele = []
-    for v in part.verts:
-        p = CBI @ v.co  # three coords (CBI = inverse of three->blender)
-        p = Vector((v.co.x, v.co.z, -v.co.y))
-        face = p.z > .035 and p.y < 1.272 + .014 * math.sin(p.x * 52)
-        ear = abs(p.x) > .12 and -.07 < p.z < .075 and p.y < 1.255
-        nape = p.y < 1.035 + .03 * math.sin(p.x * 35 + 1.0)
-        if face or ear or nape: dele.append(v)
-    bmesh.ops.delete(part, geom=dele, context='VERTS')
-    m.add(part, None, N)
-    # tousled fringe tufts peeking under the hat
-    for i, x in enumerate((-.13, -.065, 0, .065, .13)):
-        ell(m, (x, 1.268 - .008 * (i % 2), .198 - abs(x) * .45), (.052, .03, .04), N, 8, 5, (0.5, 0, 0))
-    ell(m, (0, 1.06, -.19), (.13, .07, .06), N, 10, 6)   # back-of-neck tuft
-    return m
-
-def a_hat():
-    m = Mesh(); N = neutral(1.15, 1.49, .84, 1.0)
-    prof = [(0.0, 1.478), (.09, 1.472), (.165, 1.455), (.205, 1.425), (.226, 1.355), (.236, 1.285), (.262, 1.268), (.322, 1.248),
-            (.372, 1.226), (.39, 1.21), (.383, 1.196), (.326, 1.21), (.262, 1.236), (.222, 1.262), (.2, 1.32), (.184, 1.405), (.09, 1.45), (0.0, 1.452)]
-    lathe(m, prof, N, seg=26)
-    m.rotate((0, 1.25, -.05), (-.2, 0, 0))
-    return m
-
-def a_hat_band():
-    m = Mesh()
-    prof = [(.224, 1.282), (.2395, 1.282), (.2425, 1.296), (.2395, 1.332), (.2325, 1.338), (.222, 1.336), (.221, 1.31)]
-    lathe(m, prof, lambda p, n: (0.98, 0.95, 0.88) if n.y > -.4 else (0.9, 0.86, 0.78), seg=24, closed=True)
-    m.rotate((0, 1.25, -.05), (-.2, 0, 0))
     return m
 
 def a_torso_shirt():
@@ -396,22 +360,313 @@ def a_shoe(s):
     m.tint(lambda p, n: 1.0 - .08 * (1 - clamp(n.y * .5 + .5)))
     return m
 
+def hair_cap(c0=(0, 1.185, -.012), r0=(.247, .232, .241), face_y=1.272, nape_y=1.035, ears=True, N=None, hairline=None):
+    """The scalp shell shared by every hair style: an ellipsoid with the face, the ears and (optionally) the nape cut away."""
+    part = p_sphere(28, 16)
+    bmesh.ops.transform(part, matrix=M3(Vector(c0), None, Vector(r0)), verts=part.verts)
+    dele = []
+    for v in part.verts:
+        p = Vector((v.co.x, v.co.z, -v.co.y))
+        face = p.z > .035 and p.y < face_y + .014 * math.sin(p.x * 52)
+        ear = ears and abs(p.x) > .12 and -.07 < p.z < .075 and p.y < 1.255
+        nape = nape_y is not None and p.y < nape_y + .03 * math.sin(p.x * 35 + 1.0)
+        if face or ear or nape: dele.append(v)
+    bmesh.ops.delete(part, geom=dele, context='VERTS')
+    return part
+
+def fringe(m, N, n=5, y=1.268, spread=.13, size=(.052, .03, .04)):
+    for i, x in enumerate([(-spread + 2 * spread * k / (n - 1)) for k in range(n)]):
+        ell(m, (x, y - .008 * (i % 2), .198 - abs(x) * .45), size, N, 8, 5, (0.5, 0, 0))
+
+def a_hair_short():
+    m = Mesh(); N = neutral(1.0, 1.4, .84, 1.0)
+    m.add(hair_cap(), None, N)
+    fringe(m, N)
+    ell(m, (0, 1.06, -.19), (.13, .07, .06), N, 10, 6)   # back-of-neck tuft
+    return m
+
+def a_hair_long():
+    m = Mesh(); N = neutral(.74, 1.4, .76, 1.0)
+    m.add(hair_cap(nape_y=None, ears=False), None, N)
+    fringe(m, N, 5, 1.27, .125)
+    ell(m, (0, 1.05, -.2), (.215, .3, .085), N, 18, 10, (-.06, 0, 0))                 # the back curtain
+    for s in (-1, 1):
+        ell(m, (s * .222, 1.1, -.015), (.044, .2, .085), N, 12, 8)                    # side locks past the ears
+        ell(m, (s * .12, .78, -.215), (.09, .075, .06), N, 10, 6)                       # ends
+    ell(m, (0, .76, -.215), (.1, .07, .06), N, 10, 6)
+    return m
+
+def a_hair_pony():
+    m = Mesh(); N = neutral(.95, 1.42, .8, 1.0)
+    m.add(hair_cap(), None, N)
+    fringe(m, N, 5, 1.268, .125, (.05, .03, .04))
+    ell(m, (0, 1.3, -.215), (.062, .062, .05), N, 10, 6)                                # the tie
+    m.add(p_sweep([(0, 1.30, -.21), (0, 1.27, -.30), (0, 1.14, -.36), (0, 1.0, -.345), (0, .9, -.31)], [.05, .062, .066, .05, .018], 10), None, N)
+    return m
+
+def a_hair_buzz():
+    m = Mesh(); N = neutral(1.0, 1.4, .9, 1.0)
+    m.add(hair_cap(r0=(.241, .224, .234), c0=(0, 1.183, -.012), face_y=1.292, nape_y=1.075), None, N)
+    return m
+
+def curly_bumps(m, N, top):
+    c0, r0 = Vector((0, 1.2, -.02)), Vector((.25, .235, .25))
+    n = 64
+    for i in range(n):
+        yy = 1 - 2 * (i + .5) / n; rr = math.sqrt(max(0, 1 - yy * yy)); ph = i * 2.399963
+        d = Vector((math.cos(ph) * rr, yy, math.sin(ph) * rr))
+        if d.y < -.18: continue
+        if d.z > .3 and d.y < .72: continue                      # keep the face clear
+        if (d.y > .5) != top: continue                           # the crown curls are a separate part so a hat can hide them
+        big = .068 if d.y > .1 else .06
+        pos = c0 + Vector((d.x * r0.x, d.y * r0.y, d.z * r0.z)) * 1.06
+        ell(m, pos, (big, big * .92, big), N, 8, 5)
+
+def a_hair_curly():
+    m = Mesh(); N = neutral(.98, 1.5, .8, 1.0)
+    m.add(hair_cap(r0=(.243, .226, .237), c0=(0, 1.183, -.012), face_y=1.285, nape_y=1.08, ears=True), None, N)
+    curly_bumps(m, N, False)
+    for x in (-.1, 0, .1): ell(m, (x, 1.285, .185), (.052, .04, .04), N, 8, 5)       # curly fringe
+    return m
+
+def a_hair_curly_top():
+    m = Mesh(); N = neutral(.98, 1.5, .8, 1.0)
+    curly_bumps(m, N, True)
+    return m
+
+def a_hair_bun():
+    m = Mesh(); N = neutral(1.0, 1.45, .84, 1.0)
+    m.add(hair_cap(face_y=1.268), None, N)
+    fringe(m, N, 5, 1.268, .125, (.05, .03, .04))
+    ell(m, (0, 1.06, -.19), (.13, .07, .06), N, 10, 6)
+    return m
+
+def a_hair_bun_knot():
+    m = Mesh(); N = neutral(1.3, 1.5, .78, 1.0)
+    ell(m, (0, 1.4, -.125), (.1, .09, .1), N, 14, 9)
+    ell(m, (0, 1.34, -.15), (.07, .04, .07), N, 10, 6)
+    # a few hairpin-neat swirls
+    for a in (0, 2.1, 4.2): ell(m, (math.cos(a) * .07, 1.425, -.125 + math.sin(a) * .07), (.045, .035, .045), N, 8, 5)
+    return m
+
+# ---------------------------------------------------------------- hats (each also tilts back a touch like the original bucket hat)
+def hat_tilt(m, a=-.2): m.rotate((0, 1.25, -.05), (a, 0, 0))
+
+def a_hat_bucket():
+    m = Mesh(); N = neutral(1.15, 1.49, .84, 1.0)
+    prof = [(0.0, 1.478), (.09, 1.472), (.165, 1.455), (.205, 1.425), (.226, 1.355), (.236, 1.285), (.262, 1.268), (.322, 1.248),
+            (.372, 1.226), (.39, 1.21), (.383, 1.196), (.326, 1.21), (.262, 1.236), (.222, 1.262), (.2, 1.32), (.184, 1.405), (.09, 1.45), (0.0, 1.452)]
+    lathe(m, prof, N, seg=26)
+    hat_tilt(m); return m
+
+def a_hat_bucket_band():
+    m = Mesh()
+    prof = [(.224, 1.282), (.2395, 1.282), (.2425, 1.296), (.2395, 1.332), (.2325, 1.338), (.222, 1.336), (.221, 1.31)]
+    lathe(m, prof, lambda p, n: (0.98, 0.95, 0.88) if n.y > -.4 else (0.9, 0.86, 0.78), seg=24, closed=True)
+    hat_tilt(m); return m
+
+def a_hat_cap():
+    m = Mesh(); N = neutral(1.18, 1.49, .84, 1.0)
+    outer = [(0.0, 1.472), (.08, 1.468), (.15, 1.45), (.205, 1.412), (.238, 1.35), (.25, 1.285), (.252, 1.236)]
+    inner = [(.238, 1.236), (.236, 1.285), (.222, 1.35), (.19, 1.405), (.13, 1.44), (0.0, 1.452)]
+    lathe(m, outer + inner, N, seg=26, closed=True)
+    ell(m, (0, 1.474, 0), (.03, .014, .03), N, 8, 5)                                     # the button
+    # the bill: a curved peak, tilted down at the front
+    part = p_sphere(18, 8)
+    bmesh.ops.transform(part, matrix=M3((0, 1.262, .27), (.16, 0, 0), (.16, .016, .15)), verts=part.verts)
+    m.add(part, None, lambda p, n: tuple(v * (0.86 if n.y < -.3 else 1.0) for v in N(p, n)))
+    hat_tilt(m, -.12); return m
+
+def a_hat_straw():
+    m = Mesh(); base = neutral(1.18, 1.46, .86, 1.0)
+    weave = lambda p, n: tuple(v * (0.93 + .07 * math.sin(math.hypot(p.x, p.z) * 150)) for v in base(p, n))
+    prof = [(0.0, 1.452), (.1, 1.448), (.16, 1.43), (.19, 1.395), (.2, 1.34), (.206, 1.275), (.3, 1.262), (.36, 1.252), (.39, 1.238), (.396, 1.228), (.39, 1.222),
+            (.34, 1.232), (.285, 1.243), (.222, 1.258), (.2, 1.3), (.182, 1.4), (.1, 1.43), (0.0, 1.432)]
+    lathe(m, prof, weave, seg=28)
+    hat_tilt(m, -.12); return m
+
+def a_hat_straw_band():
+    m = Mesh()
+    prof = [(.2, 1.282), (.2135, 1.282), (.2165, 1.298), (.213, 1.326), (.2, 1.328)]
+    lathe(m, prof, lambda p, n: (0.28, 0.66, 0.66), seg=26, closed=True)
+    hat_tilt(m, -.12); return m
+
+def a_hat_beanie():
+    m = Mesh(); N0 = neutral(1.2, 1.5, .82, 1.0)
+    rib = lambda p, n: tuple(v * (0.9 + .1 * math.sin(math.atan2(p.z, p.x) * 22)) for v in N0(p, n))
+    outer = [(0.0, 1.488), (.07, 1.482), (.14, 1.46), (.2, 1.418), (.238, 1.35), (.25, 1.28), (.262, 1.236)]
+    inner = [(.238, 1.236), (.222, 1.28), (.212, 1.35), (.178, 1.41), (.12, 1.445), (0.0, 1.462)]
+    lathe(m, outer + inner, rib, seg=26, closed=True)
+    cuff = [(.25, 1.232), (.268, 1.236), (.272, 1.285), (.262, 1.31), (.245, 1.308), (.243, 1.25)]
+    lathe(m, cuff, lambda p, n: tuple(v * .92 for v in N0(p, n)), seg=26, closed=True)
+    ell(m, (0, 1.53, 0), (.06, .056, .06), N0, 12, 8)                                    # the pom-pom
+    hat_tilt(m, -.1); return m
+
+def a_hat_wide():
+    m = Mesh(); N = neutral(1.18, 1.52, .84, 1.0)
+    prof = [(0.0, 1.488), (.06, 1.486), (.12, 1.48), (.17, 1.468), (.198, 1.44), (.208, 1.38), (.213, 1.3), (.28, 1.282), (.38, 1.255), (.45, 1.222), (.472, 1.188), (.466, 1.18),
+            (.44, 1.198), (.37, 1.232), (.28, 1.262), (.218, 1.275), (.2, 1.32), (.186, 1.4), (.15, 1.444), (.08, 1.462), (0.0, 1.464)]
+    lathe(m, prof, N, seg=30)
+    hat_tilt(m, -.18); return m
+
+def a_hat_wide_band():
+    m = Mesh()
+    prof = [(.205, 1.3), (.222, 1.3), (.225, 1.318), (.222, 1.348), (.205, 1.35)]
+    lathe(m, prof, lambda p, n: (0.36, 0.24, 0.2), seg=26, closed=True)
+    hat_tilt(m, -.18); return m
+
+# ---------------------------------------------------------------- sunnies (fixed colours)
+def sunnies_arms(m, col):
+    for s in (-1, 1):
+        pts = [(.142, .19), (.19, .15), (.214, .115), (.232, .07), (.24, .0), (.24, -.04)]
+        for (xa, za), (xb, zb) in zip(pts, pts[1:]): tube3(m, (s * xa, 1.186, za), (s * xb, 1.186, zb), .0062, .0062, col, 6)
+
+def a_sun_round():
+    m = Mesh()
+    for s in (-1, 1):
+        x = s * .097; z = head_sf(x, 1.178) + .0135; th = s * math.asin(clamp(x / .27, -1, 1)) * 1.05
+        rot = Euler((math.pi / 2, 0, 0), 'XYZ').to_matrix()
+        ring = Matrix.Rotation(th, 3, 'Y') @ rot
+        m.add(p_torus(.051, .0072, 20, 6), M3((x, 1.18, z), ring), 0x2c2a30)
+        m.add(p_cyl(.05, .05, 20, True), M3((x, 1.18, z - .001), ring, (1, .006, 1)), lambda p, n: (0.16, 0.2, 0.24))
+        ell(m, (x - s * .018, 1.2, z + .004), (.012, .012, .004), 0xdfeef2, 6, 4, ring)         # a glint
+    tube3(m, (-.048, 1.19, .236), (.048, 1.19, .236), .0065, .0065, 0x2c2a30, 6)
+    sunnies_arms(m, 0x2c2a30)
+    return m
+
+def a_sun_sport():
+    m = Mesh()
+    for s in (-1, 1):
+        x = s * .1; z = head_sf(x, 1.18) + .016; th = s * math.asin(clamp(x / .27, -1, 1)) * 1.05
+        R = Matrix.Rotation(th, 3, 'Y')
+        m.add(p_rbox((.132, .08, .012), .02, 3), M3((x, 1.17, z), R), 0xff6f61)                 # chunky frame
+        m.add(p_rbox((.108, .06, .014), .018, 3), M3((x, 1.17, z + .004), R), lambda p, n: tuple(mix_c((0.2, 0.62, 0.68), (0.45, 0.86, 0.88), clamp((p.y - 1.14) / .06))))
+    tube3(m, (-.05, 1.19, .238), (.05, 1.19, .238), .008, .008, 0xff6f61, 6)
+    sunnies_arms(m, 0xf6f1e6)
+    return m
+
+def mix_c(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+
+# ---------------------------------------------------------------- shirt patterns (the body lathe radii are looked up so patterns sit on the cloth)
+TORSO_OUT = [(.462, .186), (.54, .196), (.62, .198), (.72, .19), (.81, .178), (.88, .15)]    # (y, r) of the shirt lathe, scale (1.26, .95)
+SLEEVE_OUT = [(.72, .1), (.735, .106), (.78, .1), (.84, .098), (.89, .092)]
+def prof_r(tab, y):
+    y = clamp(y, tab[0][0], tab[-1][0])
+    for (y0, r0), (y1, r1) in zip(tab, tab[1:]):
+        if y <= y1: return r0 + (r1 - r0) * (y - y0) / (y1 - y0)
+    return tab[-1][1]
+
+def band(m, tab, y0, y1, col, scale=(1, 1), c=(0, 0, 0), grow=.006, seg=28):
+    ra, rb = prof_r(tab, y0), prof_r(tab, y1)
+    lathe(m, [(ra + grow, y0), (rb + grow, y1), (rb - .012, y1), (ra - .012, y0)], col, seg=seg, scale=scale, c=c, closed=True)
+
+def a_torso_stripes():
+    m = Mesh(); N = neutral(.46, .9, .88, 1.0)
+    for y in (.5, .585, .67, .755, .84): band(m, TORSO_OUT, y, y + .04, N, (1.26, .95), grow=.006)
+    return m
+
+def a_arm_stripes(s):
+    m = Mesh(); N = neutral(.7, .95, .88, 1.0)
+    for y in (.735, .81): band(m, SLEEVE_OUT, y, y + .03, N, c=(s * .27, 0, 0), grow=.006, seg=18)
+    return m
+
+def flower(petals, dots, P, n, ang, k=1.0):
+    q = Quaternion(n, ang) @ aim(n)
+    pts = []
+    for i in range(25):                                                              # five rounded petals (a rose curve)
+        a = i / 25 * TAU; r = .05 * k * (.5 + .5 * abs(math.cos(2.5 * a)) ** .8)
+        pts.append((math.cos(a) * r, math.sin(a) * r))
+    petals.add(p_prism(pts, .008), M3(P - n * .003, q), (0.97, 0.97, 0.97))
+    tube3(dots, P - n * .002, P + n * .011, .0135 * k, .011 * k, 0xffc24a, 8)
+
+def torso_pt(y, th):
+    r = prof_r(TORSO_OUT, y)
+    x, z = math.sin(th) * r * 1.26, math.cos(th) * r * .95
+    n = Vector((x / (r * 1.26) ** 2, 0, z / (r * .95) ** 2)).normalized()
+    return Vector((x, y, z)), n
+
+def a_flowers():
+    petals, dots = Mesh(), Mesh()
+    for ri, y in enumerate((.58, .69, .80)):
+        for ci in range(10):
+            th = (ci + (.5 if ri % 2 else 0)) / 10 * TAU
+            if abs(math.sin(th)) > .985 and ri == 2: continue
+            P, n = torso_pt(y, th)
+            flower(petals, dots, P, n, th * 1.7 + ri, 1.0 if ri != 1 else .9)
+    return petals, dots
+
+def a_arm_flowers(s):
+    petals, dots = Mesh(), Mesh()
+    for y, a in ((.83, .5), (.76, 1.5)):
+        P = Vector((s * .27 + s * prof_r(SLEEVE_OUT, y), y, 0)); n = Vector((s, 0, 0))
+        flower(petals, dots, P, n, a, .85)
+    return petals, dots
+
+def a_pocket():
+    """Fishing shirt: two buttoned chest pockets with flaps, a placket, a collar and shoulder tabs (all the shirt colour, a touch darker)."""
+    m = Mesh(); D = neutral(.45, 1.0, .74, .9); L = neutral(.45, 1.0, .8, .96)
+    for s in (-1, 1):
+        x = s * .088; th = math.asin(x / (prof_r(TORSO_OUT, .77) * 1.26)); P, n = torso_pt(.765, th)
+        R = (0, th, 0)
+        m.add(p_rbox((.094, .092, .014), .012, 2), M3(P + n * .004, R), L)                         # the pocket
+        P2, n2 = torso_pt(.832, th)
+        m.add(p_rbox((.1, .034, .018), .01, 2), M3(P2 + n2 * .006, R), D)                          # the flap
+        ell(m, P2 + n2 * .0155, (.012, .012, .006), L, 8, 5, aim(n2))                              # the button
+        # shoulder tab
+        m.add(p_rbox((.1, .014, .062), .006, 1), M3((s * .2, .948, 0), (0, 0, -s * .3)), D)
+    P, n = torso_pt(.7, 0)
+    m.add(p_rbox((.03, .4, .012), .005, 1), M3(P + n * .003, None), D)                             # button placket
+    # collar: a band round the neck base with two leaf points at the front
+    lathe(m, [(.066, .935), (.118, .928), (.128, .91), (.118, .905), (.082, .912), (.07, .93)], D, seg=22, closed=True, scale=(1.18, .96))
+    for s in (-1, 1):
+        m.add(p_rbox((.07, .014, .06), .006, 1), M3((s * .056, .936, .108), (.6, 0, s * -.5)), D)
+    return m
+
+# ---------------------------------------------------------------- the option catalogue: object name -> (pivot, option group)
+OPTION_PARTS = {
+    'ang_hairShort_hair': 'head', 'ang_hairLong_hair': 'head', 'ang_hairPony_hair': 'head', 'ang_hairBuzz_hair': 'head', 'ang_hairCurly_hair': 'head', 'ang_hairCurlyTop_hair': 'head',
+    'ang_hairBun_hair': 'head', 'ang_hairBunKnot_hair': 'head',
+    'ang_hatBucket_hat': 'head', 'ang_hatBucketBand_band': 'head', 'ang_hatCap_hat': 'head', 'ang_hatStraw_hat': 'head', 'ang_hatStrawBand_band': 'head',
+    'ang_hatBeanie_hat': 'head', 'ang_hatWide_hat': 'head', 'ang_hatWideBand_band': 'head',
+    'ang_sunRound_sun': 'head', 'ang_sunSport_sun': 'head',
+    'ang_torso_stripes_trim': 'torso', 'ang_armL_stripes_trim': 'armL', 'ang_armR_stripes_trim': 'armR',
+    'ang_torso_flowers_trim': 'torso', 'ang_torso_flowerdots_dots': 'torso', 'ang_armL_flowers_trim': 'armL', 'ang_armL_flowerdots_dots': 'armL',
+    'ang_armR_flowers_trim': 'armR', 'ang_armR_flowerdots_dots': 'armR',
+    'ang_torso_pocket_shirt': 'torso',
+}
+PARTS.update(OPTION_PARTS)
+
 def build_angler():
-    """Returns {name: obj} with geometry in WORLD standing pose, AO baked with the whole figure present (call recenter() afterwards)."""
-    B = {'ang_head_skin': a_head_skin(), 'ang_head_face': a_head_face(), 'ang_head_hair': a_head_hair(), 'ang_hat': a_hat(), 'ang_hat_band': a_hat_band(),
+    """Returns {name: obj} with geometry in WORLD standing pose. Base parts plus every character-creator option (hair, hats, sunnies, shirt patterns);
+    the game shows the chosen ones. AO is baked per part against the body plus only that part (so options never shade each other)."""
+    B = {'ang_head_skin': a_head_skin(), 'ang_head_face': a_head_face(),
          'ang_torso_shirt': a_torso_shirt(), 'ang_torso_skin': a_torso_skin(), 'ang_hips_shorts': a_hips()}
     for sd, s in (('L', 1), ('R', -1)):
         B[f'ang_arm{sd}_shirt'] = a_arm_shirt(s); B[f'ang_arm{sd}_skin'] = a_arm_skin(s); B[f'ang_fore{sd}_skin'] = a_fore(s)
         B[f'ang_thigh{sd}_shorts'] = a_thigh_shorts(s); B[f'ang_thigh{sd}_skin'] = a_thigh_skin(s)
         B[f'ang_shin{sd}_skin'] = a_shin(s); B[f'ang_foot{sd}_shoe'] = a_shoe(s)
+    O = {'ang_hairShort_hair': a_hair_short(), 'ang_hairLong_hair': a_hair_long(), 'ang_hairPony_hair': a_hair_pony(), 'ang_hairBuzz_hair': a_hair_buzz(),
+         'ang_hairCurly_hair': a_hair_curly(), 'ang_hairCurlyTop_hair': a_hair_curly_top(), 'ang_hairBun_hair': a_hair_bun(), 'ang_hairBunKnot_hair': a_hair_bun_knot(),
+         'ang_hatBucket_hat': a_hat_bucket(), 'ang_hatBucketBand_band': a_hat_bucket_band(), 'ang_hatCap_hat': a_hat_cap(), 'ang_hatStraw_hat': a_hat_straw(),
+         'ang_hatStrawBand_band': a_hat_straw_band(), 'ang_hatBeanie_hat': a_hat_beanie(), 'ang_hatWide_hat': a_hat_wide(), 'ang_hatWideBand_band': a_hat_wide_band(),
+         'ang_sunRound_sun': a_sun_round(), 'ang_sunSport_sun': a_sun_sport(),
+         'ang_torso_stripes_trim': a_torso_stripes(), 'ang_armL_stripes_trim': a_arm_stripes(1), 'ang_armR_stripes_trim': a_arm_stripes(-1),
+         'ang_torso_pocket_shirt': a_pocket()}
+    O['ang_torso_flowers_trim'], O['ang_torso_flowerdots_dots'] = a_flowers()
+    for sd, s in (('L', 1), ('R', -1)): O[f'ang_arm{sd}_flowers_trim'], O[f'ang_arm{sd}_flowerdots_dots'] = a_arm_flowers(s)
     objs = {}
-    for name, m in B.items():
+    for name, m in {**B, **O}.items():
         objs[name] = done(m, name, bake_now=False)
+    def only(names):
+        for n, o in objs.items(): o.hide_render = n not in names
+    base = set(B)
     for name, o in objs.items():
         slot = name.split('_')[-1]
         if slot == 'face': continue
-        bake(o, 0.24 if slot in ('skin', 'hair', 'hat', 'shirt', 'shorts') else (0.5 if slot == 'shoe' else 0.25),
+        only(base | {name})
+        bake(o, 0.24 if slot in ('skin', 'hair', 'hat', 'shirt', 'shorts') else (0.5 if slot == 'shoe' else 0.2 if name in O else 0.25),
              ground=(slot == 'shoe'), occ=True, dist=0.16)
+    for o in objs.values(): o.hide_render = False
     return objs
 
 def recenter(objs):
@@ -472,7 +727,7 @@ def render(path, cam3, look3, lens=50, res=(1000, 1100), sky=0x9fd8e8, ground=0x
     bpy.ops.render.render(write_still=True)
     for ob in (g, so, co): bpy.data.objects.remove(ob)
 
-TEST = dict(skin=0xc98f5f, hair=0x6b4226, hat=0xe8d3a0, shirt=0xff7a5c, shorts=0x24406e)
+TEST = dict(skin=0xc98f5f, hair=0x6b4226, hat=0xe8d3a0, shirt=0xff7a5c, shorts=0x24406e, trim=0xfff6e0)
 def tint_for(name):
     slot = name.split('_')[-1]
     return TEST.get(slot)
@@ -509,15 +764,43 @@ def angler_rig(objs, x=0.0, z=0.0, yaw=0.0, pose=None, tint=True):
 
 def preview_angler(objs):
     os.makedirs(SHOTS, exist_ok=True)
-    made = angler_rig(objs)
+    base = [n for n in objs if n not in OPTION_PARTS]
+    def combo(*extra): return {n: objs[n] for n in base + [e for e in extra if e]}
+    for o in objs.values(): o.hide_render = True
+    made = angler_rig(combo('ang_hairShort_hair', 'ang_hatBucket_hat', 'ang_hatBucketBand_band'))
     render(os.path.join(SHOTS, 'angler.png'), (1.55, 1.45, 3.1), (0, .72, 0), lens=55, res=(900, 1100))
     scene_clear_previews(made, objs.values())
     pose = {'armL': (math.radians(-120), 0, math.radians(-8)), 'elbowL': (math.radians(-40), 0, 0), 'armR': (math.radians(25), 0, 0), 'elbowR': (math.radians(-35), 0, 0),
             'thighL': (math.radians(-28), 0, 0), 'kneeL': (math.radians(35), 0, 0), 'thighR': (math.radians(18), 0, 0), 'head': (math.radians(8), math.radians(-18), 0),
             'torso': (math.radians(-4), math.radians(10), 0)}
-    made = angler_rig(objs, yaw=0, pose=pose)
+    for o in objs.values(): o.hide_render = True
+    made = angler_rig(combo('ang_hairShort_hair', 'ang_hatBucket_hat', 'ang_hatBucketBand_band'), yaw=0, pose=pose)
     render(os.path.join(SHOTS, 'angler_pose.png'), (1.9, 1.5, 3.0), (0, .75, 0), lens=55, res=(900, 1100))
     scene_clear_previews(made, objs.values())
+    # Option sheets: a row of anglers per group (hair; hats; sunnies; shirt patterns), turned 30 degrees so the side and the front both show.
+    sheets = {
+        'opt_hair': [[h] for h in ('Short', 'Long', 'Pony', 'Buzz', 'Curly', 'Bun')],
+        'opt_hats': [['ang_hairShort_hair', 'ang_hatBucket_hat', 'ang_hatBucketBand_band'], ['ang_hairPony_hair', 'ang_hatCap_hat'], ['ang_hairLong_hair', 'ang_hatStraw_hat', 'ang_hatStrawBand_band'],
+                     ['ang_hairCurly_hair', 'ang_hatBeanie_hat'], ['ang_hairShort_hair', 'ang_hatWide_hat', 'ang_hatWideBand_band'], ['ang_hairBun_hair', 'ang_hairBunKnot_hair']],
+        'opt_sun': [['ang_hairShort_hair', 'ang_sunRound_sun'], ['ang_hairBuzz_hair', 'ang_sunSport_sun'], ['ang_hairLong_hair', 'ang_hatCap_hat', 'ang_sunRound_sun'], ['ang_hairShort_hair']],
+    }
+    sheets['opt_hair'] = [['ang_hair%s_hair' % h] + (['ang_hairBunKnot_hair'] if h == 'Bun' else ['ang_hairCurlyTop_hair'] if h == 'Curly' else []) for (h,) in sheets['opt_hair']]
+    for name, rows in sheets.items():
+        made = []
+        for o in objs.values(): o.hide_render = True
+        for i, extra in enumerate(rows): made += angler_rig(combo(*extra), x=(i - (len(rows) - 1) / 2) * .95, yaw=-28)
+        render(os.path.join(SHOTS, name + '.png'), (0, 1.4, 14), (0, 1.1, 0), lens=85, res=(1800, 760))
+        scene_clear_previews(made, objs.values())
+    pat = [['ang_hairShort_hair', 'ang_torso_stripes_trim', 'ang_armL_stripes_trim', 'ang_armR_stripes_trim'],
+           ['ang_hairPony_hair', 'ang_torso_flowers_trim', 'ang_torso_flowerdots_dots', 'ang_armL_flowers_trim', 'ang_armL_flowerdots_dots', 'ang_armR_flowers_trim', 'ang_armR_flowerdots_dots'],
+           ['ang_hairBuzz_hair', 'ang_torso_pocket_shirt'], ['ang_hairShort_hair']]
+    for yaw, nm in ((-28, 'opt_shirt'), (180, 'opt_shirt_back')):
+        made = []
+        for o in objs.values(): o.hide_render = True
+        for i, extra in enumerate(pat): made += angler_rig(combo(*extra), x=(i - 1.5) * 1.0, yaw=yaw)
+        render(os.path.join(SHOTS, nm + '.png'), (0, 2.1, 5.2), (0, .72, 0), lens=50, res=(1800, 1000))
+        scene_clear_previews(made, objs.values())
+    for o in objs.values(): o.hide_render = False
 
 # ================================================================= B) PROPS
 def hex_mix(a, b, t): return mix(srgb(a), srgb(b), clamp(t))
@@ -1142,7 +1425,7 @@ def preview_jetty(P):
     for d in made: bpy.data.objects.remove(d)
     unhide(hid)
 
-REQUIRED = list(PARTS) + ['norfolk_pine_0', 'norfolk_pine_1', 'casuarina_0', 'casuarina_1', 'banksia_0', 'banksia_1'] + \
+REQUIRED = list(PARTS) + [n + '_lo' for n in OPTION_PARTS] + ['norfolk_pine_0', 'norfolk_pine_1', 'casuarina_0', 'casuarina_1', 'banksia_0', 'banksia_1'] + \
     [f'{n}_lo' for n in ('norfolk_pine_0', 'norfolk_pine_1', 'casuarina_0', 'casuarina_1', 'banksia_0', 'banksia_1')] + \
     ['jetty_deck', 'jetty_post', 'jetty_end', 'tinnie', 'bait_hut', 'cleaning_table', 'lifeguard_tower', 'pelican', 'esky', 'bucket', 'rod_reel', 'rod_grip']
 OPTIONAL = ['jetty_rope']
@@ -1153,7 +1436,10 @@ def main():
     allobjs, P = {}, {}
     ang = {}
     if ONLY in ('all', 'angler'):
-        ang = build_angler(); recenter(ang); allobjs.update(ang)
+        ang = build_angler(); recenter(ang)
+        allobjs.update(ang)
+        for n in [k for k in ang if k in OPTION_PARTS]:                                  # low-tier versions of the creator options
+            allobjs[n + '_lo'] = lo = lo_copy(ang[n], .5); lo.hide_render = True
     if ONLY in ('all', 'props', 'trees', 'jetty'):
         fns = {'norfolk_pine_0': lambda: norfolk_pine('norfolk_pine_0', 11, 10, 2.5, 1), 'norfolk_pine_1': lambda: norfolk_pine('norfolk_pine_1', 14, 13, 2.8, 2),
                'casuarina_0': lambda: casuarina('casuarina_0', 9.9, 1.0, 3), 'casuarina_1': lambda: casuarina('casuarina_1', 10.4, -.9, 4),

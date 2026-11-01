@@ -3,7 +3,9 @@
 //
 // Tiers: seen (silhouette and a where/when hint) -> caught ("Unknown fish #n") -> identified (named by solving the key) -> mastered
 // (an accurate brag-mat measure, within 1 cm, AND a correct keep/release decision; reveals status, swap, rules and fact).
-// Protected species are mastered by a correct release only (keeping one is never a correct decision).
+// The decision that counts toward Mastery is either keeping a legal fish, or releasing a fish that was illegal to keep (undersize, over the
+// slot, over the bag or possession limit, protected). Releasing a legal fish is always allowed and neutral, but does not count, so Mastery
+// cannot be won by releasing everything. Protected species are mastered by a correct release only (keeping one is never correct).
 import { SPECIES, SPECIES_BY_ID, SPOT_INFO, REGIONS, speciesInRegion } from './species.js';
 import { stockOf } from './catches.js';
 
@@ -64,14 +66,20 @@ export function recordMeasure(p, id, accurate) {
   e.meas.n++; if (accurate) e.meas.acc++;
   checkMastery(p, id);
 }
-export function recordDecision(p, id, correct) {
+/** Does this keep-or-release call count toward Mastery? A legal keep, or a release of a fish that was not legal to keep. */
+export const masteryDecision = (keep, legal) => (keep ? !!legal : !legal);
+export const MASTERY_HINT = 'Mastery needs a legal keep, or a correct release of a fish you couldn\'t keep.';
+
+/** correct = the call was not wrong (steward practice). counts = it also qualifies for Mastery (default: same as correct). A neutral call
+ *  (releasing a legal fish) is tallied separately as dec.neutral. */
+export function recordDecision(p, id, correct, counts = correct) {
   const e = entryFor(p, id);
   e.dec ??= { ok: 0, bad: 0 };
-  if (correct) e.dec.ok++; else e.dec.bad++;
+  if (counts) e.dec.ok++; else if (correct) e.dec.neutral = (e.dec.neutral ?? 0) + 1; else e.dec.bad++;
   checkMastery(p, id);
 }
 
-/** Mastered = identified (the key was solved) + an accurate measure + a correct decision. */
+/** Mastered = identified (the key was solved) + an accurate measure + a qualifying decision (see masteryDecision). */
 export function checkMastery(p, id) {
   const e = entryOf(p, id);
   if (!e || e.mastered) return;

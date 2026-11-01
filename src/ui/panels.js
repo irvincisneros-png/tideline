@@ -74,6 +74,7 @@ export class Panels {
   // ---------------------------------------------------------------- settings / help
   settings(settings, onChange) {
     const html = `<h2>Settings</h2>
+      <div class="settings-row"><span>My angler<br><small style="color:var(--muted)">Change your name, hair, hat, clothes and rod colour.</small></span><button class="btn small" id="set-angler">Edit my angler</button></div>
       <div class="settings-row"><span>Graphics quality<br><small style="color:var(--muted)">Lower this on school laptops. Changes reload the site.</small></span>
         <select id="set-q">${Object.entries(TIERS).map(([k, t]) => `<option value="${k}" ${settings.quality === k ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
       <div class="settings-row"><span>Graphics style<br><small style="color:var(--muted)">Cosy: soft, colourful, hand-shaped models. Realistic: the original look. Changes reload the site.</small></span>
@@ -85,6 +86,7 @@ export class Panels {
       <p style="margin-top:16px"><button class="btn small" id="set-reset">Reset all progress</button></p>`;
     this.open(html);
     const ch = (k, v) => onChange(k, v);
+    $('#set-angler').onclick = () => ch('editAngler', true);
     $('#set-q').onchange = e => ch('quality', e.target.value);
     $('#set-style').onchange = e => ch('style', e.target.value);
     $('#set-sens').oninput = e => ch('sensitivity', +e.target.value);
