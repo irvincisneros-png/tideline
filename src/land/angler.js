@@ -103,6 +103,7 @@ export class Angler {
     scene.add(this.root);
     this.root.visible = false;
     this.phase = 0; this.t = 0; this.castT = 9; this.prevState = 'off'; this.rodPhi = 0.95; this.lean = 0; this.bend = 0;
+    this.hold_ = 0; this.pull = 0; this.crank = 0; this.az = 0; this.bendS = 0; this.shake = 0;   // smoothed fight state: reel input, fish pull, hand crank angle, rod azimuth, bend, shake
     this.tmpQ = new THREE.Quaternion(); this.tmpV = new THREE.Vector3(); this.tmpP = new THREE.Quaternion();
   }
   material(color) {
@@ -162,9 +163,10 @@ export class Angler {
     this.rod.visible = false;
   }
   /** Bend the rod: 0 straight .. 1 deep bend (spread along the shaft). */
-  setBend(b, t = 0) {
+  setBend(b, t = 0, shake = 0) {
     this.bend = b;
-    this.rod.userData.segs.forEach((seg, i) => { seg.rotation.x = b * 0.2 * (i + 1) * 0.6 + (b > 0.5 ? Math.sin(t * 22 + i) * 0.015 * b : 0); });
+    // Negative x: the tip bows forward and down toward the line. A fish making a run adds a small quiver.
+    this.rod.userData.segs.forEach((seg, i) => { seg.rotation.x = -(b * 0.2 * (i + 1) * 0.6) + Math.sin(t * 19 + i) * 0.02 * shake * (i + 1); });
   }
 
   /** Show the catch in the raised hand (a THREE.Object3D) or clear it (null). */
@@ -195,13 +197,20 @@ export class Angler {
     const breathe = Math.sin(t * 2.1) * 0.012, sway = ctx.reducedMotion ? 0 : Math.sin(t * 1.3) * 0.03 * still;
     const rodOut = state !== 'off';
     // Targets for the arms, the rod angle phi (0 = level forward, pi/2 = straight up, > pi/2 leaning back) and the body lean.
-    let aRx = -sw2 * 0.9, aRz = -0.12, eRx = -0.25, aLx = -sw * 0.9, aLz = 0.12, eLx = -0.15, lean = 0, phi = 0.95, headX = 0, hipY = 0, rate = 12;
+    let aRx = -sw2 * 0.9, aRz = -0.12, eRx = -0.25, aLx = -sw * 0.9, aLz = 0.12, eLx = -0.15, lean = 0, phi = 0.95, headX = 0, hipY = 0, rate = 12, crankRate = 0, shakeAmp = 0;
     if (rodOut) {
       aRx = -0.85 - Math.max(0, -sw2) * 0.1; aRz = -0.1; eRx = -0.7;
       aLx = -0.35 + sw * 0.2; eLx = -0.4;
       phi = 0.95 + Math.sin(t * 1.6) * 0.015;
     }
     const act = ctx.act ?? 0;
+    // Smooth the inputs once per frame (rise a little faster than fall) so the pose never snaps.
+    const reelIn = state === 'fight' && ctx.reel ? 1 : 0;
+    this.hold_ += (reelIn - this.hold_) * Math.min(1, dt * (reelIn > this.hold_ ? 6 : 4));
+    this.pull += ((state === 'fight' ? act : 0) - this.pull) * Math.min(1, dt * 5);
+    this.tension = clamp(0.3 + 0.3 * this.hold_ + 0.55 * this.pull, 0, 1);
+    this.crank = (this.crank + dt * (state === 'fight' ? 0.5 + 6.5 * this.hold_ : 0)) % (Math.PI * 2);
+    this.az = damp(this.az, state === 'fight' || state === 'wait' || state === 'bite' ? clamp(ctx.side ?? 0, -0.45, 0.45) : 0, 4, dt);
     if (state === 'charge') {
       const p = ctx.power ?? 0; // wind back: the rod goes up and over, the shoulder rotates, the body leans back
       aRx = -0.85 + p * 1.5; eRx = -0.7 - p * 0.5; phi = 0.95 + p * 1.0; lean = -0.14 * p; aLx = -0.55 + p * 0.3;
@@ -215,36 +224,45 @@ export class Angler {
     } else if (state === 'wait') {
       phi = 0.78 + Math.sin(t * 0.9) * 0.02; aRx = -0.9; eRx = -0.75;
     } else if (state === 'bite') {
-      phi = 0.95 + Math.sin(t * 40) * 0.05; aRx = -0.95; lean = 0.05; headX = 0.22; // lean in, rod tip twitching
+      phi = 0.95 + Math.sin(t * 14) * 0.03; aRx = -0.95; lean = 0.05; headX = 0.22; // lean in, rod tip twitching
     } else if (state === 'fight') {
-      // Lean back against the fish; reeling with the left hand, the rod bent and shaking.
-      phi = 1.25 + Math.sin(t * 9) * 0.04 * act; lean = -0.2 - 0.08 * act; aRx = -1.05; eRx = -0.9;
-      aLx = -0.95; eLx = -1.2 + Math.sin(t * 12) * 0.5; aLz = 0.05; hipY = Math.sin(t * 7) * 0.05 * act; rate = 8; headX = -0.12;
+      // Feet planted, rod up and angled at the fish, body leaning back when it pulls, the left hand cranking the reel while the bar is held.
+      // Everything is driven by smoothed values (hold_, pull), so Space toggling every few ms reads as a steady reel, not a flicker.
+      const hs = this.hold_, pl = this.pull, burst = clamp((pl - 0.3) / 0.7, 0, 1);
+      const strike = ctx.fightT != null ? ease(clamp(1 - ctx.fightT / 0.45, 0, 1)) * Math.sin(clamp(ctx.fightT / 0.12, 0, 1) * Math.PI / 2) : 0;   // a quick rod lift as the hook is set
+      phi = 1.1 + 0.12 * this.tension + 0.55 * strike; lean = -0.1 - 0.1 * pl - 0.05 * hs - 0.12 * strike; aRx = -1.0 - 0.15 * strike + 0.05 * hs; eRx = -0.9;
+      const c = this.crank, r = 0.2 + 0.1 * hs;
+      aLx = -0.9 + Math.sin(c) * r; aLz = 0.08 + Math.cos(c) * r * 0.8; eLx = -1.15 + Math.cos(c) * 0.3 * (0.4 + 0.6 * hs); crankRate = 30;
+      rate = 7; headX = -0.1;
+      shakeAmp = burst;
     } else if (state === 'landed') {
       aLx = -0.5 + Math.sin(t * 7) * 0.08; eLx = -0.5; aLz = 2.15 + Math.sin(t * 7) * 0.05; aRx = -0.85; eRx = -0.7; phi = 0.8; lean = -0.04; headX = -0.15;
     }
     if (ctx.phi != null) phi = ctx.phi;   // the character creator holds the rod up beside the head
     if (rodOut && speed > 0.4) { aRx = THREE.MathUtils.lerp(aRx, -0.85, 0.7); }
-    const d = (j, p, v) => { j.rotation[p] = damp(j.rotation[p], v, rate, dt); };
+    const d = (j, p, v, r = rate) => { j.rotation[p] = damp(j.rotation[p], v, r, dt); };
+    this.shake = damp(this.shake, shakeAmp, 6, dt);
     d(J.armR, 'x', aRx); d(J.armR, 'z', aRz); d(J.elbowR, 'x', eRx);
-    d(J.armL, 'x', aLx); d(J.armL, 'z', aLz); d(J.elbowL, 'x', eLx);
+    const cr = crankRate || rate;
+    d(J.armL, 'x', aLx, cr); d(J.armL, 'z', aLz, cr); d(J.elbowL, 'x', eLx, cr);
     d(J.thighL, 'x', sw); d(J.thighR, 'x', sw2);
     d(J.kneeL, 'x', Math.max(0, -sw) * 0.9); d(J.kneeR, 'x', Math.max(0, -sw2) * 0.9);
-    d(J.torso, 'x', lean); d(J.torso, 'z', sway); d(J.head, 'x', headX - lean * 0.5); d(J.head, 'z', -sway * 1.5);
+    d(J.torso, 'x', lean); d(J.torso, 'z', sway + Math.sin(t * 13) * 0.025 * this.shake); d(J.head, 'x', headX - lean * 0.5); d(J.head, 'z', -sway * 1.5);
     J.hips.position.y = P.hips[1] + breathe + Math.abs(Math.sin(this.phase)) * 0.04 * Math.min(1, w) + hipY * 0.2;
     this.rodPhi = damp(this.rodPhi, phi, rate, dt);
     // Orient the rod in the character's vertical plane: direction (0, sin phi, cos phi) in the root frame.
     this.root.updateWorldMatrix(true, false);
     this.rodMount.parent.updateWorldMatrix(true, false);
     const q = this.tmpQ, pq = this.tmpP, dir = this.tmpV;
-    dir.set(0, Math.sin(this.rodPhi), Math.cos(this.rodPhi)).applyQuaternion(this.root.getWorldQuaternion(pq));
+    dir.set(Math.sin(this.az) * Math.cos(this.rodPhi), Math.sin(this.rodPhi), Math.cos(this.az) * Math.cos(this.rodPhi)).applyQuaternion(this.root.getWorldQuaternion(pq));
     q.setFromUnitVectors(UP, dir);
     this.rodMount.parent.getWorldQuaternion(pq);
     this.rodMount.quaternion.copy(pq.invert().multiply(q));
     this.rod.visible = rodOut;
     if (this.holding) { this.holder.position.y = 1.3 + Math.sin(t * 6) * 0.04; this.holder.rotation.y = Math.sin(t * 5) * 0.25; }
     // The reel faces the angler: spin the grip around the rod axis so the reel hangs below the rod.
-    this.setBend(state === 'fight' ? 0.35 + 0.65 * act : state === 'wait' ? 0.05 : state === 'bite' ? 0.2 : state === 'charge' ? 0.25 : 0, t);
+    this.bendS = damp(this.bendS, state === 'fight' ? 0.3 + 0.7 * this.tension : state === 'wait' ? 0.05 : state === 'bite' ? 0.2 : state === 'charge' ? 0.25 : 0, 7, dt);
+    this.setBend(this.bendS, t, this.shake);
   }
 }
 const UP = new THREE.Vector3(0, 1, 0);

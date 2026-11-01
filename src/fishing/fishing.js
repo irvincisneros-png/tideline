@@ -44,10 +44,14 @@ export class Fishing {
     this.target = new THREE.Vector3(); this.dist = 0; this.power = 0; this.sag = 0.3; this.bend = 0;
     this.bar = new CatchBar(game);
     this.tipW = new THREE.Vector3();
+    this.reel = false; this.fightT = 0;
+    this.lineDir = new THREE.Vector3(0, 0, 1);   // unit bearing from the angler to the float while a line is out
   }
   get active() { return this.state !== 'off'; }
   get angler() { return this.game.angler; }
   /** 0..1 for the angler pose while a fish is on. */
+  /** Signed angle (rad) from the facing to the float, + toward the angler's local +x (the model's left arm): the rod leans toward the fish. */
+  get side() { const w = this.game.walker, f = this.float.position; return this.float.visible ? Math.atan2((f.x - w.pos.x) * Math.cos(w.heading) - (f.z - w.pos.z) * Math.sin(w.heading), (f.x - w.pos.x) * Math.sin(w.heading) + (f.z - w.pos.z) * Math.cos(w.heading)) : 0; }
   get act() { return this.state === 'fight' ? this.bar.activity : 0; }
 
   /** R: take the rod out or put it away. spot: a key of SPOTS (the cast re-checks it where the float lands). */
@@ -92,7 +96,11 @@ export class Fishing {
     const surf = (x, z) => world.surfaceAt(x, z);
     // On a drifting boat the bait drifts with it: carry the float and the cast target along (g.carry is set each frame by the site, eco.tick).
     if (g.carry && (g.carry.x || g.carry.z) && ['flying', 'wait', 'bite'].includes(this.state)) { this.float.position.x += g.carry.x; this.float.position.z += g.carry.z; this.target.x += g.carry.x; this.target.z += g.carry.z; if (this.from) { this.from.x += g.carry.x; this.from.z += g.carry.z; } }
-    w.frozen = ['charge', 'bite', 'fight', 'landed'].includes(this.state);
+    // Once the line is out the angler plants their feet and faces the float: the bearing is locked (see lineDir), walk input is ignored.
+    w.frozen = ['charge', 'flying', 'wait', 'bite', 'fight', 'landed'].includes(this.state);
+    if (this.state === 'flying') this.lineDir.set(this.target.x - w.pos.x, 0, this.target.z - w.pos.z).normalize();
+    else if (this.state === 'wait' || this.state === 'bite') { this.lineDir.set(this.float.position.x - w.pos.x, 0, this.float.position.z - w.pos.z); if (this.lineDir.lengthSq() > 0.25) this.lineDir.normalize(); else this.lineDir.copy(w.facing); }
+    if (LINE_OUT.includes(this.state)) w.face(this.lineDir.x, this.lineDir.z, dt, 10);
     if (this.state === 'ready' || this.state === 'charge') g.aimAtCursor(dt); // desktop: face the pointer while the rod is out
     this.aim.visible = this.aimLine.visible = this.state === 'charge';
     if (this.state === 'ready') {
@@ -146,14 +154,14 @@ export class Fishing {
       // The catch bar runs the fight; the line, float and rod follow what the fish does.
       const bar = this.bar;
       bar.update(dt, space);
+      this.reel = space || !!bar.held;   // Space, or a finger on the bar on touch
       const act = bar.activity;
       this.fightT += dt;
-      const away = this.float.position.clone().sub(eye).setY(0).normalize();
+      const away = this.lineDir;   // fixed at the strike: re-deriving it from the float (which swings sideways) made the bearing drift round and spin the angler
       const d = THREE.MathUtils.lerp(this.dist0, 2.5, bar.meter); // the float comes in as the meter fills
       const side = new THREE.Vector3(-away.z, 0, away.x).multiplyScalar(Math.sin(this.fightT * (1.2 + act * 3)) * Math.min(5, d * 0.18) * (0.4 + act));
       this.float.position.copy(eye).addScaledVector(away, Math.max(1.8, d)).add(side);
       this.float.position.y = surf(this.float.position.x, this.float.position.z) - 0.04 - (bar.s?.mode === 'dive' ? 0.1 : 0);
-      w.face(away.x, away.z, dt);
       if (act > 0.5 && Math.random() < dt * 3) g.fx.splash?.(this.float.position, 4);
       this.sag = 0.04 + 0.2 * (1 - act);
     }
@@ -199,7 +207,9 @@ export class Fishing {
 
   startFight() {
     const c = this.catch, F = FIGHT[c.id] ?? { profile: 'twitch', power: 0.5 }, gs = this.game.gearStats();
-    this.state = 'fight'; this.fightT = 0; this.dist0 = Math.max(6, this.dist); this.sag = 0.2;
+    const w = this.game.walker;
+    this.lineDir.set(this.float.position.x - w.pos.x, 0, this.float.position.z - w.pos.z); if (this.lineDir.lengthSq() > 0.25) this.lineDir.normalize(); else this.lineDir.copy(w.facing);
+    this.state = 'fight'; this.fightT = 0; this.reel = false; this.dist0 = Math.max(6, this.dist); this.sag = 0.2;
     this.bar.start({
       profile: F.profile, power: F.power, gear: c.gear, size: c.length,
       rod: gs.rod, line: gs.line,   // your rod and reel/line (economy/store.js): zone size, how fast the fish tires you out, how well the line holds a bolting fish
@@ -247,4 +257,5 @@ function makeBang() {
   s.scale.setScalar(1.0); s.renderOrder = 20;
   return s;
 }
+const LINE_OUT = ['flying', 'wait', 'bite', 'fight', 'landed'];
 export { RULES, judge };
