@@ -5,6 +5,8 @@ export class Input {
     this.keys = new Set();
     this.pressed = new Set(); // keys pressed since last frame
     this.mx = 0; this.my = 0;
+    this.wheel = 0; this.pinch = 0; // zoom: wheel ticks and touch pinch (drained by the camera rig)
+    this.mouse = { x: 0, y: 0, t: -99 }; // last pointer position over the canvas (aiming casts at the cursor)
     this.clicks = []; this.locked = false;
     this.wantLock = false;
     this.mouseDown = { 0: false, 2: false };
@@ -21,7 +23,12 @@ export class Input {
     addEventListener('keyup', e => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
     // Look: pointer lock when available; otherwise drag with the left mouse button (fallback for blocked pointer lock).
-    addEventListener('mousemove', e => { if (this.locked || (this.dragLook && this.mouseDown[0])) { this.mx += e.movementX; this.my += e.movementY; } });
+    addEventListener('mousemove', e => {
+      if (e.target === canvas) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.t = performance.now(); }
+      // The camera turns while the right (or middle) button is held; pointer lock and left-drag are the fallbacks.
+      if (this.locked || this.mouseDown[2] || this.mouseDown[1] || (this.dragLook && this.mouseDown[0])) { this.mx += e.movementX; this.my += e.movementY; }
+    });
+    canvas.addEventListener('wheel', e => { if (!this.gameplay) return; e.preventDefault(); this.wheel += Math.sign(e.deltaY) * Math.min(3, Math.abs(e.deltaY) / 100 + 0.5); }, { passive: false });
     canvas.addEventListener('mousedown', e => {
       this.mouseDown[e.button] = true;
       this.downAt = { x: e.clientX, y: e.clientY };
@@ -46,6 +53,7 @@ export class Input {
   down(...codes) { return codes.some(c => this.keys.has(c)); }
   hit(...codes) { return codes.some(c => this.pressed.has(c)); }
   takeMouse() { const r = [this.mx, this.my]; this.mx = 0; this.my = 0; return r; }
+  takeZoom() { const z = this.wheel + this.pinch; this.wheel = this.pinch = 0; return z; }
   takeClicks() { const c = this.clicks; this.clicks = []; return c; }
   endFrame() { this.pressed.clear(); }
 }

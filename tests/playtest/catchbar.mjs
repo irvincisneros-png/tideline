@@ -14,7 +14,7 @@ const fs = () => t.state().then(s => s.fishing);
 const hold = down => mobile ? t.page.evaluate(d => document.querySelector('#catchbar').dispatchEvent(new PointerEvent(d ? 'pointerdown' : 'pointerup', { bubbles: true, pointerId: 7 })), down) : down ? t.page.keyboard.down(' ') : t.page.keyboard.up(' ');
 await t.wait(1500);
 // Walk to the water.
-await t.page.evaluate(() => { const w = window.__game.walker; w.yaw = 0; w.pitch = -0.1; });
+await t.page.evaluate(() => { const w = window.__game.walker; w.heading = Math.PI; });
 for (let i = 0; i < 80; i++) { await t.hold('KeyW', 250); if ((await t.state()).walker.waterDepth > 0.15) break; }
 await t.shot('at-water');
 // Tackle box: open with T (or the touch button), pick a rig and a bait, close with Done.

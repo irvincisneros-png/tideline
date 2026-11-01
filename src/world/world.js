@@ -8,6 +8,9 @@ import { loadModelSet } from './models.js';
 import { Ocean, WaveMesh, Sky } from '../ocean/water.js';
 import { makeNoise } from '../core/noise.js';
 import { globalUniforms } from '../ocean/shaders.js';
+import { Props } from './props.js';
+
+const SHARED_MODELS = 'assets/models/tideline_cosy.glb'; // the angler, trees, jetty, boats and huts shared by every site
 
 const tick = () => new Promise(r => setTimeout(r, 0));
 
@@ -19,7 +22,7 @@ export class World {
   }
   async load(eco, progress = () => {}) {
     this.dispose();
-    this.eco = eco;
+    this.eco = eco; this.extraColliders = [];
     globalUniforms.uBleach.value = 0; globalUniforms.uDead.value = 0;
     progress(0.1, 'Mixing the sea water…');
     this.env.apply(eco);
@@ -30,21 +33,29 @@ export class World {
     await tick();
     progress(0.4, 'Filling the ocean…');
     this.ocean = new Ocean(this.scene, { quality: this.quality, depthTex: this.terrain.depthTex, depthBox: this.terrain.depthTex.box });
+    this.ocean.setCalm(eco.calm ?? 0.3); // a gentle lap, not a swell: the waterline stays put and the shallows stay clear
     this.waveMesh = new WaveMesh(this.scene, this.ocean, this.quality);
     this.ocean.near.visible = this.ocean.far.visible = eco.surface !== false;
     await tick();
     progress(0.55, eco.growMsg ?? 'Growing coral…');
     // Stylised look: hand-shaped Blender models replace some procedural corals, rocks and fish (if the site has a set).
     let art = null;
-    if (globalUniforms.uStyle.value > 0.5 && eco.cosyModels) {
-      try { art = { ...eco.cosyModels, models: await loadModelSet(eco.cosyModels.url) }; } catch (e) { console.warn('Model set failed to load; using procedural models.', e); }
+    this.models = new Map();
+    if (globalUniforms.uStyle.value > 0.5) {
+      try {
+        const own = eco.cosyModels ? await loadModelSet(eco.cosyModels.url) : new Map();
+        this.models = new Map([...own, ...await loadModelSet(SHARED_MODELS)]);
+        art = { ...(eco.cosyModels ?? { coral: {} }), models: this.models };
+      } catch (e) { console.warn('Model set failed to load; using procedural models.', e); }
     }
     this.reef = new Reef(this.scene, eco, this.terrain, this.quality, 11, art);
     await tick();
     progress(0.75, 'Painting fish and waking the reef…');
     this.life = new Life(this.scene, eco, this.terrain, this.reef, this.particles, this.quality, 5, art);
     this.land = eco.land ? new LandLife(this.scene, eco, this.terrain, this.quality, 13, art) : null;
+    this.props = new Props(this.scene, this.models, this.terrain, this.quality, this);
     eco.decorate?.(this);
+    this.props.finish(this.treeBlobs());
     await tick();
     progress(0.9, 'Final touches…');
     // Coarse spatial hash of coral colliders for the diver.
@@ -55,6 +66,7 @@ export class World {
       if (!this.grid.has(k)) this.grid.set(k, []);
       this.grid.get(k).push({ center: new THREE.Vector3(p.x, p.y, p.z), r: p.r * 0.75, pick: p });
     }
+    for (const c of this.extraColliders ?? []) { const k = `${Math.floor(c.center.x / 6)},${Math.floor(c.center.z / 6)}`; if (!this.grid.has(k)) this.grid.set(k, []); this.grid.get(k).push(c); }
     this.bounds = eco.diveBounds ?? eco.bounds;
     progress(1, 'Ready');
   }
@@ -62,6 +74,17 @@ export class World {
   allAgents() { return this.land ? [...this.life.agents, ...this.land.agents] : this.life.agents; }
   surfaceAt(x, z) { return this.ocean.heightAt(x, z, this.time ?? 0); }
   groundAt(x, z) { return this.terrain.heightAt(x, z); }
+  /** A solid prop for the walker to bump into (hut, table, hero trees): registered before the collider grid is built. */
+  addCollider(x, y, z, r) { (this.extraColliders ??= []).push({ center: new THREE.Vector3(x, y, z), r, pick: { hidden: false } }); }
+  /** Where feet stand: the terrain, or a built walkway above it (a jetty deck: eco.deckAt(x, z) -> height or null). */
+  walkAt(x, z) { const g = this.terrain.heightAt(x, z), d = this.eco.deckAt?.(x, z); return d != null && d > g ? d : g; }
+  /** Soft blob shadows (low tier only) under the trees the reef placed: eco.treeShadows = { kind: [radius, height] }. */
+  treeBlobs() {
+    if (this.quality.shadows || !this.eco.treeShadows) return [];
+    const out = [];
+    for (const p of this.reef.picks) { const t = this.eco.treeShadows[p.id]; if (t && !p.hidden) out.push({ x: p.x, z: p.z, y: p.y, r: t[0] * p.s, tall: t[1] * p.s }); }
+    return out;
+  }
   nearbyColliders(p, r = 3) {
     const out = [];
     const x0 = Math.floor((p.x - r) / 6), x1 = Math.floor((p.x + r) / 6), z0 = Math.floor((p.z - r) / 6), z1 = Math.floor((p.z + r) / 6);
@@ -105,10 +128,10 @@ export class World {
     return out;
   }
   dispose() {
-    this.terrain?.dispose(); this.reef?.dispose(); this.life?.dispose(); this.land?.dispose();
+    this.terrain?.dispose(); this.reef?.dispose(); this.life?.dispose(); this.land?.dispose(); this.props?.dispose();
     for (const o of [this.ocean?.near, this.ocean?.far, this.waveMesh?.mesh]) if (o) { o.geometry.dispose(); o.material.dispose(); o.parent?.remove(o); }
     this.ocean?.group.parent?.remove(this.ocean.group);
     this.eco?.undecorate?.(this);
-    this.terrain = this.reef = this.life = this.land = this.ocean = this.waveMesh = null;
+    this.terrain = this.reef = this.life = this.land = this.ocean = this.waveMesh = this.props = null;
   }
 }

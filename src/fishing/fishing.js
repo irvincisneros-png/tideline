@@ -1,6 +1,7 @@
-// Rod fishing (beach, rock platform, Lake Illawarra): cast, wait for a bite, strike, then play the fish on the catch bar.
-// Your rig and bait (tackle box, T) and the day's conditions set the wait and what bites (catches.js). On the strike the
-// catch bar opens (catchbar.js): hold Space to lift the green zone and keep the fish inside it.
+// Rod fishing (beach, rock platform, Lake Illawarra): the angler holds the rod, casts, you wait for a bite, strike, then play the
+// fish on the catch bar. Your rig and bait (tackle box, T) and the day's conditions set the wait and what bites (catches.js).
+// On the strike the catch bar opens (catchbar.js): hold Space to lift the green zone and keep the fish inside it.
+// Seen from the high follow camera: the cast arcs out, a thin dark line sags to a red and white float, a ring marks the landing.
 import * as THREE from 'three';
 import { pickCatch, waitFor, judge, RULES, FIGHT, SPOTS } from './catches.js';
 import { CatchBar } from './catchbar.js';
@@ -8,75 +9,102 @@ import { buildFish } from '../life/fishModel.js';
 import { LOOKS } from '../life/looks.js';
 
 const $ = s => document.querySelector(s);
-const LINE_PTS = 16; // the line is drawn as a curve so it can sag and bend with the fight
+const LINE_PTS = 20; // the line is drawn as a ribbon curve so it can sag and bend with the fight
+const LINE_W = 0.03;
+export const CAST_MIN = 5, CAST_MAX = 20; // metres from the angler at 0 and 100% power
 
 export class Fishing {
   constructor(game) {
     this.game = game;
     this.state = 'off'; // off | ready | charge | flying | wait | bite | fight | landed
-    this.rod = makeRod();
-    game.camera.add(this.rod);
-    this.rod.visible = false;
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(Array.from({ length: LINE_PTS }, () => new THREE.Vector3()));
-    this.line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xf8f8f0, transparent: true, opacity: 0.8 }));
+    // The line: a camera-facing ribbon (2 vertices per point), dark and thin.
+    const pos = new Float32Array(LINE_PTS * 2 * 3), idx = [];
+    for (let i = 0; i < LINE_PTS - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); lineGeo.setIndex(idx);
+    this.line = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0x1f3239, side: THREE.DoubleSide, fog: false }));
     this.line.frustumCulled = false; this.line.visible = false;
-    this.float = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshStandardMaterial({ color: 0xff4020, roughness: 0.4 }));
-    const top = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 }));
-    top.position.y = 0.02; this.float.add(top); this.float.visible = false;
-    game.scene.add(this.line, this.float);
+    // The float: red body, white top, a short stalk.
+    this.float = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshStandardMaterial({ color: 0xf0442c, roughness: 0.4 }));
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.103, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.42), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 }));
+    top.position.y = 0.002; top.rotation.x = Math.PI; top.position.y = 0;
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 6), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    stalk.position.y = 0.16;
+    this.float.add(body, top, stalk); this.float.visible = false;
+    // Ripple ring around the float, and the aim ring shown while winding up.
+    this.ripple = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.26, 28), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false, fog: false }));
+    this.ripple.rotation.x = -Math.PI / 2; this.ripple.visible = false;
+    this.aim = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 40), new THREE.MeshBasicMaterial({ color: 0xfff6d0, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+    this.aim.rotation.x = -Math.PI / 2; this.aim.visible = false;
+    this.aimLine = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.12), new THREE.MeshBasicMaterial({ color: 0xfff6d0, transparent: true, opacity: 0.45, depthWrite: false, fog: false }));
+    this.aimLine.rotation.x = -Math.PI / 2; this.aimLine.visible = false;
+    // "!" over the float when a fish bites (readable from high up).
+    this.bang = makeBang(); this.bang.visible = false;
+    game.scene.add(this.line, this.float, this.ripple, this.aim, this.aimLine, this.bang);
     this.target = new THREE.Vector3(); this.dist = 0; this.power = 0; this.sag = 0.3; this.bend = 0;
     this.bar = new CatchBar(game);
+    this.tipW = new THREE.Vector3();
   }
   get active() { return this.state !== 'off'; }
-  /** Bend the rod: 0 straight .. 1 deep bend (spread along the shaft). */
-  setBend(b, t = 0) {
-    this.bend = b;
-    const segs = this.rod.userData.segs;
-    segs.forEach((seg, i) => { seg.rotation.x = b * 0.16 * (i + 1) * 0.6 + (b > 0.5 ? Math.sin(t * 22 + i) * 0.015 * b : 0); });
-  }
+  get angler() { return this.game.angler; }
+  /** 0..1 for the angler pose while a fish is on. */
+  get act() { return this.state === 'fight' ? this.bar.activity : 0; }
 
   /** R: take the rod out or put it away. spot: a key of SPOTS (the cast re-checks it where the float lands). */
   toggle(spot) {
     if (this.active) { this.stop(); return; }
-    this.spot = spot; this.state = 'ready'; this.rod.visible = true;
+    this.spot = spot; this.state = 'ready';
     this.game.toast(`Rod out (${SPOTS[spot].label}). Hold Space to wind up, release to cast. Press T for your tackle box. R puts the rod away.`);
   }
   /** Can the player change tackle right now? Not while a fish is on. */
   get canChangeGear() { return !['bite', 'fight'].includes(this.state); }
   stop() {
-    this.bar.stop(); this.setBend(0);
-    this.state = 'off'; this.rod.visible = false; this.line.visible = false; this.float.visible = false;
-    if (this.held) { this.game.camera.remove(this.held); this.held = null; }
+    this.bar.stop(); this.angler?.setBend(0);
+    this.state = 'off'; this.landT = 0; this.line.visible = false; this.float.visible = false; this.ripple.visible = false; this.aim.visible = false; this.aimLine.visible = false; this.bang.visible = false;
+    this.game.walker.frozen = false;
+    this.angler?.hold(null); this.held = null;
     $('#prompt').innerHTML = '';
   }
 
-  update(dt, t, input, world, eye) {
+  /** Where a cast of this power lands, along the way the angler faces. */
+  castTarget(power, out = this.target) {
+    const w = this.game.walker, f = w.facing, r = CAST_MIN + power * (CAST_MAX - CAST_MIN);
+    return out.set(w.pos.x + f.x * r, 0, w.pos.z + f.z * r);
+  }
+
+  update(dt, t, input, world) {
     if (!this.active) return;
-    const g = this.game, space = input.down('Space'), hit = input.hit('Space');
-    this.rod.updateMatrixWorld(); const tipW = new THREE.Vector3(0, 0, 0).applyMatrix4(this.rodTip.matrixWorld);
+    const g = this.game, w = g.walker, ang = g.angler, space = input.down('Space'), hit = input.hit('Space');
+    const eye = this._eye ??= new THREE.Vector3(); eye.set(w.pos.x, w.pos.y + 1, w.pos.z);
+    ang.rodTip.getWorldPosition(this.tipW);
+    const tipW = this.tipW;
     let prompt = '';
     const surf = (x, z) => world.surfaceAt(x, z);
+    w.frozen = ['charge', 'bite', 'fight', 'landed'].includes(this.state);
+    if (this.state === 'ready' || this.state === 'charge') g.aimAtCursor(dt); // desktop: face the pointer while the rod is out
+    this.aim.visible = this.aimLine.visible = this.state === 'charge';
     if (this.state === 'ready') {
       prompt = 'Hold <kbd>Space</kbd> to wind up a cast';
-      this.rod.rotation.x = 0;
       if (space) { this.state = 'charge'; this.power = 0; }
     } else if (this.state === 'charge') {
-      this.power = Math.min(1, this.power + dt * 0.8);
-      this.rod.rotation.x = 0.9 * this.power;
+      this.power = Math.min(1, this.power + dt * 0.85);
+      this.castTarget(this.power, this._aim ??= new THREE.Vector3());
+      const a = this._aim, ay = surf(a.x, a.z) + 0.06, dir = w.facing, len = Math.hypot(a.x - w.pos.x, a.z - w.pos.z);
+      this.aim.position.set(a.x, ay, a.z); this.aim.scale.setScalar(0.8 + this.power * 0.9 + Math.sin(t * 8) * 0.06);
+      this.aimLine.position.set((a.x + w.pos.x) / 2, ay, (a.z + w.pos.z) / 2); this.aimLine.scale.set(len - 1.2, 1, 1); this.aimLine.rotation.z = Math.atan2(dir.z, dir.x);
       prompt = `Casting power ${Math.round(this.power * 100)}% — release <kbd>Space</kbd>`;
       if (!space) {
-        const dir = g.camera.getWorldDirection(new THREE.Vector3()); dir.y = 0; dir.normalize();
-        this.target.copy(eye).addScaledVector(dir, 8 + this.power * 32);
+        this.castTarget(this.power);
         const depth = surf(this.target.x, this.target.z) - world.groundAt(this.target.x, this.target.z);
         if (depth < 0.4) { this.state = 'ready'; g.toast('That cast would land on dry ground — face the water and cast again.', 'warn'); }
-        else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); this.rod.rotation.x = -0.4; g.audio.play('click'); }
+        else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); g.audio.play('click'); }
       }
     } else if (this.state === 'flying') {
-      this.flyT += dt / 0.8;
+      this.flyT += dt / 0.75;
       const k = Math.min(1, this.flyT);
-      this.float.position.lerpVectors(this.from, this.target, k); this.float.position.y = THREE.MathUtils.lerp(this.from.y, surf(this.target.x, this.target.z), k) + Math.sin(k * Math.PI) * 6;
+      // The tip follows the swing for the first moments, then the float flies a high arc to the target.
+      this.float.position.lerpVectors(this.from, this.target, k); this.float.position.y = THREE.MathUtils.lerp(this.from.y, surf(this.target.x, this.target.z), k) + Math.sin(k * Math.PI) * 2.6;
       this.float.visible = true;
-      this.rod.rotation.x = THREE.MathUtils.damp(this.rod.rotation.x, 0, 4, dt);
       if (k >= 1) {
         this.state = 'wait'; g.audio.play('smallSplash'); g.fx.splash?.(this.float.position, 6); this.dist = this.float.position.distanceTo(eye);
         const spot = g.fishingSpot(this.target);
@@ -88,6 +116,7 @@ export class Fishing {
       this.waitT -= dt;
       this.float.position.y = surf(this.float.position.x, this.float.position.z) + Math.sin(t * 2.2) * 0.02;
       prompt = 'Waiting for a bite… (Space reels in to cast again)';
+      this.dist = this.float.position.distanceTo(eye);
       if (hit) this.state = 'ready', this.float.visible = false;
       if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = pickCatch(this.spot, this.ctx); g.audio.play('warn'); }
     } else if (this.state === 'bite') {
@@ -96,6 +125,10 @@ export class Fishing {
       prompt = 'BITE! Press <kbd>Space</kbd> to strike!';
       if (hit) { this.startFight(); }
       else if (this.biteT <= 0) { this.state = 'wait'; this.waitT = waitFor(this.spot, this.ctx) * 0.6; g.toast('Too slow — the fish took the bait and let go. Strike as soon as the float dips.', 'warn'); }
+    } else if (this.state === 'landed') {
+      if (this.landT > 0 && (this.landT -= dt) <= 0) {
+        g.onFishLanded(this.landed, this.spot, () => { g.angler.hold(null); this.held = null; g.walker.frozen = false; this.state = this.state === 'off' ? 'off' : 'ready'; });
+      }
     } else if (this.state === 'fight') {
       // The catch bar runs the fight; the line, float and rod follow what the fish does.
       const bar = this.bar;
@@ -103,30 +136,45 @@ export class Fishing {
       const act = bar.activity;
       this.fightT += dt;
       const away = this.float.position.clone().sub(eye).setY(0).normalize();
-      const d = THREE.MathUtils.lerp(this.dist0, 2, bar.meter); // the float comes in as the meter fills
+      const d = THREE.MathUtils.lerp(this.dist0, 2.5, bar.meter); // the float comes in as the meter fills
       const side = new THREE.Vector3(-away.z, 0, away.x).multiplyScalar(Math.sin(this.fightT * (1.2 + act * 3)) * Math.min(5, d * 0.18) * (0.4 + act));
-      this.float.position.copy(eye).addScaledVector(away, Math.max(1.5, d)).add(side);
-      this.float.position.y = surf(this.float.position.x, this.float.position.z) - 0.05 - (bar.s?.mode === 'dive' ? 0.1 : 0);
+      this.float.position.copy(eye).addScaledVector(away, Math.max(1.8, d)).add(side);
+      this.float.position.y = surf(this.float.position.x, this.float.position.z) - 0.04 - (bar.s?.mode === 'dive' ? 0.1 : 0);
+      w.face(away.x, away.z, dt);
       if (act > 0.5 && Math.random() < dt * 3) g.fx.splash?.(this.float.position, 4);
-      this.setBend(0.35 + 0.65 * act, t);
       this.sag = 0.04 + 0.2 * (1 - act);
-      this.rod.rotation.x = THREE.MathUtils.damp(this.rod.rotation.x, 0.25 + act * 0.25, 8, dt);
-      this.rod.rotation.z = Math.sin(t * 9) * 0.03 * act;
-    } else if (this.state === 'landed') {
-      if (this.held) { this.held.rotation.z = Math.sin(t * 7) * 0.25; }
     }
+    // Float extras: ripple ring on the water, "!" over a bite.
+    const fl = this.float.visible && ['wait', 'bite', 'fight'].includes(this.state);
+    this.ripple.visible = fl;
+    if (fl) {
+      const fp = this.float.position, ph = (t * 0.9) % 1, k = this.state === 'wait' ? 1 : 1.6;
+      this.ripple.position.set(fp.x, surf(fp.x, fp.z) + 0.03, fp.z); this.ripple.scale.setScalar((0.8 + ph * 1.4) * k); this.ripple.material.opacity = (1 - ph) * 0.7;
+    }
+    this.bang.visible = this.state === 'bite';
+    if (this.bang.visible) { const fp = this.float.position; this.bang.position.set(fp.x, fp.y + 1.5 + Math.abs(Math.sin(t * 9)) * 0.3, fp.z); }
     // Line from the rod tip to the float / fish.
     this.line.visible = this.float.visible && ['flying', 'wait', 'bite', 'fight'].includes(this.state);
-    if (this.line.visible) {
-      // A curve from the rod tip to the float that sags when slack and pulls straight when a fish is working.
-      const p = this.line.geometry.attributes.position, fp = this.float.position, sag = (['wait', 'bite'].includes(this.state) ? 0.3 : this.state === 'fight' ? this.sag : 0.08) * Math.min(12, tipW.distanceTo(fp)) * 0.18;
-      for (let i = 0; i < LINE_PTS; i++) {
-        const k = i / (LINE_PTS - 1), drop = sag * 4 * k * (1 - k);
-        p.setXYZ(i, tipW.x + (fp.x - tipW.x) * k, tipW.y + (fp.y + 0.04 - tipW.y) * k - drop, tipW.z + (fp.z - tipW.z) * k);
-      }
-      p.needsUpdate = true;
-    }
+    if (this.line.visible) this.drawLine(tipW, this.float.position);
     $('#prompt').innerHTML = g.hint(prompt);
+  }
+
+  /** A thin dark ribbon from the rod tip to the float: sags when slack (and bows a little to the side), pulls straight when a fish works. */
+  drawLine(a, b) {
+    const p = this.line.geometry.attributes.position, cam = this.game.camera.position;
+    const fighting = this.state === 'fight', len = a.distanceTo(b);
+    const sag = (['wait', 'bite'].includes(this.state) ? 0.3 : fighting ? this.sag : 0.1) * Math.min(14, len) * 0.2, bow = (fighting ? 0.1 : 0.55) * sag;
+    const dx = b.x - a.x, dz = b.z - a.z, ln = Math.hypot(dx, dz) || 1, sx = -dz / ln, sz = dx / ln;
+    const prev = this._lp ??= new THREE.Vector3(), cur = new THREE.Vector3(), seg = new THREE.Vector3(), side = new THREE.Vector3(), toCam = new THREE.Vector3();
+    for (let i = 0; i < LINE_PTS; i++) {
+      const k = i / (LINE_PTS - 1), s4 = 4 * k * (1 - k);
+      cur.set(a.x + (b.x - a.x) * k + sx * bow * s4, a.y + (b.y + 0.1 - a.y) * k - sag * s4, a.z + (b.z - a.z) * k + sz * bow * s4);
+      // Ribbon width perpendicular to both the line and the view direction.
+      seg.set(b.x - a.x, b.y - a.y, b.z - a.z).normalize(); toCam.subVectors(cam, cur).normalize();
+      side.crossVectors(seg, toCam).normalize().multiplyScalar(LINE_W * 0.5 * (1 + (1 - k) * 0.6));
+      p.setXYZ(i * 2, cur.x - side.x, cur.y - side.y, cur.z - side.z); p.setXYZ(i * 2 + 1, cur.x + side.x, cur.y + side.y, cur.z + side.z);
+    }
+    p.needsUpdate = true;
   }
 
   startFight() {
@@ -144,47 +192,36 @@ export class Fishing {
     this.game.audio.play('trick', { combo: 0 });
   }
   lost(msg) {
-    this.bar.stop(); this.setBend(0); this.float.visible = false; this.state = 'ready';
+    this.bar.stop(); this.float.visible = false; this.state = 'ready'; this.game.walker.frozen = false;
     this.game.toast(msg, 'warn'); this.game.audio.play('warn');
   }
   land() {
     const g = this.game, c = this.catch;
-    this.bar.stop(); this.setBend(0); this.float.visible = false; this.state = 'landed';
+    this.bar.stop(); this.float.visible = false; this.state = 'landed';
     g.audio.play('splash');
-    // Hold the fish up in front of you, I Just Wanted to Fish style.
+    // Hold the fish up high, I Just Wanted to Fish style.
     const look = LOOKS[c.id];
     if (look) {
-      const built = buildFish({ ...look, length: c.length / 100 });
+      const built = buildFish({ ...look, length: Math.max(0.5, Math.min(1.2, c.length / 100 * 3)) }); // oversized so it reads from up high
       const mat = new THREE.MeshStandardMaterial({ map: built.texture, roughness: 0.45, side: THREE.DoubleSide });
       const m = new THREE.Mesh(built.geometry, mat);
-      m.rotation.set(0, Math.PI / 2, Math.PI / 2); m.position.set(0, -0.05, -0.75 - c.length / 200);
-      const holder = new THREE.Group(); holder.add(m); g.camera.add(holder); this.held = holder;
+      m.rotation.set(Math.PI / 2, 0, 0); m.position.set(0.05, 0.1, 0.02); m.castShadow = true;
+      const holder = new THREE.Group(); holder.add(m); g.angler.hold(holder); this.held = holder;
     }
-    g.onFishLanded({ ...c, ctx: this.ctx }, this.spot, () => { if (this.held) { g.camera.remove(this.held); this.held = null; } this.state = this.state === 'off' ? 'off' : 'ready'; });
+    // A moment to admire the catch before the keep-or-release card opens.
+    this.landT = 1.2; this.landed = { ...c, ctx: this.ctx };
   }
 }
 
-function makeRod() {
-  // Rod held in the right hand, pointing forward and up; the tip carries the line.
-  const g = new THREE.Group();
-  const blank = new THREE.MeshStandardMaterial({ color: 0x2a3440, roughness: 0.4 });
-  const cork = new THREE.MeshStandardMaterial({ color: 0xb08a5a, roughness: 0.8 });
-  const reelM = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.35, metalness: 0.6 });
-  const pivot = new THREE.Group(); pivot.position.set(0.36, -0.36, -0.5); pivot.rotation.set(-0.95, 0, -0.12); g.add(pivot); // angled up and away, like holding a rod out
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.3, 10), cork); handle.position.y = 0.0; pivot.add(handle);
-  // The blank is three segments, each rotated a bit more than the one below, so the rod can bend under a fish.
-  const segs = [], segMat = blank;
-  let parent = pivot;
-  for (let i = 0; i < 3; i++) {
-    const seg = new THREE.Group(); seg.position.y = i === 0 ? 0.15 : 0.63; parent.add(seg);
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.004 + 0.003 * (2 - i), 0.006 + 0.004 * (3 - i), 0.63, 8), segMat); m.position.y = 0.315; seg.add(m);
-    segs.push(seg); parent = seg;
-  }
-  g.userData.segs = segs;
-  const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.025, 16), reelM); reel.rotation.z = Math.PI / 2; reel.position.set(0, 0.1, 0.04); pivot.add(reel);
-  const tip = new THREE.Group(); tip.position.y = 0.63; parent.add(tip);
-  g.userData.tip = tip;
-  return Object.assign(g, {});
+function makeBang() {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff3d2'; x.strokeStyle = '#1f5f6b'; x.lineWidth = 8;
+  x.beginPath(); x.arc(64, 64, 54, 0, Math.PI * 2); x.fill(); x.stroke();
+  x.fillStyle = '#e8553d'; x.font = '800 84px "Arial Rounded MT Bold", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('!', 64, 70);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, fog: false }));
+  s.scale.setScalar(1.0); s.renderOrder = 20;
+  return s;
 }
-Object.defineProperty(Fishing.prototype, 'rodTip', { get() { return this.rod.userData.tip; } });
 export { RULES, judge };

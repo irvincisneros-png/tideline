@@ -24,6 +24,7 @@ export const globalUniforms = {
   uStyleSun: { value: new THREE.Color(0.75, 0.68, 0.55) },   // the lit side
   uStyleRim: { value: new THREE.Color(0.35, 0.55, 0.6) },
   uDead: { value: 0 },    // algae overgrowth on dead coral 0..1
+  uPlayer: { value: new THREE.Vector3(0, -999, 0) }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
 };
 
 export const skyGLSL = /* glsl */`
@@ -133,6 +134,7 @@ export function patchUnderwater(material, opts = {}) {
     if (prev) prev(shader, renderer);
     shader.uniforms.uWaterCol = globalUniforms.uWaterTint;
     for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull']) shader.uniforms[k] = globalUniforms[k];
+    if (opts.cutaway) shader.uniforms.uPlayer = globalUniforms.uPlayer;
     shader.uniforms.uSwimLen = { value: opts.swimLength ?? 1 };
     shader.uniforms.uSway = { value: opts.sway ?? 0 };
     let vHead = `varying vec3 vWPos;\nuniform float uTime; uniform float uSwimLen; uniform float uSway;\n`;
@@ -202,7 +204,22 @@ export function patchUnderwater(material, opts = {}) {
                    mix(mix(dHash(i+vec3(0,0,1)), dHash(i+vec3(1,0,1)), f.x), mix(dHash(i+vec3(0,1,1)), dHash(i+vec3(1,1,1)), f.x), f.y), f.z); }
     `;
     if (opts.fish) fHead += 'varying vec2 vFin;\n';
+    if (opts.cutaway) fHead += 'uniform vec3 uPlayer;\n';
     shader.fragmentShader = fHead + shader.fragmentShader;
+    if (opts.cutaway) {
+      // Cut a stippled see-through hole where a canopy, roof or tall prop would hide the angler from the high camera.
+      shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+        if (uPlayer.y > -900.0 && vWPos.y > uPlayer.y + 1.5) {
+          vec3 P = uPlayer + vec3(0.0, 0.9, 0.0), ro = cameraPosition, rd = normalize(P - ro);
+          vec3 q = vWPos - ro; float tt = dot(q, rd);
+          if (tt > 0.0 && tt < distance(P, ro) - 0.4) {
+            float dl = length(q - rd * tt);
+            float keep = smoothstep(1.5, 3.0, dl);
+            float nz = fract(sin(dot(floor(gl_FragCoord.xy * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
+            if (nz > keep) discard;
+          }
+        }`);
+    }
     if (opts.fish) {
       // Fins: bony rays from base to edge, thinning to a ragged, see-through margin (alpha-to-coverage with MSAA).
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
@@ -285,7 +302,7 @@ export function patchUnderwater(material, opts = {}) {
             float cw = cosyCaustic(q, uTime * 0.9);
             if (uFull > 0.5) cw = max(cw, cosyCaustic(q * 1.6 + 7.3, uTime * 1.1) * 0.7);
             cw *= 0.55 + 0.45 * pNoise(vec3(vWPos.xz * 0.15, uTime * 0.2)); // patches of brighter and softer light
-            outgoingLight += vec3(1.0, 0.99, 0.92) * cw * 0.38 * uCaustics * sunVis * upF * exp(-depth * 0.08);
+            outgoingLight += vec3(1.0, 0.99, 0.92) * cw * 0.42 * uCaustics * sunVis * upF * exp(-depth * 0.08) * smoothstep(0.0, 0.12, depth);
           } else
           outgoingLight += reflectedLight.directDiffuse * min(c, 1.4) * uCaustics * exp(-depth * 0.09) * 1.5;
           outgoingLight *= exp(-uAbsorb * depth * (1.0 - 0.7 * uStyle)); // stylised: keep pastel colours readable
@@ -315,6 +332,6 @@ export function patchUnderwater(material, opts = {}) {
         #include <fog_fragment>
       #endif`);
   };
-  material.customProgramCacheKey = () => 'uw' + (opts.key ?? '') + (opts.vertical ? 'v' : '') + (opts.pulse ? 'p' : '') + (opts.detail ? 'd' + (opts.detailScale ?? '') : '') + (opts.swim ? 's' : '') + (opts.flap ? 'f' : '') + (opts.coral ? 'c' : '') + (opts.transl ? 't' + opts.transl : '') + (opts.fish ? 'F' : '') + (opts.sway ? 'w' + opts.sway : '') + (opts.swimLength ?? '') + (opts.waveK ?? '');
+  material.customProgramCacheKey = () => 'uw' + (opts.key ?? '') + (opts.vertical ? 'v' : '') + (opts.pulse ? 'p' : '') + (opts.detail ? 'd' + (opts.detailScale ?? '') : '') + (opts.swim ? 's' : '') + (opts.flap ? 'f' : '') + (opts.coral ? 'c' : '') + (opts.transl ? 't' + opts.transl : '') + (opts.fish ? 'F' : '') + (opts.cutaway ? 'k' : '') + (opts.sway ? 'w' + opts.sway : '') + (opts.swimLength ?? '') + (opts.waveK ?? '');
   return material;
 }

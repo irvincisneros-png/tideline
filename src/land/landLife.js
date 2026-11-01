@@ -243,7 +243,8 @@ export class LandLife {
       const yaw = Math.atan2(-a.dir.z, a.dir.x);
       const probe = a.state === 'probe' ? Math.max(0, Math.sin(this.t * 3 + a.phase)) * 0.5 : 0;
       _e.set(0, yaw, -probe); _q.setFromEuler(_e);
-      const sc = a.visible ? 1 : 0;
+      const grow = b.type === 'gull' || b.type === 'shorebird' ? 1.8 : b.type === 'ghostcrab' ? 1.6 : 1; // chunky and cosy: readable from the high camera
+      const sc = a.visible ? grow : 0;
       _m.compose(_p.set(a.pos.x, gy + (a.y ?? 0) + (b.type === 'octopus' ? 0.01 : 0), a.pos.z), _q, _s.set(sc, sc, sc));
       if (b.type !== 'static' || !a.placed) { this.meshes[a.id].setMatrixAt(a.index, _m); a.placed = true; }
       a.pos.y = gy + (a.y ?? 0) + 0.05;
@@ -261,7 +262,7 @@ export class LandLife {
         const x = f.c.x + Math.cos(f.a) * f.r, z = f.c.z + Math.sin(f.a) * f.r * 0.6, y = f.h + Math.sin(f.a * 3) * 1.5;
         const dx = -Math.sin(f.a) * f.r * Math.sign(f.w), dz = Math.cos(f.a) * f.r * 0.6 * Math.sign(f.w);
         _e.set(Math.sin(f.a * 2) * 0.15, Math.atan2(-dz, dx), 0); _q.setFromEuler(_e);
-        _m.compose(_p.set(x, y, z), _q, _s.set(1, 1, 1)); this.flyers.setMatrixAt(i, _m);
+        _m.compose(_p.set(x, y, z), _q, _s.set(1.8, 1.8, 1.8)); this.flyers.setMatrixAt(i, _m);
       });
       this.flyers.instanceMatrix.needsUpdate = true;
     }

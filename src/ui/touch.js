@@ -1,6 +1,6 @@
 // On-screen controls for phones and tablets. Every button "presses" the same keyboard keys the desktop game
 // uses (synthetic keydown/keyup on window), so walking, fishing and UI code need no touch-specific paths.
-// Left thumb joystick (WASD, push to the edge to run), drag anywhere else to look, tap a creature for its card.
+// Left thumb joystick (WASD, push to the edge to run), drag anywhere else to turn the camera, pinch to zoom, tap a creature for its card.
 // Right thumb: Space (cast / strike / reel / jump) and the rod, journal and pause buttons.
 
 /** True on phones/tablets (or with ?touch=1 for testing; ?touch=0 forces desktop controls). */
@@ -102,7 +102,7 @@ export class TouchControls {
     const end = e => { if (e.pointerId !== id) return; id = null; base.classList.remove('on'); set(0, 0); };
     base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end);
   }
-  /** Drag to look; a quick tap = click (species info card). */
+  /** Drag to turn the camera, pinch to zoom; a quick tap = click (species info card). */
   bindLook(el) {
     const ptrs = new Map();
     el.addEventListener('pointerdown', e => {
@@ -110,10 +110,17 @@ export class TouchControls {
       try { el.setPointerCapture(e.pointerId); } catch { /* synthetic */ }
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() });
     });
+    // One finger: turn the camera round the angler. Two fingers: pinch to zoom.
+    const gap = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
     el.addEventListener('pointermove', e => {
       const p = ptrs.get(e.pointerId);
       if (!p) return;
-      const s = 2.2 * (900 / Math.max(500, innerWidth)); // a swipe across the screen ≈ a half turn
+      if (ptrs.size >= 2) {
+        const before = gap(); p.x = e.clientX; p.y = e.clientY;
+        const after = gap(); if (before > 10) this.input.pinch -= (after - before) / 40; // fingers apart = zoom in (a smaller camera distance)
+        return;
+      }
+      const s = 2.2 * (900 / Math.max(500, innerWidth)); // a swipe across the screen is about a half turn of the camera
       this.input.mx += (e.clientX - p.x) * s; this.input.my += (e.clientY - p.y) * s;
       p.x = e.clientX; p.y = e.clientY;
     });

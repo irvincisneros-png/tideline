@@ -77,7 +77,7 @@ export class Terrain {
   constructor(scene, eco, noise, quality) {
     this.eco = eco;
     const size = eco.terrainSize ?? 320;
-    const segs = Math.round((eco.terrainSegments ?? 256) * quality.terrainScale);
+    const segs = Math.min(720, Math.round((eco.terrainSegments ?? 256) * quality.terrainScale)); // capped: ultra would build 700k+ vertices
     this.size = size;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);
@@ -120,14 +120,14 @@ export class Terrain {
         vec4 t1 = texture2D(map, vMapUv);
         vec4 t2 = texture2D(map, vMapUv * 0.23 + vec2(0.31, 0.17));
         vec4 t3 = texture2D(map, vMapUv * 0.061 + vec2(0.7, 0.4));
-        vec3 sandDetail = t1.rgb * (0.55 + 0.6 * t2.rgb) * (0.75 + 0.4 * t3.rgb);
+        vec3 sandDetail = t1.rgb * (0.55 + 0.6 * t2.rgb) * (0.75 + 0.4 * t3.rgb) * 1.18;
         #ifdef USE_ROCK
           float rk = smoothstep(0.15, 0.85, vRock);
           float r1 = texture2D(uRockTex, vMapUv * 0.55).r, r2 = texture2D(uRockTex, vMapUv * 0.13 + vec2(0.2, 0.6)).r;
           vec3 rockDetail = vec3(0.35 + 0.65 * r1) * (0.75 + 0.35 * r2);
-          diffuseColor.rgb *= mix(mix(sandDetail, rockDetail * 1.15, rk), vec3(0.82), 0.6 * uStyle);
+          diffuseColor.rgb *= mix(mix(sandDetail, rockDetail * 1.15, rk), vec3(0.93), 0.45 * uStyle);
         #else
-          diffuseColor.rgb *= mix(sandDetail, vec3(0.82), 0.6 * uStyle);
+          diffuseColor.rgb *= mix(sandDetail, vec3(0.93), 0.45 * uStyle);
         #endif`);
       // Rock relief: perturb the normal with the rock texture's height (screen-space derivatives).
       if (rockTex) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -147,20 +147,17 @@ export class Terrain {
     this.mesh = new THREE.Mesh(geo, mat);
     this.mesh.receiveShadow = false;
     scene.add(this.mesh);
-    this.depthTex = Terrain.depthTexture(eco, size);
+    this.depthTex = Terrain.depthTexture(eco, size, quality.terrainScale < 1 ? 192 : 320);
   }
 
-  /** Low-res seabed height texture for the water shader (h = r*60-50). */
-  static depthTexture(eco, size = 320, res = 128) {
-    const data = new Uint8Array(res * res * 4);
+  /** Seabed height texture for the water shader: half-float metres (precise near the waterline, where the shore foam and the clear shallows read it). */
+  static depthTexture(eco, size = 320, res = 256) {
+    const data = new Uint16Array(res * res);
     for (let j = 0; j < res; j++) for (let i = 0; i < res; i++) {
       const x = -size / 2 + (i + 0.5) / res * size, z = -size / 2 + (j + 0.5) / res * size;
-      const h = eco.heightAt(x, z);
-      const v = Math.max(0, Math.min(255, ((h + 50) / 60) * 255));
-      const k = (j * res + i) * 4;
-      data[k] = v; data[k + 1] = v; data[k + 2] = v; data[k + 3] = 255;
+      data[j * res + i] = THREE.DataUtils.toHalfFloat(Math.max(-60, Math.min(60, eco.heightAt(x, z))));
     }
-    const t = new THREE.DataTexture(data, res, res);
+    const t = new THREE.DataTexture(data, res, res, THREE.RedFormat, THREE.HalfFloatType);
     t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
     t.box = new THREE.Vector4(-size / 2, -size / 2, size, size);
     return t;

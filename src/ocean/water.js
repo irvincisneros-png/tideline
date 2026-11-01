@@ -98,7 +98,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
       vec3 col; float alpha = 1.0;
       // Seabed depth under this point (for shallow-reef turquoise).
       vec2 duv = (vWPos.xz - uDepthBox.xy) / uDepthBox.zw;
-      float seabed = (duv.x > 0.0 && duv.x < 1.0 && duv.y > 0.0 && duv.y < 1.0) ? texture2D(uDepth, duv).r * 60.0 - 50.0 : -60.0;
+      float seabed = (duv.x > 0.0 && duv.x < 1.0 && duv.y > 0.0 && duv.y < 1.0) ? texture2D(uDepth, duv).r : -60.0;
       float wdepth = max(0.0, vWPos.y - seabed);
       // Foam texture
       float fn = fbm(uv * 1.3 + vec2(uTime * 0.2, -uTime * 0.35)) * 0.6 + fbm(uv * 4.0 - uTime * 0.4) * 0.4;
@@ -107,10 +107,17 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
       if (uStyle > 0.5) foam = smoothstep(0.42, 0.48, foam);           // stylised: crisp white foam shapes
       if (uStyle > 0.5 && !below) {
         // Shore foam: soft white bands lapping where the water meets sand or rock.
+        // A bright, lacy band hugging the waterline (it laps in and out), then a fainter trailing band a little further out.
+        // Widths are in metres along the slope: depth / slope = distance from the waterline, so steep and gentle shores get the same band.
+        vec2 sd = 1.0 / uDepthBox.zw;
+        float sx = texture2D(uDepth, duv + vec2(sd.x, 0.0)).r - texture2D(uDepth, duv - vec2(sd.x, 0.0)).r, sz = texture2D(uDepth, duv + vec2(0.0, sd.y)).r - texture2D(uDepth, duv - vec2(0.0, sd.y)).r;
+        float dm = wdepth / max(0.05, length(vec2(sx, sz)) * 0.5);
         float lap = sin(uTime * 1.1 + vWPos.x * 0.15 + fbm(vWPos.xz * 0.2) * 3.0);
-        float shore = smoothstep(0.9, 0.15, wdepth + 0.25 * lap);
-        float band = shore * (0.55 + 0.45 * smoothstep(0.45, 0.6, fbm(vWPos.xz * 0.8 + uTime * 0.1)));
-        foam = max(foam, band);
+        float wob = fbm(vWPos.xz * 1.1 + vec2(uTime * 0.05, 0.0));
+        float lace = smoothstep(0.5, 0.64, fbm(vWPos.xz * 3.4 + vec2(uTime * 0.12, -uTime * 0.08)));
+        float band = smoothstep(0.7, 0.18, dm + 0.22 * lap + (wob - 0.5) * 0.5) * (0.72 + 0.28 * lace);
+        float outer = smoothstep(1.9, 1.1, dm + 0.4 * lap) * smoothstep(0.8, 1.2, dm) * lace * 0.35;
+        foam = max(foam, max(band, outer));
       }
       if (!below) {
         float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
@@ -118,7 +125,11 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
         vec3 refl = skyColor(R);
         vec3 body = mix(uShallowTint, uWaterTint, smoothstep(1.0, 9.0, wdepth));
         body = mix(body, uDeepTint, smoothstep(8.0, 40.0, wdepth));
-        if (uStyle > 0.5) body = mix(mix(uShallowTint * 1.05, uWaterTint, smoothstep(0.5, 10.0, wdepth)), uDeepTint, smoothstep(6.0, 30.0, wdepth));
+        if (uStyle > 0.5) {
+          // Crystal-clear turquoise over the sand, deepening to teal and then blue.
+          vec3 clear = mix(vec3(0.5, 0.95, 0.86), uShallowTint * 1.15, smoothstep(0.3, 2.2, wdepth));
+          body = mix(clear, mix(uWaterTint, uDeepTint, smoothstep(2.0, 14.0, wdepth)), smoothstep(1.0, 5.5, wdepth));
+        }
         vec3 flatBody = body; // the wave mesh fades into exactly this at its base, so there is no seam
         float sss = pow(max(dot(V, -normalize(uSunDir * vec3(1.0, 0.0, 1.0))) * 0.5 + 0.5, 0.0), 3.0);
         float thick = clamp(vH, 0.0, 1.2);
@@ -148,14 +159,20 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
         if (uStyle > 0.5) {
           // Scattered foam flecks drifting on the surface (fade with distance so the horizon stays clean).
           float fl = smoothstep(0.6, 0.66, fbm(uv * 0.7 + vec2(uTime * 0.05, uTime * 0.03))) * smoothstep(0.8, 0.86, vnoise(uv * 22.0 + uTime * 0.3));
-          foam = max(foam, fl * 0.75 / (1.0 + length(cameraPosition - vWPos) * 0.03));
+          foam = max(foam, fl * 0.4 / (1.0 + length(cameraPosition - vWPos) * 0.03));
         }
-        col = mix(col, vec3(0.95, 0.98, 1.0) * (0.75 + 0.25 * max(dot(vN, uSunDir), 0.0)), foam);
+        if (uStyle > 0.5) {
+          // Sparkling sun glints dancing on the surface (the top-down camera rarely catches a true specular highlight).
+          float sp1 = smoothstep(0.90, 0.99, vnoise(uv * 11.0 + vec2(uTime * 0.7, -uTime * 0.5))) * smoothstep(0.35, 0.8, vnoise(uv * 2.4 + uTime * 0.15));
+          float sp2 = smoothstep(0.93, 1.0, vnoise(uv * 23.0 - vec2(uTime * 0.9, uTime * 0.6)));
+          col += vec3(1.0, 0.97, 0.86) * (sp1 * 0.9 + sp2 * 0.7) * smoothstep(0.05, 0.4, wdepth) / (1.0 + length(cameraPosition - vWPos) * 0.02);
+        }
+        col = mix(col, vec3(0.97, 0.99, 1.0) * (0.82 + 0.18 * max(dot(vN, uSunDir), 0.0)), foam);
         // Aerial haze
         float hz = 1.0 - exp(-length(cameraPosition - vWPos) * (uStyle > 0.5 ? 0.0032 : 0.0016)); // cosy: softer, hazier horizon
         col = mix(col, skyColor(normalize(vec3(-V.x, 0.02, -V.z))), hz);
         // Clear tropical water: see the reef when looking down into the shallows.
-        alpha = clamp((uStyle > 0.5 ? 0.6 : 0.42) + fres * 1.3 + smoothstep(3.0, 26.0, wdepth) * 0.6 + foam + hz, 0.0, 1.0);
+        alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) : 0.42) + fres * 1.3 + smoothstep(3.0, 26.0, wdepth) * 0.6 + foam + hz, 0.0, 1.0);
         ${waveMesh ? 'alpha = mix(alpha, 1.0, smoothstep(uStyle > 0.5 ? 0.3 : 0.12, uStyle > 0.5 ? 0.85 : 0.45, thick));' : ''}
       } else {
         // Looking up from below: Snell's window shows the sky, outside it total internal reflection.

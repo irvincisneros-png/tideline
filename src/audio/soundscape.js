@@ -6,12 +6,11 @@ export const SITE_DEFAULTS = { wash: 1, wind: 0.3, shrimp: 0, gulls: 0, mangrove
 
 /** Which species make sound, and how. `every` = seconds between calls (random in range). */
 export const VOICES = {
-  dugong: { sounds: ['dugongChirp'], every: [5, 12], max: 40, ref: 6, breath: 'dugongBreath' },
   luderick: { sounds: ['parrotfishCrunch'], every: [3, 7], max: 14, ref: 2, gain: 0.6 },
   bluegroper: { sounds: ['fishGrunt'], every: [7, 14], max: 22, ref: 4, pitch: 110 },
   snapper: { sounds: ['fishGrunt'], every: [8, 18], max: 18, ref: 3, pitch: 150 },
   kingfish: { sounds: ['schoolTurn'], every: [5, 10], max: 30, ref: 6 },
-  mullet: { sounds: ['schoolTurn'], every: [6, 12], max: 20, ref: 4, gain: 0.7 },
+  seamullet: { sounds: ['schoolTurn'], every: [6, 12], max: 20, ref: 4, gain: 0.7 },
   urchin: { sounds: ['urchinScrape'], every: [1.5, 4], max: 9, ref: 2 },
 };
 

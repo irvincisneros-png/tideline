@@ -45,7 +45,7 @@ function platformHeight(x, z) {
   h += Math.round(ledge * 3) / 3 * 0.28 + noise.fbm2(x * 0.6, z * 0.6, 2) * 0.05;
   h -= Math.pow(Math.max(0, Math.sin(x * 0.21 + z * 0.05 + noise.n2(x * 0.05, z * 0.05) * 2)), 12) * 0.5; // gutters
   h -= (1 - smoothstep(64, 70, z)) * 3.2;                           // seaward edge drops into the swell
-  for (const [px, pz, r] of POOLS) { const d = Math.hypot(x - px, z - pz) / (r * (1 + 0.18 * noise.n2(x * 0.4, z * 0.4))); if (d < 1) h -= 1.45 * (1 - d * d); }
+  for (const [px, pz, r] of POOLS) { const d = Math.hypot(x - px, z - pz) / (r * 1.3 * (1 + 0.16 * noise.n2(x * 0.4, z * 0.4))); if (d < 1) h -= 1.45 * (1 - d * d); }
   h += smoothstep(110, 124, z + noise.n2(x * 0.07, 7) * 4) * 13 + noise.fbm2(x * 0.2, z * 0.2, 2) * smoothstep(112, 120, z) * 1.5; // bluff
   return h;
 }
@@ -92,8 +92,8 @@ function shoreColor(x, z, h, slope) {
   const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
   // Sand: dark and wet in the swash zone, pale and dry up the beach, vegetated and darker on the dunes.
   // Warm quartz sand (Illawarra beaches are golden), darker where wet.
-  const wet = [0.5 + n * 0.03, 0.4 + n * 0.03, 0.27], dry = [0.82 + n * 0.03, 0.67 + n * 0.03, 0.45]; // real dry sand reflects ~40–50%
-  let c = mix3(wet, dry, smoothstep(0.35, 1.1, h));
+  const wet = [0.9 + n * 0.03, 0.78 + n * 0.03, 0.56], dry = [1.0, 0.92 + n * 0.02, 0.72]; // real dry sand reflects ~40–50%
+  let c = mix3(wet, dry, smoothstep(0.1, 0.75, h));
   const cover = Math.max(0, Math.min(1, 0.55 + 0.6 * noise.fbm2(x * 0.08, z * 0.08, 3)));        // patchy plant cover
   c = mix3(c, [0.5 + n * 0.05, 0.54, 0.34], smoothstep(114, 124, z) * cover * 0.85);            // spinifex-covered foredune
   c = mix3(c, [0.27 + n * 0.04, 0.31 + n * 0.04, 0.18], smoothstep(130, 142, z) * (0.6 + 0.35 * cover)); // hind-dune scrub floor
@@ -101,11 +101,19 @@ function shoreColor(x, z, h, slope) {
   if (pm > 0.01) {
     // Rock platform zonation: pink coralline + green algae in pools, olive turf low, barnacle-grey mid, bare dry rock high.
     let r;
-    if (h < -0.05) r = n2 > 0 ? [0.62, 0.38, 0.44] : [0.3, 0.42, 0.22];                         // pools: pink coralline, green algae
-    else if (h < 0.5) r = mix3([0.22, 0.26, 0.12], [0.32, 0.3, 0.2], smoothstep(-0.05, 0.5, h) * (0.6 + 0.4 * n2)); // low shore turf
-    else if (h < 0.95) r = mix3([0.3, 0.26, 0.2], [0.42, 0.38, 0.31], 0.5 + 0.5 * n2);       // mid shore: barnacle speckle
-    else r = [0.4 + n * 0.05, 0.33 + n * 0.04, 0.25];                                          // dry upper platform (dark weathered rock)
-    if (slope > 0.35 && h > 1.2) r = [0.68 + n * 0.06, 0.5 + n * 0.05, 0.33];                   // orange-brown sandstone bluff
+    // Cosy palette: warm ochre sandstone on top, olive weed low down, bright coralline pink and green algae in the pools.
+    if (h < -0.05) r = n2 > 0 ? [0.8, 0.5, 0.54] : [0.4, 0.6, 0.34];                           // pools: pink coralline, green algae
+    else if (h < 0.5) r = mix3([0.5, 0.52, 0.3], [0.74, 0.56, 0.36], smoothstep(-0.05, 0.5, h) * (0.6 + 0.4 * n2)); // low shore: olive weed to sandstone
+    else if (h < 0.95) r = mix3([0.78, 0.6, 0.4], [0.88, 0.7, 0.46], 0.5 + 0.5 * n2);        // mid shore sandstone
+    else r = [0.9 + n * 0.04, 0.72 + n * 0.04, 0.48];                                          // dry upper platform: bright ochre
+    if (slope > 0.35 && h > 1.2) r = [0.8 + n * 0.05, 0.56 + n * 0.05, 0.34];                   // orange sandstone bluff
+    else if (h > -0.05) {
+      // Gutters between the ledges are darker and weedy; each pool is ringed by wet olive algae so it reads clearly from above.
+      const gut = Math.pow(Math.max(0, Math.sin(x * 0.21 + z * 0.05 + noise.n2(x * 0.05, z * 0.05) * 2)), 12);
+      r = mix3(r, [0.5, 0.44, 0.28], Math.min(1, gut * 1.4));
+      let pd = 9; for (const [px, pz, pr] of POOLS) pd = Math.min(pd, Math.hypot(x - px, z - pz) / (pr * 1.3));
+      r = mix3(r, [0.42, 0.52, 0.3], smoothstep(1.45, 1.05, pd) * 0.85);
+    }
     c = mix3(c, r, Math.min(1, pm * 1.2));
   }
   return c;
@@ -129,8 +137,10 @@ addGenerator('spinifex', { fn: FO.spinifexPatch, foliage: true, noShadow: true, 
 addGenerator('pigface', { fn: FL.pigface, noShadow: true, variants: 2, scale: [0.9, 1.6], radius: 0.4, sink: 0, rough: 0.55, cluster: 5, bleaches: false, as: 'pigface', land: true, soft: true, sat: 1.05, minH: 2.2, maxH: 12, region: { ...LANDX, zMin: 108, zMax: 160 } });
 addGenerator('wattle', { fn: FO.wattleShrub, foliage: true, variants: 3, scale: [0.8, 1.5], radius: 1.2, sink: 0.1, rough: 0.75, sway: 0.03, cluster: 6, bleaches: false, as: 'coastalwattle', land: true, soft: true, transl: 0.35, sat: 1.05, ao: 0.6, minH: 2.8, maxH: 16, region: { ...LANDX, zMin: 122, zMax: 198 } });
 addGenerator('heath', { fn: FO.heathShrub, foliage: true, noShadow: true, variants: 2, scale: [0.8, 1.6], radius: 0.6, sink: 0.05, rough: 0.8, sway: 0.03, cluster: 8, bleaches: false, as: 'coastalwattle', land: true, soft: true, transl: 0.3, sat: 1.0, ao: 0.6, minH: 3, maxH: 16, region: { ...LANDX, zMin: 128, zMax: 198 } });
-addGenerator('banksia', { fn: FO.banksiaTree, foliage: true, variants: 4, scale: [0.8, 1.3], radius: 1.1, sink: 0.1, rough: 0.75, sway: 0.004, cluster: 4, bleaches: false, as: 'coastbanksia', land: true, transl: 0.25, sat: 1.0, ao: 0.5, minH: 3.5, maxH: 18, region: { ...LANDX, zMin: 134, zMax: 198 } });
-addGenerator('hormosira', { fn: FL.neptunesNecklace, noShadow: true, variants: 3, scale: [0.8, 1.3], radius: 0.25, sink: 0, rough: 0.35, cluster: 8, bleaches: false, as: 'neptunesnecklace', land: true, soft: true, sat: 1.05, minH: 0.12, maxH: 0.85, region: { xMin: 46, xMax: 150, zMin: 66, zMax: 112 } });
+addGenerator('banksia', { fn: FO.banksiaTree, variants: 4, scale: [0.8, 1.3], radius: 1.1, sink: 0.1, rough: 0.75, sway: 0.004, cluster: 4, bleaches: false, as: 'coastbanksia', land: true, transl: 0.25, sat: 1.0, ao: 0.5, minH: 3.5, maxH: 18, region: { ...LANDX, zMin: 134, zMax: 198 } });
+addGenerator('norfolkpine', { fn: FO.banksiaTree, variants: 2, scale: [0.75, 1.15], radius: 0.7, sink: 0.1, rough: 0.8, cluster: 2, bleaches: false, as: 'norfolkpine', land: true, minH: 2.4, maxH: 14, region: { ...LANDX, zMin: 112, zMax: 150 } });
+addGenerator('casuarina', { fn: FO.banksiaTree, variants: 2, scale: [0.8, 1.25], radius: 0.6, sink: 0.1, rough: 0.8, cluster: 3, bleaches: false, as: 'casuarina', land: true, minH: 2.6, maxH: 14, region: { ...LANDX, zMin: 118, zMax: 160 } });
+addGenerator('hormosira', { fn: FL.neptunesNecklace, noShadow: true, variants: 3, scale: [1.2, 2.0], radius: 0.25, sink: 0, rough: 0.35, cluster: 8, bleaches: false, as: 'neptunesnecklace', land: true, soft: true, sat: 1.05, minH: 0.12, maxH: 0.85, region: { xMin: 46, xMax: 150, zMin: 66, zMax: 112 } });
 addGenerator('boulder', { fn: rock, variants: 3, scale: [1.6, 4.2], radius: 1.6, sink: 0.4, rough: 0.95, bleaches: false });
 
 // ---- Looks (procedural fish skins)
@@ -202,14 +212,14 @@ export const rocky = {
   name: 'Illawarra beach & rock platform',
   place: 'Woonona–Bellambi, NSW',
   blurb: 'A surf beach, dunes and a sandstone rock platform with rock pools. Fish the gutters and the platform edge.',
-  terrainSize: 400, terrainSegments: 320, seabedKind: 'sand', ripple: 0.35, seed: 77,
+  terrainSize: 400, terrainSegments: 560, seabedKind: 'sand', ripple: 0.35, seed: 77,
   heightAt, colorAt, reefiness, rockAt,
   bounds: { xMin: -75, xMax: 75, zMin: -90, zMax: 60 },
   diveBounds: { xMin: -75, xMax: 75, zMin: -90, zMax: 92 }, // world.bounds (reef/life placement)
   water: {
     shafts: 0,
     absorb: [0.34, 0.1, 0.09], fog: 0x2d6a6c, fogDeep: 0x0f3236, fogDensity: 0.06,
-    shallow: 0x5aa59a, mid: 0x2a7a80, deep: 0x0e3a48,
+    shallow: 0x3fcfc0, mid: 0x1f9aae, deep: 0x1a6a9c, exposure: 1.0,
     skyTop: 0x3a78c0, skyHorizon: 0xc0d8e2, sun: [0.55, 0.62, -0.3], sunColor: 0xfff0dc, sunIntensity: 2.3,
     hemiSky: 0xbfe0e8, hemiGround: 0x3a5a4a,
   },
@@ -218,7 +228,7 @@ export const rocky = {
   // Rod fishing: rock platform to the east, surf beach elsewhere (keys of SPOTS in fishing/catches.js).
   fishing: { spotAt: (x, z) => (platformMask(x, z) > 0.3 ? 'rock' : 'beach') },
   land: {
-    spawn: { x: 6, z: 106, yaw: 0 },
+    spawn: { x: 4, z: 92, yaw: -0.5 },
     bounds: { xMin: -165, xMax: 155, zMin: 55, zMax: 194 }, // seaward edge; the walker also stops wading at chest depth (SWIM_DEPTH)
     intro: 'You\'re on the beach at Woonona. Walk down to the water, press R for your rod (T opens your tackle box), and try the rock platform to the east (right) too.',
     life: { ghostcrab: 28, oystercatcher: 4, silvergull: 12, waratahanemone: 70, bluelinedoctopus: 3 },
@@ -234,11 +244,33 @@ export const rocky = {
   cosyModels: {
     url: 'assets/models/rocky_cosy.glb',
     coral: {
+      banksia: ['banksia_0', 'banksia_1'], norfolkpine: ['norfolk_pine_0', 'norfolk_pine_1'], casuarina: ['casuarina_0', 'casuarina_1'],
       kelp: ['kelp_0', 'kelp_1', 'kelp_2', 'kelp_3'], crayweed: ['crayweed_0', 'crayweed_1'], fingersponge: ['fingersponge_0', 'fingersponge_1'],
       vasesponge: ['vasesponge_0', 'vasesponge_1'], boulder: ['boulder_0', 'boulder_1', 'boulder_2'], rock: ['boulder_0', 'boulder_1', 'boulder_2'],
     },
     statics: { urchin: 'urchin_0', abalone: 'abalone_0', cunjevoi: 'cunjevoi_0', weedyseadragon: 'seadragon_0', octopus: 'octopus_0', rocklobster: 'rocklobster_0' },
     land: { ghostcrab: 'crab_ghost', waratahanemone: 'waratah_0' },
+  },
+  treeShadows: { norfolkpine: [3, 12], casuarina: [2.4, 8], coastbanksia: [2, 4] }, // low tier: soft blob shadows under reef-placed trees [radius, height]
+  menuCam: { yaw: 0.5, swing: 0.3, pitch: 0.7, dist: 20, lift: 1.5 },
+  /** Hand-placed landmarks: the lifeguard tower on the beach, Norfolk Island pines along the dune front, an angler's esky and bucket on the platform. */
+  decorate(world) {
+    const pr = world.props, T = world.terrain;
+    const tx = -12, tz = 99.5;
+    pr.place('lifeguard_tower', tx, tz, { rot: Math.PI, shadow: 2.2, tall: 3.4 });
+    world.addCollider(tx, T.heightAt(tx, tz) + 1.5, tz, 2.1);
+    for (const [x, z, m, s] of [[-40, 121, 'norfolk_pine_1', 1.0], [-27, 123, 'norfolk_pine_0', 1.1], [-8, 120.5, 'norfolk_pine_1', 0.95], [22, 122, 'norfolk_pine_0', 1.05], [38, 124, 'norfolk_pine_1', 1.1], [-52, 126, 'casuarina_0', 1.0], [12, 124.5, 'casuarina_1', 1.0]]) {
+      pr.place(m, x, z, { rot: Math.random() * 6.28, scale: s, sink: 0.1, shadow: m.startsWith('norf') ? 3 : 2.4, tall: m.startsWith('norf') ? 12 : 8 });
+      world.addCollider(x, T.heightAt(x, z) + 1, z, 1.1);
+    }
+    pr.place('esky', 58.5, 79.5, { rot: 0.4 }); pr.place('bucket', 59.7, 80.2, { rot: 0.4 });
+    // Chunky rounded sandstone boulders along the platform's seaward edge and the foot of the bluff.
+    const warm = new THREE.Color(1.28, 0.96, 0.7);
+    for (const [x, z, m, s, r] of [[53, 70, 'boulder_0', 1.9, 0.5], [66, 67, 'boulder_1', 2.4, 2.1], [80, 66.5, 'boulder_2', 1.7, 4], [96, 68, 'boulder_0', 2.6, 1], [112, 67, 'boulder_1', 2.0, 3], [128, 70, 'boulder_2', 2.8, 5], [146, 74, 'boulder_0', 2.2, 2],
+      [60, 109, 'boulder_2', 2.2, 0.3], [88, 111, 'boulder_1', 2.6, 2.6], [118, 110, 'boulder_0', 2.4, 4.4], [140, 108, 'boulder_2', 2.0, 1.5], [75, 86, 'boulder_1', 1.3, 3.3], [105, 90, 'boulder_0', 1.2, 0.8]]) {
+      pr.place(m, x, z, { rot: r, scale: s, sink: 0.25 * s, color: warm });
+      world.addCollider(x, T.heightAt(x, z) + 0.4 * s, z, 0.55 * s);
+    }
   },
   speciesInfo,
   placers: {
@@ -254,12 +286,14 @@ export const rocky = {
   },
   coral: [
     // Dense, like a healthy NSW dune system: spinifex mats on the foredune, a wall of wattle and heath behind, banksia woodland.
-    ['spinifex', 4200, (x, z) => notPlatform(x, z) * (z > 112 && z < 134 ? 1 : 0.3)],
-    ['pigface', 900, (x, z) => notPlatform(x, z) * (z > 112 && z < 140 ? 1 : 0.4)],
-    ['wattle', 1900, (x, z) => notPlatform(x, z) * (z > 127 ? 1 : 0.15)],
-    ['heath', 1600, (x, z) => notPlatform(x, z) * (z > 132 ? 1 : 0.1)],
-    ['banksia', 420, (x, z) => notPlatform(x, z) * (z > 138 ? 1 : 0.1)],
-    ['hormosira', 1400, (x, z) => platformMask(x, z)],
+    ['spinifex', 1500, (x, z) => notPlatform(x, z) * (z > 112 && z < 134 ? 1 : 0.3)],
+    ['pigface', 500, (x, z) => notPlatform(x, z) * (z > 112 && z < 140 ? 1 : 0.4)],
+    ['wattle', 700, (x, z) => notPlatform(x, z) * (z > 127 ? 1 : 0.15)],
+    ['heath', 600, (x, z) => notPlatform(x, z) * (z > 132 ? 1 : 0.1)],
+    ['banksia', 240, (x, z) => notPlatform(x, z) * (z > 134 ? 1 : 0.1)],
+    ['norfolkpine', 26, (x, z) => notPlatform(x, z) * (z > 114 && z < 146 ? 1 : 0.05)],
+    ['casuarina', 30, (x, z) => notPlatform(x, z) * (z > 120 ? 1 : 0.05)],
+    ['hormosira', 120, (x, z) => platformMask(x, z)],
     ['kelp', 1300, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h < -3 && h > -13 ? 1 : 0.1)],
     ['crayweed', 90, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h > -7 ? 1 : 0.2)],
     ['fingersponge', 70, (x, z, h) => (h < -11 ? 1 : 0.05)],

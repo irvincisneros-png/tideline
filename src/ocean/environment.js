@@ -52,6 +52,7 @@ export class Environment {
     this.sunBase = this.sun.intensity = w.sunIntensity ?? 2.6;
     this.hemiBase = this.hemi.intensity = w.ambient ?? 1.1;
     this.fogDepthScale = w.fogDepthScale ?? 25;
+    this.exposureAbove = w.exposure ?? 0.82;
     this.buildEnvMap();
     if (this.island) { this.scene.remove(this.island); this.island.geometry.dispose(); this.island = null; }
     if (eco.island) this.island = this.makeIsland(eco.island, eco.islandKind);
@@ -134,7 +135,7 @@ export class Environment {
   }
 
   /** camera depth below the local surface (positive underwater) */
-  update(dt, camera, depth) {
+  update(dt, camera, depth, focus = null) {
     const u = depth > 0 ? 1 : 0;
     globalUniforms.uUnderwater.value = u;
     if (globalUniforms.uStyle.value > 0.5) {
@@ -145,9 +146,11 @@ export class Environment {
         G.uStyleSun.value.set(0.62, 0.6, 0.5).multiplyScalar(Math.min(1, this.sunBase / 2.4));
         G.uStyleRim.value.copy(this.fogBelow).multiplyScalar(1.6);
       } else {
-        G.uStyleSky.value.copy(G.uSkyTop.value).lerp(new THREE.Color(1, 1, 1), 0.45).multiplyScalar(0.62);
-        G.uStyleGround.value.set(0.42, 0.36, 0.28);
-        G.uStyleSun.value.set(0.82, 0.74, 0.6).multiplyScalar(Math.min(1, this.sunBase / 2.4));
+        // Warm golden key light, cool teal-blue shadows, a bright sky fill: lit surfaces land near their own colour (cream stays cream),
+        // shadowed ones fall to a cool tint of it. (Kept under 1.0 in total so the tone mapper doesn't wash the colours out.)
+        G.uStyleSky.value.copy(G.uSkyTop.value).lerp(new THREE.Color(0.6, 0.85, 0.95), 0.5).multiplyScalar(0.5);
+        G.uStyleGround.value.set(0.46, 0.4, 0.3);
+        G.uStyleSun.value.set(0.86, 0.74, 0.52).multiplyScalar(Math.min(1, this.sunBase / 2.4));
         G.uStyleRim.value.set(0.35, 0.42, 0.5);
       }
     }
@@ -176,7 +179,8 @@ export class Environment {
       // Snap to shadow texels so edges don't crawl as the camera moves.
       this.sun.castShadow = this.sunBase > 0;
       const step = (this.shadowRange * 2) / this.sun.shadow.mapSize.x;
-      const t = this.sun.target.position.set(Math.round(camera.position.x / step) * step, Math.round(camera.position.y / step) * step, Math.round(camera.position.z / step) * step);
+      const fp = focus ?? camera.position;
+      const t = this.sun.target.position.set(Math.round(fp.x / step) * step, Math.round(fp.y / step) * step, Math.round(fp.z / step) * step);
       this.sun.position.copy(globalUniforms.uSunDir.value).multiplyScalar(80).add(t);
     }
     if (this.shafts) {

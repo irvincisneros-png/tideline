@@ -15,6 +15,9 @@ import { Environment } from './ocean/environment.js';
 import { Particles } from './world/particles.js';
 import { World } from './world/world.js';
 import { Walker } from './land/walker.js';
+import { CameraRig } from './land/cameraRig.js';
+import { Angler } from './land/angler.js';
+import { Shoals } from './life/shoals.js';
 import { Fishing } from './fishing/fishing.js';
 import { judge, RULES, SPECIES_BY_ID, adjustStock } from './fishing/catches.js';
 import { DayConditions, RIGS, BAITS, tackleBoxHTML } from './fishing/gear.js';
@@ -44,15 +47,17 @@ class Game {
     this.renderer.shadowMap.enabled = !!this.quality.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap; // PCF honours shadow.radius (PCFSoft ignores it)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 7000);
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.4, 7000);
     this.input = new Input(canvas);
     this.audio = new Audio(); this.audio.volume = this.settings.volume;
     this.panels = new Panels(this);
     this.env = new Environment(this.scene, this.renderer, this.quality);
     this.fx = new Particles(this.scene, this.quality);
     this.world = new World(this.scene, this.renderer, this.env, this.fx, this.quality);
-    this.walker = new Walker(this.camera, this.input, this.settings);
-    if (!this.camera.parent) this.scene.add(this.camera); // the rod and the held fish are children of the camera
+    this.walker = new Walker(this.input, this.settings);
+    this.rig = new CameraRig(this.camera, this.input, this.settings);
+    this.listener = { position: new THREE.Vector3(), matrixWorld: this.camera.matrixWorld }; // sound is heard from the angler, not the camera boom
+    this.focus = new THREE.Vector3(); // what the camera looks at (the sun's shadow box follows it)
     this.fishing = new Fishing(this);
     // The day: tide, time, season and swell cycle with in-game time (?season=winter&time=dusk&tide=low&swell=1.5 for testing).
     this.cond = new DayConditions({ season: params.get('season') ?? undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
@@ -65,8 +70,6 @@ class Game {
     this.setupComposer();
     addEventListener('resize', () => this.resize());
     this.resize();
-    this.input.onLockChange = locked => $('#click-to-play').classList.toggle('hidden', locked || this.mode !== 'land' || this.panels.isOpen);
-    this.input.onLockFail = () => { $('#click-to-play').classList.add('hidden'); this.toast('Mouse capture is blocked here — drag with the left mouse button to look around; click an animal for its card.'); };
     this.bindMenu();
     this.bindKeys();
     // Browsers only allow audio after a user gesture: start on the first click or key press anywhere.
@@ -129,7 +132,7 @@ class Game {
   async start() {
     const bar = $('#load-bar'), msg = $('#load-msg');
     await this.world.load(this.eco, (f, m) => { bar.style.width = `${f * 100}%`; msg.textContent = m; });
-    this.audio.setSite(this.eco); this.setupShadows();
+    this.audio.setSite(this.eco); this.makeAngler(); this.setupShadows();
     await this.warmUp();
     $('#loading').classList.remove('show');
     this.clock = new THREE.Clock();
@@ -157,7 +160,7 @@ class Game {
     $('#loading').classList.add('show'); $('#menu').classList.remove('show');
     try {
       await this.world.load(this.eco, (f, m) => { $('#load-bar').style.width = `${f * 100}%`; $('#load-msg').textContent = m; });
-      this.audio.setSite(this.eco); this.setupShadows();
+      this.audio.setSite(this.eco); this.makeAngler(); this.setupShadows();
       await this.warmUp();
     } finally { this.loading = false; }
     $('#loading').classList.remove('show');
@@ -189,8 +192,8 @@ class Game {
     document.body.classList.remove('land-mode'); $('#prompt').innerHTML = '';
     this.input.wantLock = false; this.input.unlock();
     $('#menu').classList.add('show'); $('#hud').classList.add('hidden');
-    $('#click-to-play').classList.add('hidden');
     this.menuT = 0;
+    this.placeAnglerAtSpawn();
     this.updateProgressSummary();
   }
 
@@ -233,15 +236,29 @@ class Game {
       o.castShadow = o !== this.world.terrain?.mesh && !o.userData.noShadow; // the big seabed mesh and small ground plants only receive
     });
   }
-  /** Land is the only play mode; a first-person mode has mouse look, the crosshair and info cards. */
-  get firstPerson() { return this.mode === 'land'; }
-  lockSoon() { if (this.firstPerson) { $('#click-to-play').classList.toggle('hidden', this.input.locked || this.input.dragLook); } }
+  /** The angler and the shoals live in the scene across sites; built once, then re-used. Character creation: game.setAppearance({ skin, hair, hat, shirt, shorts }). */
+  makeAngler() {
+    if (!this.angler) this.angler = new Angler(this.scene, this.world.models, this.progress.look);
+    this.angler.castShadows(!!this.quality.shadows);
+    this.shoals?.dispose();
+    this.shoals = new Shoals(this.scene, this.quality);
+  }
+  setAppearance(a) { const look = this.angler.setAppearance(a); this.progress.look = look; this.persist(); return look; }
   onPanelClosed() {
-    if (this.firstPerson) this.lockSoon();
     if (this.mode === 'menu') this.updateProgressSummary();
   }
 
   // ------------------------------------------------------------------ land (beach, dunes, rock platform, estuary bank)
+  /** Stand the angler at the site's spawn point (title screen backdrop, and the start of an outing). */
+  placeAnglerAtSpawn() {
+    const L = this.eco.land;
+    const sp = new THREE.Vector3(L.spawn.x, this.world.walkAt(L.spawn.x, L.spawn.z), L.spawn.z);
+    this.walker.spawn(sp, L.spawn.yaw ?? 0);
+    this.rig.reset(sp, L.spawn.yaw ?? 0);
+    this.angler.root.visible = true; this.angler.place(sp, this.walker.heading);
+    this.angler.update(1 / 60, this.time, { state: 'off' });
+    return sp;
+  }
   startLand(spawn, yaw) {
     const L = this.eco.land;
     this.mode = 'land'; this.modeSince = this.time;
@@ -249,20 +266,37 @@ class Game {
     document.body.classList.add('land-mode');
     $('#menu').classList.remove('show'); $('#hud').classList.remove('hidden');
     $('#site-name').textContent = `${this.eco.name} · ${this.eco.place}`;
-    if (!spawn) spawn = new THREE.Vector3(L.spawn.x, this.world.groundAt(L.spawn.x, L.spawn.z), L.spawn.z);
-    this.walker.spawn(spawn, yaw ?? L.spawn.yaw);
-    this.input.wantLock = true;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['Click', 'info'], ['J', 'field guide'], ['P', 'pause']]);
+    if (this.viewOffset) { this.camera.clearViewOffset(); this.viewOffset = false; }
+    if (!spawn) spawn = this.placeAnglerAtSpawn();
+    this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
+    this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
+    this.input.wantLock = false;
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Q / E', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['J', 'field guide'], ['P', 'pause']]);
     this.toast(L.intro);
-    if (!this.panels.isOpen) this.lockSoon();
+  }
+  /** A ray from the camera through a screen point (CSS pixels). */
+  mouseRay(x, y) {
+    const ndc = new THREE.Vector2((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+    const r = new THREE.Raycaster(); r.setFromCamera(ndc, this.camera);
+    return r.ray;
+  }
+  /** Desktop: while the rod is out, the angler turns to face the pointer (touch and keyboard keep the walking direction). */
+  aimAtCursor(dt) {
+    const m = this.input.mouse;
+    if (this.touch || performance.now() - m.t > 3500) return;
+    const ray = this.mouseRay(m.x, m.y);
+    if (ray.direction.y > -0.05) return;
+    const k = (0.05 - ray.origin.y) / ray.direction.y, px = ray.origin.x + ray.direction.x * k, pz = ray.origin.z + ray.direction.z * k;
+    this.walker.face(px - this.walker.pos.x, pz - this.walker.pos.z, dt);
   }
   updateLand(dt, paused) {
-    const w = this.walker;
+    const w = this.walker, f = this.fishing;
     if (!paused) {
+      w.viewYaw = this.rig.yaw;
       w.update(dt, this.world, this.eco.land.bounds);
       for (const c of this.input.takeClicks()) {
-        if (!this.input.lookActive) continue;
-        const hit = this.world.pick(this.camera.position, w.lookDir);
+        if (c.button !== 0 || c.x == null) continue;
+        const ray = this.mouseRay(c.x, c.y), hit = this.world.pick(ray.origin, ray.direction, 80);
         if (hit) { const sp = this.eco.speciesInfo.find(s => s.id === hit.id); if (sp) this.panels.card(sp, this.progress.journal[`${this.eco.id}:${sp.id}`]); }
       }
     }
@@ -274,13 +308,20 @@ class Game {
     this.world.waveMesh.update(null, this.time);
     if (!paused) this.cond.update(dt);
     if (this.frame % 6 === 0) this.updateChip();
-    w.noJump = this.fishing.active;
-    if (this.fishing.active) { if (!paused) this.fishing.update(dt, this.time, this.input, this.world, this.camera.position.clone()); }
-    else $('#prompt').innerHTML = '';
+    if (f.active) { if (!paused) f.update(dt, this.time, this.input, this.world); }
+    else { $('#prompt').innerHTML = ''; w.frozen = false; }
+    // Camera: follows the angler, frames the float too while a line is out.
+    const also = f.active && f.float.visible && ['wait', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
+    this.rig.update(dt, this.world, w.pos, also, !paused);
+    this.focus.copy(this.rig.focus);
+    // The angler: stand, walk and fish.
+    const a = this.angler;
+    a.place(w.pos, w.heading);
+    a.update(dt, this.time, { speed: w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reducedMotion: this.settings.reducedMotion });
     if (this.frame % 5 === 0 && !paused) {
-      const hit = this.input.lookActive ? this.world.pick(this.camera.position, w.lookDir, 12) : null;
-      const lbl = $('#target-label');
-      if (hit) { const sp = this.eco.speciesInfo.find(s => s.id === hit.id); lbl.innerHTML = sp ? `${esc(sp.common)} <i>· click for info</i>` : ''; lbl.classList.toggle('show', !!sp); }
+      const m = this.input.mouse, lbl = $('#target-label');
+      const hit = !this.touch && performance.now() - m.t < 2500 ? (() => { const r = this.mouseRay(m.x, m.y); return this.world.pick(r.origin, r.direction, 80); })() : null;
+      if (hit) { const sp = this.eco.speciesInfo.find(s => s.id === hit.id); lbl.innerHTML = sp ? `${esc(sp.common)} <i>· click for info</i>` : ''; lbl.style.left = `${m.x}px`; lbl.style.top = `${m.y + 22}px`; lbl.classList.toggle('show', !!sp); }
       else lbl.classList.remove('show');
     }
   }
@@ -363,6 +404,7 @@ class Game {
       <p><b>Kept today:</b> ${keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}</p>
       <p style="color:var(--muted)">Decide: may you keep this fish? (Releasing a legal fish is always allowed.)</p>
       <p><button class="btn primary" id="fx-keep">Keep it</button> <button class="btn" id="fx-release">Release it</button></p>`, () => done());
+    this.panels.modal.classList.add('dock-bottom'); // the card sits low, so the angler holding the catch stays in view above it
     $('#fx-keep').onclick = () => decide(true);
     $('#fx-release').onclick = () => decide(false);
   }
@@ -444,12 +486,16 @@ class Game {
     const cam = this.camera.position;
     const surfaceY = this.world.surfaceAt(cam.x, cam.z);
     const depth = surfaceY - cam.y;
-    this.env.update(dt, this.camera, depth);
+    this.env.update(dt, this.camera, depth, this.mode === 'land' ? this.focus : null);
+    globalUniforms.uPlayer.value.set(this.walker.pos.x, this.mode === 'land' ? this.walker.pos.y : -999, this.walker.pos.z);
+    this.world.props?.update(dt, this.time);
+    this.shoals?.update(dt, this.time, this.world, this.mode === 'land' ? this.walker : null, this.eco);
     this.world.ocean.update(this.camera, depth > 0);
     this.world.reef?.cull(cam, depth > 0 ? 2.6 / this.env.fogDensityBelow + 4 : 150, depth > 0 ? 0.9 / this.env.fogDensityBelow : 40);
     this.world.sky.update(this.camera);
     this.fx.update(dt, this.camera, 0);
-    this.audio.update(dt, { mode: this.mode, depth, camera: this.camera, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1 });
+    this.listener.position.copy(this.mode === 'land' ? this.walker.pos : cam);
+    this.audio.update(dt, { mode: this.mode, depth, camera: this.listener, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1 });
     $('#fx-uw').style.opacity = depth > 0 ? 1 : 0;
     this.touch?.update();
     if (skipRender) { this.input.endFrame(); return; }
@@ -463,13 +509,20 @@ class Game {
     this.input.endFrame();
   }
 
-  /** Title screen backdrop: a slow orbit around the site's signature view (eco.menuCam). */
+  /** Title screen backdrop: the same high camera, slowly swinging round the angler at the water's edge (eco.menuCam: { yaw, swing, pitch, dist, lift }). */
   updateMenu(dt) {
     this.menuT += dt;
-    const m = this.eco.menuCam ?? { look: [60, 1, 90], r: 40, y: 6 };
-    const a = this.menuT * 0.04;
-    this.camera.position.set(m.look[0] + Math.cos(a) * m.r, m.y, m.look[2] + Math.sin(a) * m.r);
-    this.camera.lookAt(m.look[0], m.look[1], m.look[2]);
+    const m = { yaw: 0, swing: 0.35, pitch: 0.78, dist: 17, lift: 0, ...this.eco.menuCam };
+    const rig = this.rig, p = this.walker.pos;
+    rig.yaw = m.yaw + Math.sin(this.menuT * 0.07) * m.swing; rig.pitch = m.pitch; rig.dist = rig.zoom = m.dist;
+    rig.focus.set(p.x, p.y + 0.9 + m.lift, p.z);
+    rig.apply(this.world);
+    this.focus.copy(rig.focus);
+    // Slide the picture so the angler sits to the right of the title panel (above it on a portrait phone).
+    const w = innerWidth, h = innerHeight, wide = w > h * 1.1;
+    this.camera.setViewOffset(w, h, wide ? -w * 0.2 : 0, wide ? 0 : h * 0.2, w, h); this.viewOffset = true;
+    this.angler.place(p, this.walker.heading);
+    this.angler.update(dt, this.time, { state: 'off' });
     this.world.waveMesh.update(null, this.time);
   }
 }

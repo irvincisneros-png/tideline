@@ -26,7 +26,7 @@ export class Panels {
   }
   close() {
     if (!this.isOpen) return;
-    this.modal.classList.add('hidden');
+    this.modal.classList.add('hidden'); this.modal.classList.remove('dock-bottom');
     this.body.innerHTML = '';
     this.game.audio.play('panelClose');
     const cb = this.onClose; this.onClose = null;
@@ -110,8 +110,8 @@ export class Panels {
         <select id="set-q">${Object.entries(TIERS).map(([k, t]) => `<option value="${k}" ${settings.quality === k ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
       <div class="settings-row"><span>Graphics style<br><small style="color:var(--muted)">Cosy: soft, colourful, hand-shaped models. Realistic: the original look. Changes reload the site.</small></span>
         <select id="set-style"><option value="stylised" ${settings.style !== 'realistic' ? 'selected' : ''}>Cosy (default)</option><option value="realistic" ${settings.style === 'realistic' ? 'selected' : ''}>Realistic</option></select></div>
-      <div class="settings-row"><span>Mouse sensitivity</span><input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
-      <div class="settings-row"><span>Invert look up/down</span><input id="set-inv" type="checkbox" ${settings.invertY ? 'checked' : ''}></div>
+      <div class="settings-row"><span>Camera turn speed</span><input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" value="${settings.sensitivity}"></div>
+      <div class="settings-row"><span>Invert camera tilt</span><input id="set-inv" type="checkbox" ${settings.invertY ? 'checked' : ''}></div>
       <div class="settings-row"><span>Volume</span><input id="set-vol" type="range" min="0" max="1" step="0.05" value="${settings.volume}"></div>
       <div class="settings-row"><span>Reduced motion (steadier camera)</span><input id="set-rm" type="checkbox" ${settings.reducedMotion ? 'checked' : ''}></div>
       <p style="margin-top:16px"><button class="btn small" id="set-reset">Reset all progress</button></p>`;
@@ -128,11 +128,11 @@ export class Panels {
   help() {
     this.open(`<h2>How to play</h2>
       <div class="help-grid">
-        <div><h3>🚶 Walking</h3><p>Mouse to look · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump.<br>Click an animal for its card. Wading stops at chest depth.</p></div>
+        <div><h3>🚶 Walking</h3><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk (up the screen is forward) · <kbd>Shift</kbd> run · <kbd>Q</kbd><kbd>E</kbd> turn the camera · mouse wheel zooms.<br>Click an animal for its card. Wading stops at chest depth. Walk out along the jetty at Lake Illawarra.</p></div>
         <div><h3>🎣 Fishing</h3><p><kbd>T</kbd> tackle box: pick a rig and bait · <kbd>R</kbd> rod out (or away) · hold <kbd>Space</kbd> to wind up, release to cast · <kbd>Space</kbd> to strike when the float dips.<br>Then the <b>catch bar</b>: hold <kbd>Space</kbd> to lift the green zone, let go to let it fall. Keep the fish inside it to fill the meter. Pick up floating litter with the zone for steward points. Reef fish bolt for the reef line at the bottom!</p></div>
         <div><h3>📏 Keep or release?</h3><p>Every fish you land is judged against NSW size and bag limits. Decide whether you may keep it. Releasing a legal fish is always allowed.</p></div>
         <div><h3>📗 Field guide</h3><p><kbd>J</kbd> opens your field guide: every species you have caught, with its card. <kbd>P</kbd> pauses.</p></div>
-        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to look, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike. In the catch bar, hold the big button (or press and hold the bar) to lift the zone. 🎣 rod · 🧰 tackle box · 📗 field guide · ⏸ pause.</p></div>` : ''}
+        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to turn the camera, pinch to zoom, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike. In the catch bar, hold the big button (or press and hold the bar) to lift the zone. 🎣 rod · 🧰 tackle box · 📗 field guide · ⏸ pause.</p></div>` : ''}
       </div>`);
   }
 }

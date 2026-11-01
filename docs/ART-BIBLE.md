@@ -1,6 +1,6 @@
-# DeepSwell art bible
+# TideLine art bible
 
-Reference: **I Just Wanted to Fish** (Fork Dev, 2026). One look everywhere: surf, dive, beach, every site.
+Reference: **I Just Wanted to Fish** (Fork Dev, 2026). One look everywhere: every site.
 Science stays accurate: species keep their real shapes, markings and colours (pastel-shifted, never invented).
 
 ## Feel
@@ -38,6 +38,10 @@ A sunny, hand-made diorama. Bright, clear, calm and friendly. Readable at a glan
 
 ## Sky
 - Soft blue gradient, a few big puffy rounded clouds with gentle shading (no hard noisy edges).
+
+## Camera and characters
+- A high third-person, near top-down follow camera (pitch about 60 degrees, 12-18 m back, damped, wheel / pinch zoom). The angler is a chunky, cel-shaded character with a big head and a bucket hat (`tools/blender/tideline.py`); colours are parameters (`setAppearance`). Casts, the line (a thin dark curve) and the red and white float are all readable from above.
+- Tall things between the camera and the angler (canopies, roofs) are cut away with a stippled see-through hole.
 
 ## Composition
 - Every site has hand-placed **hero landmarks** (coral bommies, boulders, a cay, a rock platform) with open

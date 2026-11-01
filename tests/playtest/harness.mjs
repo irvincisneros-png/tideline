@@ -45,16 +45,25 @@ export async function launch({ url = process.env.URL ?? 'http://localhost:8451/'
           mode: g.mode, fps: g.fps, panelOpen: g.panels.isOpen,
           prompt: document.querySelector('#prompt')?.textContent,
           toasts: [...document.querySelectorAll('.toast')].map(t => t.textContent),
-          walker: { pos: w.pos.toArray().map(v => +v.toFixed(1)), yaw: +w.yaw.toFixed(2), waterDepth: +w.waterDepth.toFixed(2) },
+          walker: { pos: w.pos.toArray().map(v => +v.toFixed(1)), heading: +w.heading.toFixed(2), camYaw: +g.rig.yaw.toFixed(2), waterDepth: +w.waterDepth.toFixed(2) },
           fishing: { state: f.state, spot: f.spot, dist: +f.dist.toFixed(1), bar: f.bar.active ? { meter: +f.bar.meter.toFixed(2), fish: f.bar.fy, zone: f.bar.zy, zv: f.bar.zv, profile: f.bar.profile } : null },
           journal: Object.keys(g.progress.journal),
         };
       });
     },
-    /** Rotate the walker's view directly (pointer lock is unavailable in headless browsers). */
-    async look(yawDelta, pitchDelta = 0) { await page.evaluate(([y, p]) => { const d = window.__game.walker; d.yaw += y; d.pitch = Math.max(-1.45, Math.min(1.45, d.pitch + p)); }, [yawDelta, pitchDelta]); },
-    /** Simulate a click in the 3D view (as if the mouse were locked): opens the species card of what you look at. */
-    async clickView(button = 0) { await page.evaluate(b => { const g = window.__game; g.input.locked = true; g.input.clicks.push({ button: b }); }, button); await page.waitForTimeout(150); },
+    /** Turn the follow camera round the angler (what Q / E / a right-drag do). */
+    async look(yawDelta, pitchDelta = 0) { await page.evaluate(([y, p]) => { const r = window.__game.rig; r.yaw += y; r.pitch = Math.max(0.85, Math.min(1.25, r.pitch + p)); }, [yawDelta, pitchDelta]); },
+    /** Move the angler somewhere (feet position, optional facing and camera yaw) and let the camera settle: for screenshots. */
+    async teleport(x, z, { heading, camYaw, pitch, zoom } = {}) {
+      await page.evaluate(([x, z, h, cy, pi, zm]) => {
+        const g = window.__game, w = g.walker; w.pos.set(x, g.world.walkAt(x, z), z); w.vel.set(0, 0, 0);
+        if (h != null) w.heading = h; if (cy != null) g.rig.yaw = cy; if (pi != null) g.rig.pitch = pi; if (zm != null) g.rig.zoom = zm;
+        g.rig.focus.set(x, w.pos.y + 0.9, z);
+      }, [x, z, heading, camYaw, pitch, zoom]);
+      await page.waitForTimeout(900);
+    },
+    /** Click the 3D view at a screen position (opens the species card of an animal there). */
+    async clickAt(x, y) { await page.mouse.click(x, y); await page.waitForTimeout(150); },
     async close() { await browser.close(); },
   };
   return api;

@@ -110,7 +110,7 @@ export class Reef {
         // Leaf-card plants: painted foliage atlas, alpha-cut (soft edges with MSAA); shadows inherit the cut-out.
         if (gen.foliage) { mat.map = foliageAtlas(); mat.alphaTest = 0.45; mat.alphaToCoverage = true; }
         // Only reef-building/soft corals with zooxanthellae bleach (not sea fans, sponges or rock).
-        patchUnderwater(mat, { coral: gen.bleaches ?? !['rock', 'seafan', 'sponge'].includes(kind), sway: gen.sway ?? 0, transl: gen.transl ?? 0, detail: !gen.foliage, detailScale: gen.detailScale ?? 38 });
+        patchUnderwater(mat, { cutaway: !!(gen.land || gen.upright), coral: gen.bleaches ?? !['rock', 'seafan', 'sponge'].includes(kind), sway: gen.sway ?? 0, transl: gen.transl ?? 0, detail: !gen.foliage, detailScale: gen.detailScale ?? 38 });
         const name = (gen.as ?? kind) + vi;
         const q = new THREE.Quaternion(), e3 = new THREE.Euler();
         // Per-instance data, generated in placement order (keeps the random stream identical).
@@ -123,7 +123,7 @@ export class Reef {
           const v = 0.8 + rnd() * 0.35, hueShift = rnd();
           const tint = new THREE.Color(v * (hueShift < 0.33 ? 1.1 : 0.92), v * (hueShift > 0.66 ? 1.08 : 0.95), v * (hueShift > 0.33 && hueShift < 0.66 ? 1.12 : 0.9));
           const bleach = 0.15 + rnd() * 0.8; // individual colony thresholds -> patchy bleaching
-          p.pick = kind !== 'rock' ? { x: p.x, y: p.y + gen.radius * p.s * 0.5, z: p.z, r: gen.radius * p.s * 0.8, id: gen.as ?? kind, kind: 'coral', soft: !!gen.soft } : null;
+          p.pick = kind !== 'rock' ? { x: p.x, y: p.y + gen.radius * p.s * 0.5, z: p.z, r: gen.radius * p.s * 0.8, id: gen.as ?? kind, kind: 'coral', soft: !!gen.soft, s: p.s } : null;
           if (p.pick) this.picks.push(p.pick);
           return { p, m, tint, bleach, gi: i };
         });
