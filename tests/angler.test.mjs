@@ -32,7 +32,7 @@ test('looks: bad or missing values fall back to the default, random looks are al
   const seen = {};
   for (let i = 0; i < 200; i++) {
     const r = randomLook(rng);
-    for (const k of Object.keys(PALETTES)) assert.ok(PALETTES[k].some(c => c.v === r[k]), k);
+    for (const k of Object.keys(PALETTES)) assert.ok(PALETTES[k].some(c => c.v === r[k]) || (k === 'beardColor' && r[k] === null), k);
     for (const k of Object.keys(STYLES)) { assert.ok(STYLES[k].some(c => c.id === r[k]), k); (seen[k] ??= new Set()).add(r[k]); }
   }
   for (const k of Object.keys(STYLES)) assert.equal(seen[k].size, STYLES[k].length, `random reaches every ${k}`);

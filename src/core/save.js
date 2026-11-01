@@ -5,7 +5,7 @@ const KEY = 'tideline.progress.v1';
 //   catches: the logbook, one row per fish: { eco, id, length, kept, correct, time, spot, tide, daytime, rig, bait, n, label, measured, accurate, legal, kind, outing, wet, air }
 //   esky: fish kept this outing { id, label, length, legal, kind, time }.  outing: the outing in progress { id, t0, bay0, steward0, ... }.
 //   steward: { points, litter, checks, clean, fines }.  tips: one-line tips already shown.  stock: stock health (0-100) per 'spot:species'.
-//   angler (phase 2): { name, skin, hairStyle, hair, hatStyle, hat, sunnies, pattern, shirt, shorts, rod } from the character creator; null = not made yet
+//   angler (phase 2): { name, skin, hairStyle, hair, beard (none|stubble|moustache|short|big), beardColor (0xRRGGBB | null = matches hair), hatStyle, hat, sunnies, pattern, shirt, shorts, rod } from the character creator; null = not made yet
 //   (an older save has none, so the creator opens once before the next outing).
 //   inventory (phase 3): { have: { itemId: t }, cards: { sea country card id: t }, worn: hat item id | null, lure: lure colour id | null } — rewards from the coast's people
 //   (content/items.js). New saves start with only paternoster, running sinker, unweighted + prawn and beach worm; the rest unlock through trades.
@@ -22,6 +22,7 @@ const KEY = 'tideline.progress.v1';
 //   fridge (release fixes): fish taken home from the esky { id, label, length, legal, day, time }; they count toward possession for FRIDGE_DAYS simulated days (economy/possession.js). catches rows also gain `day` (the simulated day the fish was handled on).
 //   catches rows gain `flow` (low | normal | high) on the river, where there is no tide: the logbook column "tide or flow" reads r.tide ?? r.flow.
 import { RATES, START_BAIT_STOCK } from '../content/shop.js';
+import { BEARD_IDS } from '../land/angler-defaults.js';
 export const SAVE_VERSION = 4;
 const blankEcon = () => ({ day: 1, speciesToday: {}, tagsToday: 0, litterToday: 0, litterPaid: 0, first: {}, combos: {}, collected: {}, comp: null, compDone: null, tags: [], lastLetterDay: 0, earned: 0, log: [] });
 const blankCoop = () => ({ licence: null, credits: 0, earned: 0, hold: [], landed: {}, yearStart: 1, haulsDay: { day: 0, n: 0 }, hauls: 0, upgrades: {}, method: null, labPassed: {}, log: [] });
@@ -63,6 +64,11 @@ export function migrateProgress(saved) {
   p.gear = isObj(saved.gear) ? saved.gear : null;
   p.outing = isObj(saved.outing) ? saved.outing : null;
   p.angler = isObj(saved.angler) ? saved.angler : null;
+  // Facial hair (added after v4, additive): a saved angler from before it gets no beard, and a bad value falls back the same way. beardColor null = matches the hair.
+  if (p.angler) {
+    const a = p.angler, okColour = isNum(a.beardColor) && a.beardColor >= 0 && a.beardColor <= 0xffffff;
+    p.angler = { ...a, beard: BEARD_IDS.includes(a.beard) ? a.beard : 'none', beardColor: okColour ? a.beardColor : null };
+  }
   p.steward = { ...b.steward, ...objOr(saved.steward, {}, notes, 'steward') };
   // --- the Fish Guide
   run('guide', () => {

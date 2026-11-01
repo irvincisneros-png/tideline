@@ -65,7 +65,7 @@ export function paletteAt(w, hour, cfg = lightingFor({ daylight: true })) {
   out.exposure = exp + (N.exposure - exp) * k;
   // The sun sinks toward the horizon at dusk (a low, long glow on the water), and the moon (fixed, high) takes over.
   const sd = w.sun, n = Math.hypot(...sd), dir = [sd[0] / n, sd[1] / n, sd[2] / n];
-  dir[1] *= 0.22 + 0.78 * d.light;
+  dir[1] *= 0.1 + 0.9 * sstep(0.7, 0.98, d.light);   // low at dusk (about 9 degrees at 18:08, touching the horizon by 18:40) so the setting sun is in the sky of a low camera view
   const m = Math.hypot(...N.moonDir), moon = N.moonDir.map(v => v / m), mw = 1 - Math.min(1, d.light / 0.5), t = mw * mw * (3 - 2 * mw);
   const v = lerp3(dir, moon, t), vl = Math.hypot(...v);
   out.sunDir = [v[0] / vl, v[1] / vl, v[2] / vl];

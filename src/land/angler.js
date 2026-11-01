@@ -2,19 +2,21 @@
 // (tools/blender/tideline.py). Each part is its own mesh with its joint at the object origin, so posing is just rotating
 // joints. Everything the character creator offers is a real mesh or a colour slot: hair (6), hats (5), sunnies (2), shirt patterns (3),
 // colours for skin, hair, hat, shirt, shorts and the rod. The meshes for an option are only built when it is chosen.
-//   setAppearance({ skin, hair, hairStyle, hatStyle, hat, shirt, pattern, shorts, sunnies, rod })   (colours as 0xRRGGBB or CSS strings)
+//   setAppearance({ skin, hair, hairStyle, beard, beardColor, hatStyle, hat, shirt, pattern, shorts, sunnies, rod })   (colours as 0xRRGGBB or CSS strings)
 // Procedural animation: idle, walk, wind-up, cast, wait, fight (rod bends, leans back), hold up the catch.
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
 import { patchUnderwater } from '../ocean/shaders.js';
 
 import { DEFAULT_LOOK } from './angler-defaults.js';
+import { BEARD_MESHES, beardGeo } from './beard.js';
 export { DEFAULT_LOOK };
-const SLOTS = ['skin', 'hair', 'hat', 'shirt', 'shorts', 'trim'];
+const SLOTS = ['skin', 'hair', 'hat', 'shirt', 'shorts', 'trim', 'beard', 'stubble'];
 /** Which meshes each option shows (tools/blender/tideline.py). `hideUnderHat` parts disappear when a hat is worn (a bun or the top curls would poke through). */
 export const OPTION_MESHES = {
   hairStyle: { short: ['ang_hairShort_hair'], long: ['ang_hairLong_hair'], pony: ['ang_hairPony_hair'], buzz: ['ang_hairBuzz_hair'], curly: ['ang_hairCurly_hair', 'ang_hairCurlyTop_hair'], bun: ['ang_hairBun_hair', 'ang_hairBunKnot_hair'] },
   hatStyle: { none: [], bucket: ['ang_hatBucket_hat', 'ang_hatBucketBand_band'], cap: ['ang_hatCap_hat'], straw: ['ang_hatStraw_hat', 'ang_hatStrawBand_band'], beanie: ['ang_hatBeanie_hat'], wide: ['ang_hatWide_hat', 'ang_hatWideBand_band'] },
+  beard: BEARD_MESHES,
   sunnies: { none: [], round: ['ang_sunRound_sun'], sport: ['ang_sunSport_sun'] },
   pattern: {
     plain: [], stripes: ['ang_torso_stripes_trim', 'ang_armL_stripes_trim', 'ang_armR_stripes_trim'],
@@ -61,6 +63,7 @@ const FALLBACK = {
 let warned = false;
 /** A stand-in geometry for a named part (hair and hats get a generic cap / brim), or null. White vertex colours so the slot colours show. */
 function fallbackGeo(name) {
+  const bg = beardGeo(name); if (bg) return bg;
   const f = FALLBACK[name] ?? (name.endsWith('_hair') ? () => new THREE.SphereGeometry(0.185, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55).translate(0, 0.16, -0.01)
     : name.endsWith('_hat') ? () => merged([new THREE.CylinderGeometry(0.2, 0.2, 0.03, 14).translate(0, 0.24, 0), new THREE.CylinderGeometry(0.15, 0.17, 0.12, 12).translate(0, 0.3, 0)]) : null);
   if (!f) return null;
@@ -120,11 +123,13 @@ export class Angler {
     this.joints[jointName].add(m);
     return m;
   }
-  /** Character creation hook: any of { skin, hair, hairStyle, hatStyle, hat, shirt, pattern, shorts, sunnies, rod }. Colours are 0xRRGGBB or CSS strings. */
+  /** Character creation hook: any of { skin, hair, hairStyle, beard, beardColor, hatStyle, hat, shirt, pattern, shorts, sunnies, rod }. Colours are 0xRRGGBB or CSS strings. */
   setAppearance(a = {}) {
     Object.assign(this.look, a);
     const L = this.look;
-    for (const s of SLOTS) if (s !== 'trim') this.mats[s].color.set(L[s]);
+    for (const s of SLOTS) if (s !== 'trim' && s !== 'beard' && s !== 'stubble') this.mats[s].color.set(L[s]);
+    this.mats.beard.color.set(L.beardColor ?? L.hair);                                              // beardColor null = matches the hair
+    this.mats.stubble.color.set(this.mats.skin.color).lerp(this.mats.beard.color, 0.72);              // stubble is a shadow of beard colour on the skin
     this.mats.trim.color.set(trimFor(L.shirt));
     if (this.rodMat) this.rodMat.color.set(L.rod);
     // Show only the meshes the chosen options use.

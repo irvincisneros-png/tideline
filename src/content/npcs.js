@@ -108,7 +108,7 @@ export const NPCS = {
 
   tam: {
     name: 'Old Tam', role: 'Jetty regular', where: 'the jetty, Lake Illawarra',
-    look: { skin: 0xe0a97c, hairStyle: 'short', hair: 0xc9ced2, hatStyle: 'straw', hat: 0xe9d9a6, sunnies: 'none', pattern: 'fishing', shirt: 0xf6f1e6, shorts: 0xc9b27a, rod: 0x8a5230 },
+    look: { skin: 0xe0a97c, hairStyle: 'short', hair: 0xc9ced2, beard: 'big', beardColor: 0xf6f4ee, hatStyle: 'straw', hat: 0xe9d9a6, sunnies: 'none', pattern: 'fishing', shirt: 0xf6f1e6, shorts: 0xc9b27a, rod: 0x8a5230 },
     props: ['bucket', 'thermos'],
     sites: {
       // Old Tam fishes the lake jetty by day and dusk, then walks up to Belmore Basin for the squid, so at night he is on the harbour wharf, under the lamps.

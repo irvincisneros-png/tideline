@@ -16,7 +16,7 @@ export function detectTouch() {
 const press = (code, type) => dispatchEvent(new KeyboardEvent(type, { code, key: code, bubbles: true }));
 
 // Button labels used when rewriting on-screen hints like "(hold W)" or "press Q".
-const LABELS = { B: 'the ⚓ button', Space: 'the big button', R: '🎣', T: '🧰', J: '📗', L: '📒', H: '🏠', P: '⏸', E: 'the 💬 button', Q: '📜', W: 'the joystick', Shift: 'push the joystick to the edge' };
+const LABELS = { B: 'the ⚓ button', Space: 'the big button', R: '🎣', T: '🧰', J: '📗', M: '🗺', L: '📒', H: '🏠', P: '⏸', E: 'the 💬 button', Q: '📜', W: 'the joystick', Shift: 'push the joystick to the edge' };
 
 export class TouchControls {
   constructor(game) {
@@ -39,10 +39,12 @@ export class TouchControls {
       <div class="t-look" id="t-look"></div>
       <div class="t-top">
         <button data-key="KeyT" class="t-land" aria-label="Tackle box">🧰</button>
+        <button data-key="KeyM" class="t-land" aria-label="Map">🗺</button>
         <button data-key="KeyJ" class="t-land" aria-label="Fish guide">📗</button>
         <button data-key="KeyQ" class="t-land" aria-label="Quest log">📜</button>
         <button data-key="KeyL" class="t-land" aria-label="Logbook">📒</button>
         <button data-key="KeyH" class="t-land" aria-label="Head home">🏠</button>
+        <button data-key="KeyV" class="t-land" aria-label="Change camera view">🎥</button>
         <button data-key="KeyP" aria-label="Pause">⏸</button>
       </div>
       <div class="t-stick t-land" id="t-stick" aria-label="Walk joystick"><div class="t-knob" id="t-knob"></div></div>
@@ -119,8 +121,9 @@ export class TouchControls {
       const p = ptrs.get(e.pointerId);
       if (!p) return;
       if (ptrs.size >= 2) {
-        const before = gap(); p.x = e.clientX; p.y = e.clientY;
+        const before = gap(), oy = p.y; p.x = e.clientX; p.y = e.clientY;
         const after = gap(); if (before > 10) this.input.pinch -= (after - before) / 40; // fingers apart = zoom in (a smaller camera distance)
+        this.input.my += (e.clientY - oy) * 1.1;   // two fingers dragging up or down also tilt the view
         return;
       }
       const s = 2.2 * (900 / Math.max(500, innerWidth)); // a swipe across the screen is about a half turn of the camera

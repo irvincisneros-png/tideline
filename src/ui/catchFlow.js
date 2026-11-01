@@ -80,7 +80,7 @@ export class CatchFlow {
       onConfirm: leaf => {
         const as = SPECIES_BY_ID[leaf];
         G.recordKey(p, this.id, leaf, 'catch');
-        g.persist(); g.audio.play('newSpecies');
+        g.persist(); g.audio.play('newSpecies'); g.audio.music.jingle('reelwinner');
         g.toast(`Logged as ${as.name} in your Fish Guide.`, 'good');
         this.stepMeasure();
       },

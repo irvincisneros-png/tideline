@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { Angler } from '../land/angler.js';
 
-const SKIP_HULL = /_(face|sun|band|trim|dots)$/;
+const SKIP_HULL = /_(face|sun|band|trim|dots|stubble)$/;
 const cache = new Map();
 
 /** The portrait for a person (cached by id). models = the tideline_cosy.glb parts; look = angler appearance. Returns a data URL, or null if WebGL fails. */

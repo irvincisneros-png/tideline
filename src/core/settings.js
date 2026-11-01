@@ -12,7 +12,8 @@ export const DEFAULTS = {
   quality: null, // auto-detected on first run
   style: 'stylised', // 'stylised' (cosy, default) or 'realistic'
   sensitivity: 1, invertY: false, volume: 0.8, reducedMotion: false,
-  subtitles: true,
+  subtitles: true, minimap: false, fightCam: true,   // fightCam: ease the camera lower and side-on while a fish is on
+  musicOn: true, musicVolume: 0.5,
 };
 
 export function guessTier() {

@@ -45,6 +45,7 @@ import { COIN, COLLECT } from './content/shop.js';
 import { openCoop } from './ui/coop.js';
 import { runCeremony, updateCeremony } from './ui/ceremony.js';
 import { openCredits } from './ui/credits.js';
+import { openMap, MiniMap } from './ui/mapUI.js';
 import { pendingCeremony } from './fishing/ending.js';
 import { firstRunDue, runFirstRun } from './ui/firstRun.js';
 
@@ -74,7 +75,7 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.4, 7000);
     this.input = new Input(canvas);
-    this.audio = new Audio(); this.audio.volume = this.settings.volume;
+    this.audio = new Audio(); this.audio.volume = this.settings.volume; this.audio.music.configure({ enabled: this.settings.musicOn, volume: this.settings.musicVolume });
     this.panels = new Panels(this);
     this.dialogue = new Dialogue(this);
     this.catchFlow = new CatchFlow(this);
@@ -111,6 +112,7 @@ class Game {
     document.addEventListener('click', e => { if (e.target.closest?.('button:not([disabled])') && !e.target.closest('#touch')) this.audio.play('click'); }, true);
     // Phones / tablets: on-screen joystick, look-drag and buttons.
     this.touch = detectTouch() ? new TouchControls(this) : null;
+    this.mini = new MiniMap(this);   // the optional corner minimap (Settings)
   }
 
   setupComposer() {
@@ -192,6 +194,7 @@ class Game {
     $('#btn-help').onclick = () => this.panels.help();
     $('#home-btn').onclick = () => this.outing.ask();
     $('#quest-btn').onclick = () => this.questLog();
+    $('#view-btn').onclick = () => this.cycleView();
     this.updateProgressSummary();
   }
   /** The site picker: a card per site with its Fish Guide counter; a locked site shows what it needs ("Identify 5 species, 3 of 5"). */
@@ -306,25 +309,39 @@ class Game {
   bindKeys() {
     addEventListener('keydown', e => {
       if (e.code === 'KeyT' && this.tackleOpen && this.panels.isOpen) { this.panels.close(); return; }
+      if (e.code === 'KeyM' && this.mapOpen && this.panels.isOpen) { this.panels.close(); return; }   // M opens and closes the map
       if (this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen || this.mode !== 'land') return;
       const c = e.code;
       if (c === 'KeyP') this.pauseMenu();
       if (c === 'KeyR' && this.eco.fishing) this.toggleRod();
       if (c === 'KeyT' && this.eco.fishing) this.tackleBox();
       if (c === 'KeyJ') this.openGuide();
+      if (c === 'KeyM') this.openMap();
       if (c === 'KeyL') openLogbook(this);
       if (c === 'KeyH') this.outing.ask();
       if (c === 'KeyE') this.npcs.talkNearest();
       if (c === 'KeyB' && this.eco.toggleAnchor) this.eco.toggleAnchor(this);
       if (c === 'KeyQ') this.questLog();
+      if (c === 'KeyV' && !e.repeat) this.cycleView();
     });
   }
+  /** V / the View button: glide to the next camera preset (Diorama, Low, Over the shoulder). */
+  cycleView() {
+    if (this.mode !== 'land') return;
+    this.rig.cyclePreset(this.walker.heading);
+    this.toast(`View: ${this.rig.presetLabel}`);
+    this.audio.play('click');
+    return this.rig.preset;
+  }
   questLog() { openQuestLog(this); }
+  /** The map (M): this place, or the whole coast (tab 'region'). */
+  openMap(tab = 'site') { openMap(this, tab); }
   setKeys(list) { $('#keys').innerHTML = list.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join(''); }
   pauseMenu() {
     this.panels.open(`<h2>Paused</h2><p>${esc(this.eco.name)}</p>
-      <p><button class="btn primary" id="p-resume">Resume</button> <button class="btn" id="p-help">How to play</button> <button class="btn" id="p-set">Settings</button> <button class="btn ghost" id="p-quit">Quit to title</button></p>`);
+      <p><button class="btn primary" id="p-resume">Resume</button> <button class="btn" id="p-map">🗺 Map</button> <button class="btn" id="p-help">How to play</button> <button class="btn" id="p-set">Settings</button> <button class="btn ghost" id="p-quit">Quit to title</button></p>`);
     $('#p-resume').onclick = () => this.panels.close();
+    $('#p-map').onclick = () => this.openMap();
     $('#p-help').onclick = () => this.panels.help();
     $('#p-set').onclick = () => this.openSettings();
     $('#p-quit').onclick = () => { this.panels.onClose = null; this.panels.close(); this.enterMenu(); };
@@ -334,7 +351,10 @@ class Game {
       if (k === 'editAngler') { this.panels.close(true); this.creator.open({}); return; }
       if (k === 'resetProgress') { resetProgress(); this.progress = loadProgress(); this.panels.close(); this.updateProgressSummary(); return; }
       this.settings[k] = v; saveSettings(this.settings);
+      if (k === 'minimap') this.mini?.update(1);
       if (k === 'volume') this.audio.setVolume(v);
+      if (k === 'musicOn') this.audio.music.configure({ enabled: v });
+      if (k === 'musicVolume') this.audio.music.configure({ volume: v });
       if (k === 'quality' || k === 'style') location.reload();
     });
   }
@@ -389,7 +409,7 @@ class Game {
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
     if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
     this.updateStats();
@@ -446,7 +466,7 @@ class Game {
     }
     // Camera: follows the angler, frames the float too while a line is out.
     const also = f.active && f.float.visible && ['wait', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
-    this.rig.update(dt, this.world, w.pos, also, !paused);
+    this.rig.update(dt, this.world, w.pos, also, !paused, { fight: f.active && f.state === 'fight', line: f.lineDir, heading: w.heading });
     this.focus.copy(this.rig.focus);
     // The angler: stand, walk and fish.
     const a = this.angler;
@@ -673,10 +693,11 @@ class Game {
     this.world.sky.update(this.camera);
     this.fx.update(dt, this.camera, 0);
     this.listener.position.copy(this.mode === 'land' ? this.walker.pos : cam);
-    this.audio.update(dt, { mode: this.mode, depth, camera: this.listener, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1 });
+    this.audio.update(dt, { mode: this.mode, depth, camera: this.listener, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1, time: this.cond.time, dialogue: this.dialogue.isOpen, fight: this.fishing?.state === 'fight', panel: this.panels.isOpen });
     $('#fx-uw').style.opacity = depth > 0 ? 1 : 0;
     { const el = $('#fx-sunset'), v = this.env.daylightOn ? Math.min(1, this.env.glow * (1 - this.env.night * 0.5)) * 0.95 : 0; if (el && Math.abs((this.sunV ?? -1) - v) > 0.01) { this.sunV = v; el.style.opacity = v.toFixed(2); } }   // the sunset wash
     this.touch?.update();
+    this.mini?.update(dt);
     if (skipRender || this.creatorOpen) { this.input.endFrame(); return; }   // the creator covers the whole screen: no need to draw the world behind it
     if (this.gradePass) {
       // ShaderPass copies its uniforms, so feed it the live fog and underwater state each frame.
@@ -694,7 +715,7 @@ class Game {
     const rig = this.rig, p = this.walker.pos;
     rig.yaw = m.yaw + Math.sin(this.menuT * 0.07) * m.swing; rig.pitch = m.pitch; rig.dist = rig.zoom = m.dist;
     rig.focus.set(p.x, p.y + 0.9 + m.lift, p.z);
-    rig.apply(this.world);
+    rig.apply(this.world, 0, true);
     this.focus.copy(rig.focus);
     // Slide the picture so the angler sits to the right of the title panel (above it on a portrait phone).
     const w = innerWidth, h = innerHeight, wide = w > h * 1.1;

@@ -29,7 +29,7 @@ function waterTexture() {
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70); t.anisotropy = 4; return t;
 }
-const SKIP_HULL = /_(face|sun|band|trim|dots)$/;
+const SKIP_HULL = /_(face|sun|band|trim|dots|stubble)$/;
 
 export class AnglerStage {
   /** host: an element to fill. models: the tideline_cosy.glb parts. look: the starting look. */
@@ -179,7 +179,7 @@ export class Creator {
     const sec = SECTIONS.map(s => {
       const hidden = s.when && !s.when(this.look) ? ' hidden' : '';
       const items = s.kind === 'swatch'
-        ? PALETTES[s.key].map(c => `<button type="button" class="cc-sw" role="radio" data-key="${s.key}" data-v="${c.v}" aria-checked="${this.look[s.key] === c.v}" aria-label="${esc(s.label)}: ${esc(c.name)}" title="${esc(c.name)}" style="--c:${hex(c.v)}"><i></i></button>`).join('')
+        ? (s.matchHair ? `<button type="button" class="cc-sw cc-match" role="radio" data-key="${s.key}" data-v="null" aria-checked="${this.look[s.key] === null}" aria-label="${esc(s.label)}: same as hair" title="Same as hair" style="--c:${hex(this.look.hair)}"><i></i><b aria-hidden="true">=</b></button>` : '') + PALETTES[s.key].map(c => `<button type="button" class="cc-sw" role="radio" data-key="${s.key}" data-v="${c.v}" aria-checked="${this.look[s.key] === c.v}" aria-label="${esc(s.label)}: ${esc(c.name)}" title="${esc(c.name)}" style="--c:${hex(c.v)}"><i></i></button>`).join('')
         : STYLES[s.key].map(c => `<button type="button" class="cc-pill" role="radio" data-key="${s.key}" data-v="${c.id}" aria-checked="${this.look[s.key] === c.id}">${esc(c.name)}</button>`).join('');
       return `<fieldset class="cc-row cc-${s.kind}${hidden}" data-row="${s.key}"><legend id="cc-l-${s.key}">${esc(s.label)}<em class="cc-cur" aria-hidden="true"></em></legend><div class="cc-group" role="radiogroup" aria-labelledby="cc-l-${s.key}">${items}</div></fieldset>`;
     }).join('');
@@ -233,7 +233,7 @@ export class Creator {
   }
   choose(b) {
     const key = b.dataset.key, isColour = b.classList.contains('cc-sw');
-    this.look[key] = isColour ? +b.dataset.v : b.dataset.v;
+    this.look[key] = isColour ? (b.dataset.v === 'null' ? null : +b.dataset.v) : b.dataset.v;
     this.refreshSelection(); this.stage?.setLook(this.look);
     this.say(`${SECTIONS.find(s => s.key === key).label}: ${isColour ? swatchName(key, this.look[key]) : b.textContent}.`);
   }
@@ -241,6 +241,7 @@ export class Creator {
     for (const s of SECTIONS) {
       const row = this.el.querySelector(`[data-row="${s.key}"]`);
       row.classList.toggle('hidden', !!(s.when && !s.when(this.look)));
+      row.querySelector('.cc-match')?.style.setProperty('--c', hex(this.look.hair));
       row.querySelectorAll('[role=radio]').forEach(b => {
         const on = String(this.look[s.key]) === b.dataset.v;
         b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1;

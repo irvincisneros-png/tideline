@@ -197,7 +197,7 @@ export function updateCeremony(game, dt) {
   c.t += dt; c.look.lerp(c.want, 1 - Math.exp(-2.4 * dt));
   const rig = g.rig, sway = g.settings.reducedMotion ? 0 : Math.sin(c.t * 0.15) * 0.16;
   rig.yaw = Math.PI + sway; rig.pitch = innerWidth < innerHeight ? 0.72 : 0.52; rig.dist = rig.zoom = innerWidth < innerHeight ? 29 : 15.5;
-  rig.focus.copy(c.look); rig.apply(g.world);
+  rig.focus.copy(c.look); rig.apply(g.world, 0, true);
   g.focus.copy(rig.focus);
   g.angler.update(dt, g.time, { state: 'off' });
 }
