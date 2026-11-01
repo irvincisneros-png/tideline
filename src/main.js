@@ -42,6 +42,10 @@ import { gearStats, baitCount, useBait, collect } from './economy/store.js';
 import { lureMod } from './economy/effects.js';
 import { ensureEcon, recaptureLetter } from './economy/coins.js';
 import { COIN, COLLECT } from './content/shop.js';
+import { openCoop } from './ui/coop.js';
+import { runCeremony, updateCeremony } from './ui/ceremony.js';
+import { openCredits } from './ui/credits.js';
+import { pendingCeremony } from './fishing/ending.js';
 
 const $ = s => document.querySelector(s);
 /** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
@@ -85,13 +89,14 @@ class Game {
     this.focus = new THREE.Vector3(); // what the camera looks at (the sun's shadow box follows it)
     this.fishing = new Fishing(this);
     // The day: tide, time, season and swell cycle with in-game time (?season=winter&time=dusk&tide=low&swell=1.5 for testing).
-    this.cond = new DayConditions({ season: params.get('season') ?? undefined, month: params.has('month') ? Number(params.get('month')) - 1 : undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
+    this.cond = new DayConditions({ season: params.get('season') ?? undefined, month: params.has('month') ? Number(params.get('month')) - 1 : undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined, flow: params.get('flow') ?? undefined });
     this.gear = { rig: 'runningsinker', bait: 'prawn', ...this.progress.gear };
     if (!RIGS[this.gear.rig] || !rigUnlocked(this.progress, this.gear.rig)) this.gear.rig = 'runningsinker';   // a rig you have not earned yet is not in your box
     if (!RIGS[this.gear.rig].lure && (!BAITS[this.gear.bait] || !baitUnlocked(this.progress, this.gear.bait))) this.gear.bait = 'prawn';
     ensureEcon(this.progress);
     this.mode = 'loading';
     this.eco = ecoById(params.get('eco')) ?? ECOSYSTEMS[0];
+    this.cond.setFresh(this.eco.fresh);   // a river has flow, not tide and swell
     this.frame = 0; this.time = 0;
     this.setupComposer();
     addEventListener('resize', () => this.resize());
@@ -157,14 +162,16 @@ class Game {
 
   async start() {
     const bar = $('#load-bar'), msg = $('#load-msg');
-    await this.world.load(this.eco, (f, m) => { bar.style.width = `${f * 100}%`; msg.textContent = m; });
+    window.__tlBoot?.set(0.3, 'Filling the tide pools…');   // the scripts have arrived (index.html showed their progress); the world is next
+    await this.world.load(this.eco, (f, m) => { bar.style.width = `${30 + f * 70}%`; msg.textContent = m; });
     this.audio.setSite(this.eco); this.makeAngler(); this.setupShadows();
     await this.warmUp();
     $('#loading').classList.remove('show');
     this.clock = new THREE.Clock();
     this.enterMenu();
     // ?play skips the title (tests, teacher links) and the creator too (add ?creator to see it).
-    if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); }
+    if (params.has('ceremony')) runCeremony(this, params.get('ceremony') === 'milestone' ? 'milestone' : 'awards');   // ?ceremony=awards|milestone: the club ceremony straight away (teachers, tests)
+    else if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); }
     this.renderer.setAnimationLoop(() => this.loop());
   }
 
@@ -174,6 +181,9 @@ class Game {
     cards.innerHTML = this.ecoCardsHTML();
     cards.querySelectorAll('.eco-card').forEach(b => b.onclick = () => this.switchEco(b.dataset.id, true));
     $('#btn-play').onclick = () => { this.audio.start(); this.beginPlay(); };
+    $('#btn-new').onclick = () => this.newGame();
+    $('#btn-credits').onclick = () => openCredits(this);
+    $('#btn-awards').onclick = () => { this.audio.start(); const k = pendingCeremony(this.progress); if (k) runCeremony(this, k); };
     $('#btn-angler').onclick = () => this.creator.open({});
     $('#btn-journal').onclick = () => this.openGuide();
     $('#btn-logbook').onclick = () => openLogbook(this);
@@ -212,8 +222,15 @@ class Game {
     if (id === this.eco.id || this.loading) return;
     const lock = siteLock(this.progress, ecoById(id));
     if (fromPicker && lock.locked) { this.toast(`${ecoById(id).name} opens when you ${lock.text.charAt(0).toLowerCase()}${lock.text.slice(1)} (${lock.progressText} so far). Catch fish and solve the key to get there.`, 'warn'); return; }
+    await this.loadSite(id);
+    this.bindMenu();
+    this.enterMenu();
+  }
+  /** Tear down the current site and build another (the picker, and the club ceremony on Bellambi beach). The caller decides what mode comes next. */
+  async loadSite(id) {
+    if (this.loading) return;
     this.loading = true; // the frame loop idles while the old site is torn down and the new one built
-    this.eco = ecoById(id);
+    this.eco = ecoById(id); this.cond.setFresh(this.eco.fresh);
     $('#loading').classList.add('show'); $('#menu').classList.remove('show');
     try {
       await this.world.load(this.eco, (f, m) => { $('#load-bar').style.width = `${f * 100}%`; $('#load-msg').textContent = m; });
@@ -221,9 +238,24 @@ class Game {
       await this.warmUp();
     } finally { this.loading = false; }
     $('#loading').classList.remove('show');
-    this.bindMenu();
-    this.enterMenu();
   }
+  /** Has this device played before? (a Fish Guide entry, a logbook row or a made angler) */
+  hasProgress() { const p = this.progress; return !!(p.catches?.length || p.angler || Object.keys(p.guide?.e ?? {}).length); }
+  /** Title screen: New game. Asks first, because it deletes the Fish Guide and logbook on this device. */
+  newGame() {
+    this.panels.open(`<h2>Start a new game?</h2>
+      <p>This deletes your Fish Guide, logbook, esky, credits and angler on this device and starts again from the beginning.</p>
+      <p class="muted">Want to keep your records? Export your logbook first (Logbook, then Export CSV).</p>
+      <p><button class="btn primary" id="ng-yes">Delete and start again</button> <button class="btn" id="ng-no">Keep my game</button></p>`);
+    $('#ng-no').onclick = () => this.panels.close();
+    $('#ng-yes').onclick = () => { resetProgress(); this.progress = loadProgress(); ensureEcon(this.progress); this.gear = { rig: 'runningsinker', bait: 'prawn' }; this.panels.close(); this.updateProgressSummary(); this.bindMenu(); };
+  }
+  /** The co-op panel (Nell): resolves when it closes. */
+  openCoop(opts = {}) { return new Promise(res => openCoop(this, { ...opts, onClose: res })); }
+  /** Start a club ceremony ('awards' | 'milestone'). */
+  runCeremony(kind) { return runCeremony(this, kind); }
+  /** After an outing: is a ceremony waiting? */
+  pendingCeremony() { return pendingCeremony(this.progress); }
   /** Compile every shader the site needs before it is shown. Done all at once with the browser's parallel compiler,
    *  so the page keeps responding; otherwise Windows (Direct3D) can stall for 20 s on the first frame. Hidden objects
    *  (culled reef tiles, the jet ski, far animals) are briefly shown so they don't hitch later when they appear. */
@@ -247,6 +279,11 @@ class Game {
       card.classList.toggle('locked', lock.locked); if (lock.locked) card.setAttribute('aria-disabled', 'true'); else card.removeAttribute('aria-disabled');
       if (chip) chip.textContent = lock.locked ? `🔒 ${lock.detail}` : c ? `${c.label} ${c.done}/${c.total}` : '';
     });
+    const has = this.hasProgress(), pend = pendingCeremony(p);
+    $('#btn-play').textContent = has ? 'Continue' : 'Start fishing';
+    $('#btn-new').classList.toggle('hidden', !has);
+    $('#btn-awards').classList.toggle('hidden', !pend);
+    $('#btn-awards').textContent = pend === 'milestone' ? '🎉 Club celebration' : '🏆 Awards night';
     $('#progress-sum').textContent = `Fish Guide ${G.completion(p)}% · Steward ${st.value.toFixed(1)}★ · Bay Health ${Math.round(bay)}%`;
   }
   /** The Illawarra Fish Guide (J). opts: { focus: species id, back: callback (shows a Back button and locks the panel), region }. */
@@ -608,8 +645,10 @@ class Game {
     this.world.time = this.time;
     const paused = this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen;
     this.input.gameplay = !paused && this.mode === 'land';
+    if (document.body.dataset.mode !== this.mode) document.body.dataset.mode = this.mode;   // CSS hooks (the ceremony hides the HUD and shrinks the name tags)
     if (this.mode === 'menu') this.updateMenu(dt);
     else if (this.mode === 'land') this.updateLand(dt, paused);
+    else if (this.mode === 'ceremony') updateCeremony(this, dt);
     if (this.world.land) this.world.land.update(dt, this.mode === 'land' ? this.walker : null);
     // Life keeps moving even with panels open.
     if (this.world.life && this.frame % 2 === 0) this.world.life.update(dt * 2, null);

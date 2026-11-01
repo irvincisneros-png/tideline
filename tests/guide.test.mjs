@@ -107,7 +107,7 @@ test('logbook CSV, the angler name first: header, one row per fish, quotes escap
     { time: Date.UTC(2026, 10, 1), spot: 'rock', id: 'x', label: 'Unknown fish #2 "big"', length: 20, kept: false, correct: true }];
   const lines = logbookCSV(p, k => k.toUpperCase()).split('\n');
   assert.equal(lines.length, 3);
-  assert.match(lines[0], /^"angler","date","spot","tide"/);
+  assert.match(lines[0], /^"angler","date","spot","tide or river flow"/);
   assert.match(lines[1], /^"Angler","2026-11-01","JETTY","rising","dawn","Tailor","31","30","yes","kept","yes"/);
   assert.match(lines[2], /Unknown fish #2 ""big""/);
   p.angler = { name: 'Sam "Tide" Lee' };

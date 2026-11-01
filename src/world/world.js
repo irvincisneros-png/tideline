@@ -37,7 +37,7 @@ export class World {
     this.waveMesh = new WaveMesh(this.scene, this.ocean, this.quality);
     this.ocean.near.visible = this.ocean.far.visible = eco.surface !== false;
     await tick();
-    progress(0.55, eco.growMsg ?? 'Growing coral…');
+    progress(0.55, eco.growMsg ?? 'Planting the shoreline…');
     // Stylised look: hand-shaped Blender models replace some procedural corals, rocks and fish (if the site has a set).
     let art = null;
     this.models = new Map();

@@ -434,7 +434,9 @@ export const FEATURES = {
 };
 /** Deep-water fish: pulled up from about 10 m or more, they can suffer barotrauma and need a release weight to return to depth (content C17). */
 export const DEEP_WATER = new Set(['snapper', 'kingfish', 'redmorwong', 'jackassmorwong']);
-for (const s of SPECIES) { s.feat = FEATURES[s.id]; s.deepWater = DEEP_WATER.has(s.id); }
+/** River flow that suits a river species best (like `tide` for the sea): bass and eels feed harder in the rain-fed rise [unverified gameplay tuning]. Everything else: no preference. */
+const FLOW_PREF = { australianbass: ['high'], shortfineel: ['high'] };
+for (const s of SPECIES) { s.feat = FEATURES[s.id]; s.deepWater = DEEP_WATER.has(s.id); s.flow = FLOW_PREF[s.id] ?? []; }
 
 /** The two regions in the Illawarra Fish Guide, and the fishing spots each one covers. */
 export const REGIONS = {
@@ -454,6 +456,7 @@ export function whereWhen(sp) {
   const bits = [`Look around the ${join(spots)}.`];
   if (sp.time.length) bits.push(`Best at ${join(sp.time.map(t => TIME_WORD[t]))}.`);
   if (sp.tide.length) bits.push(`Usually on a ${join(sp.tide)} tide.`);
+  if (sp.flow?.length) bits.push(`Feeds harder after rain, when the river runs high.`);
   if (sp.season.length) bits.push(`Most often in ${join(sp.season)}.`);
   return bits.join(' ');
 }

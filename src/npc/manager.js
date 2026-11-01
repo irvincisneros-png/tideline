@@ -52,7 +52,27 @@ export class NPCManager {
     const ids = this.npcs.map(n => n.id), next = () => { const id = ids.shift(); if (id && this.byId[id]) { this.whoOf(id); this.prefetch = setTimeout(next, 400); } };
     this.prefetch = setTimeout(next, 2500);
   }
+  /**
+   * The club ceremony (ui/ceremony.js): build the whole cast of the coast at once, wherever they usually live, and stand each one at `spots[id]` = { x, z, heading }.
+   * They keep their name tags and speech bubbles and do not follow their daily schedules (`this.ceremony`). load(eco) puts the normal people back afterwards.
+   */
+  loadCast(eco, spots) {
+    this.dispose();
+    const g = this.game;
+    if (!g.world.models?.size) return false;
+    this.ceremony = true;
+    for (const [id, def] of Object.entries(NPCS)) {
+      const at = spots[id]; if (!at) continue;
+      const npc = new NPC(this, id, def, eco.id);
+      this.npcs.push(npc); this.byId[id] = npc;
+      npc.setSlot({ act: 'standing', points: [{ x: at.x, z: at.z }], heading: at.heading, away: false }, true);
+    }
+    this.buildExtras(eco);
+    this.timeKey = null;
+    return true;
+  }
   dispose() {
+    this.ceremony = false;
     clearTimeout(this.prefetch);
     for (const n of this.npcs) n.dispose();
     this.npcs = []; this.byId = {}; this.near = null;
@@ -135,7 +155,7 @@ export class NPCManager {
   update(dt, t) {
     const g = this.game;
     if (!this.npcs.length) return;
-    const land = g.mode === 'land'; this.hideTags = !land;
+    const land = g.mode === 'land'; this.hideTags = !land && !this.ceremony;
     const player = g.walker.pos, busy = g.dialogue.isOpen || g.panels.isOpen || g.creatorOpen;
     if (land && !busy) {
       // Midnight rolls the in-game day over.
@@ -191,6 +211,7 @@ export class NPCManager {
     if (['bite', 'fight', 'landed', 'charge', 'flying'].includes(g.fishing.state)) { g.toast('Land or lose this fish first, then chat.', 'warn'); return; }
     await this.talk.run(n);
     this.refreshMarkers();
+    if (this.ceremonyPending) { const kind = this.ceremonyPending; this.ceremonyPending = null; g.runCeremony(kind); }   // Bev: "start the ceremony" 
   }
 
   // ------------------------------------------------------------------ reactions

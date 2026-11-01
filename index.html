@@ -7,8 +7,23 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>TideLine — Cosy Fishing on the Illawarra Coast</title>
-  <meta name="description" content="A cosy 3D fishing game on the Illawarra coast: cast, catch, measure and decide what to keep. For NSW Stage 5 Aquatic Technology (Aquatic harvesting)." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 40c10-18 26-26 44-22-8 2-14 8-16 16 6-6 16-8 28-2-12 0-20 8-22 20H4z' fill='%230fb5c9'/%3E%3C/svg%3E" />
+  <meta name="description" content="A cosy 3D fishing game on the Illawarra coast: cast, catch, measure, identify and decide what to keep or release. For NSW Stage 5 Aquatic Technology (Aquatic harvesting), Years 7–10. Free, runs in the browser, nothing is uploaded." />
+  <meta name="theme-color" content="#2fc4b8" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TideLine" />
+  <meta property="og:title" content="TideLine — Cosy Fishing on the Illawarra Coast" />
+  <meta property="og:description" content="Cast a line, name the fish with the key, measure it and choose: keep it or release the small. A cosy 3D game for NSW Aquatic Technology." />
+  <meta property="og:url" content="https://irvincisneros-png.github.io/tideline/" />
+  <meta property="og:image" content="https://irvincisneros-png.github.io/tideline/assets/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TideLine — Cosy Fishing on the Illawarra Coast" />
+  <meta name="twitter:description" content="Gotta catch ’em all… and release the small. A cosy 3D fishing game for NSW Aquatic Technology." />
+  <meta name="twitter:image" content="https://irvincisneros-png.github.io/tideline/assets/og.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="assets/icon-180.png" />
+  <link rel="canonical" href="https://irvincisneros-png.github.io/tideline/" />
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     { "imports": { "three": "./vendor/three/build/three.module.js", "three/examples/jsm/": "./vendor/three/examples/jsm/" } }
@@ -26,14 +41,18 @@
   <div id="loading" class="screen show">
     <div class="load-box">
       <div class="logo">Tide<span>Line</span></div>
-      <div class="bar"><i id="load-bar"></i></div>
+      <div class="bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><i id="load-bar"></i></div>
       <p id="load-msg">Filling the tide pools…</p>
+      <p id="load-slow" class="load-slow hidden">Still loading. This is a big world on a slow connection: keep this tab open.</p>
+      <p id="load-fail" class="load-fail hidden"></p>
+      <noscript><p class="load-fail">TideLine needs JavaScript. Please turn it on and reload.</p></noscript>
     </div>
   </div>
 
   <!-- Title -->
   <div id="menu" class="screen">
     <div class="menu-inner">
+      <a class="hub-link" href="https://irvincisneros-png.github.io/">← Learning Hub</a>
       <header class="menu-head">
         <div class="logo big">Tide<span>Line</span></div>
         <p class="tag">Walk down to the water. Cast a line. Learn what to keep.</p>
@@ -44,15 +63,19 @@
       </section>
       <div class="menu-actions">
         <button id="btn-play" class="btn primary">Start fishing</button>
+        <button id="btn-new" class="btn hidden">New game</button>
+        <button id="btn-awards" class="btn accent hidden">🏆 Awards night</button>
         <button id="btn-journal" class="btn ghost">Fish Guide</button>
         <button id="btn-logbook" class="btn ghost">Logbook</button>
         <button id="btn-angler" class="btn ghost">My angler</button>
         <button id="btn-settings" class="btn ghost">Settings</button>
         <button id="btn-help" class="btn ghost">How to play</button>
+        <a id="btn-teacher" class="btn ghost" href="teacher.html">Teacher page</a>
+        <button id="btn-credits" class="btn ghost">Credits</button>
         <button id="btn-fullscreen" class="btn ghost hidden">⛶ Full screen</button>
       </div>
       <footer class="menu-foot">
-        <span class="x">NSW Aquatic Technology 7–10 · Aquatic harvesting</span><span class="x"> · </span><a class="x" href="teacher.html">Teacher page</a><span class="x"> · </span><a class="x" href="https://irvincisneros-png.github.io/">← Learning Hub</a><span class="x"> · </span><span id="progress-sum"></span>
+        <span class="x">NSW Aquatic Technology 7–10 · Aquatic harvesting</span><span class="x"> · </span><span id="progress-sum"></span>
       </footer>
     </div>
   </div>
@@ -84,6 +107,31 @@
   </div>
   <div id="click-to-play" class="hidden"><div>Click to look around<br><small>Esc releases the mouse</small></div></div>
 
-  <script type="module" src="src/main.js"></script>
+  <script>
+    // First load on a slow connection: show the scripts arriving (the bar fills as they download), say so if it is slow, and give a clear message with a retry
+    // if something fails, instead of sitting on a blank loading card. main.js takes over the bar once the scripts are in.
+    (function () {
+      var bar = document.getElementById('load-bar'), msg = document.getElementById('load-msg'), slow = document.getElementById('load-slow'), fail = document.getElementById('load-fail');
+      var EXPECT = 2000000, got = 0, t0 = Date.now(), booted = false;
+      function set(f, m) { bar.style.width = Math.round(f * 100) + '%'; if (m) msg.textContent = m; }
+      function showFail(text) {
+        if (booted) return;
+        fail.innerHTML = text + ' <button class="btn small" onclick="location.reload()">Try again</button>'; fail.classList.remove('hidden'); slow.classList.add('hidden');
+      }
+      window.__tlBoot = { set: function (f, m) { booted = true; set(f, m); }, fail: showFail };
+      set(0.03, 'Downloading the game…');
+      try {
+        new PerformanceObserver(function (list) {
+          list.getEntries().forEach(function (e) { if (/\.(js|css)(\?|$)/.test(e.name)) got += e.encodedBodySize || e.transferSize || 0; });
+          if (!booted) set(0.03 + Math.min(0.27, got / EXPECT * 0.27));
+        }).observe({ type: 'resource', buffered: true });
+      } catch (e) { /* older browsers: the bar just waits */ }
+      setTimeout(function () { if (!booted) slow.classList.remove('hidden'); }, 8000);
+      setTimeout(function () { if (!booted) showFail('This is taking a very long time. Check your connection.'); }, 60000);
+      addEventListener('error', function (e) { var el = e.target; if (!booted && el && el !== window && (el.tagName === 'SCRIPT' || (el.tagName === 'LINK' && el.rel === 'stylesheet'))) showFail('Part of the game did not download.'); }, true);
+      addEventListener('unhandledrejection', function () { showFail('Something went wrong while starting.'); });
+    })();
+  </script>
+  <script type="module" src="src/main.js" onerror="__tlBoot.fail('The game scripts did not download.')"></script>
 </body>
 </html>

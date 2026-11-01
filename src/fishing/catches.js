@@ -22,6 +22,7 @@ export const FIGHT = Object.fromEntries(SPECIES.map(s => [s.id, { profile: s.fig
 
 export const LURE_RIGS = new Set(['softplastic', 'metalslug', 'squidjig']);
 export const TIDES = ['rising', 'high', 'falling', 'low'];
+export const FLOW_LEVELS = ['low', 'normal', 'high'];
 export const TIMES = ['dawn', 'day', 'dusk', 'night'];
 export const SEASONS = ['summer', 'autumn', 'winter', 'spring'];
 /** A month (0 = January) to stand for a season when only ?season= is given (the middle of it): the bass closed season (May to August) is read from this, so winter is closed. */
@@ -39,7 +40,7 @@ export const MISMATCH_BAIT = 0.2;
 const COND_HIT = 1.4, COND_MISS = 0.7;
 
 /** Default gear/conditions (used by tests and anything that calls pickCatch without a context). */
-export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, time: null, season: null, stock: null, shy: 1, lureMod: 1, lit: 0 };
+export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, flow: null, time: null, season: null, stock: null, shy: 1, lureMod: 1, lit: 0 };
 
 export const stockKey = (spot, id) => `${spot}:${id}`;
 /** Stock health of a species at a spot (0-100): the saved value, else seeded from its NSW stock status. */
@@ -80,7 +81,7 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const base = sp.spots[spot];
     if (!base) continue;
     const rigM = rigMatch(sp, ctx.rig), baitM = baitMatch(sp, ctx.rig, ctx.bait);
-    const condM = cond(sp.tide, ctx.tide) * cond(sp.time, ctx.time) * cond(sp.season, ctx.season);
+    const condM = cond(sp.tide, ctx.tide) * cond(sp.flow, ctx.flow) * cond(sp.time, ctx.time) * cond(sp.season, ctx.season);   // a river has no tide (ctx.tide is null there) but has flow (ctx.flow)
     const stock = stockOf(ctx.stock, spot, sp.id);
     const archM = ctx.arch && ctx.arch === sp.id ? 2.4 : 1;   // the fish finder showed this fish right under your bait
     const lampM = (1 + (sp.lamp ?? 0) * (ctx.lit ?? 0)) * archM;   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light

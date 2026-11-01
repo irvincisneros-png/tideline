@@ -14,9 +14,9 @@ export function openLogbook(game) {
   game.panels.open(`<h2>Logbook</h2>
     <p class="sub">${rows.length ? `${rows.length} fish: ${kept} kept, ${rows.length - kept} released. ${meas.length ? `Measuring accuracy: ${acc} of ${meas.length} within 1 cm (${Math.round(acc / meas.length * 100)}%).` : ''}${illegal ? ` ${illegal} illegal keep${illegal > 1 ? 's' : ''}.` : ''}` : 'Nothing logged yet. Every fish you land is written here.'}</p>
     ${rows.length ? `<div class="lb-wrap"><table class="lb">
-      <thead><tr><th>Date</th><th>Spot</th><th class="c-tide">Tide</th><th class="c-time">Time</th><th>Fish</th><th>Length</th><th>Your measure</th><th>Kept?</th><th>Legal to keep?</th></tr></thead>
+      <thead><tr><th>Date</th><th>Spot</th><th class="c-tide">Tide / flow</th><th class="c-time">Time</th><th>Fish</th><th>Length</th><th>Your measure</th><th>Kept?</th><th>Legal to keep?</th></tr></thead>
       <tbody>${rows.map(r => `<tr>
-        <td>${fmtDate(r.time)}</td><td>${esc((SPOT_INFO[r.spot]?.label ?? r.spot ?? '').replace('Lake Illawarra ', 'Lake '))}</td><td class="c-tide">${esc(cap(r.tide))}</td><td class="c-time">${esc(cap(r.daytime))}</td>
+        <td>${fmtDate(r.time)}</td><td>${esc((SPOT_INFO[r.spot]?.label ?? r.spot ?? '').replace('Lake Illawarra ', 'Lake '))}</td><td class="c-tide">${esc(cap(r.tide ?? (r.flow ? `${r.flow} flow` : '')))}</td><td class="c-time">${esc(cap(r.daytime))}</td>
         <td><b>${esc(r.label ?? r.id)}</b></td><td>${r.length} cm</td>
         <td>${r.measured == null ? '–' : `${r.measured} cm <i class="${r.accurate ? 'ok' : 'miss'}">${r.accurate ? '✔' : '✖'}</i>`}</td>
         <td>${r.kept ? 'Kept' : 'Released'}</td>

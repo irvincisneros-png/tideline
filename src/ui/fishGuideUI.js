@@ -9,6 +9,7 @@ import { fishPicture } from './fishView.js';
 import { mountKey } from './keyUI.js';
 import { CARDS, CARD_ORDER } from '../content/items.js';
 import { hasCard } from '../npc/inventory.js';
+import { endingStatus, ensureEnding } from '../fishing/ending.js';
 
 const TIER_CLASS = { unseen: 'unseen', seen: 'seen', caught: 'caught', identified: 'ident', mastered: 'master' };
 const pips = tier => { const n = G.TIERS.indexOf(tier); return `<span class="pips" role="img" aria-label="${G.TIER_LABEL[tier]}">${[1, 2, 3, 4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`; };
@@ -52,6 +53,7 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
         <div class="g-stat"><b>Bay Health</b><div class="meter bay ${bay < 45 ? 'low' : ''}"><i style="width:${bay}%"></i></div><span>${pct(bay)} · ${G.bayLabel(bay)}</span></div>
         <div class="g-stat"><b>Steward rating</b><span class="stars big">${G.starsText(st.value)}</span><span>${st.value.toFixed(1)} of 5</span></div>
       </div>
+      ${(() => { const e = endingStatus(p), done = ensureEnding(p).awards; return `<p class="end-line">${done ? '🏆 You have had your awards night. ' : '🏆 Awards night: '}Mastered <b>${e.mastered}/${e.total}</b> · Bay Health <b>${Math.round(e.bay)}%</b> (needs ${e.bayNeed}%) · Caught <b>${e.caught}/${e.total}</b></p>`; })()}
       <div class="tabs" role="tablist">
         <button data-reg="all" class="${reg === 'all' ? 'on' : ''}">All ${doneAll}/${total}</button>
         ${counts.map(c => `<button data-reg="${c.key}" class="${reg === c.key ? 'on' : ''}">${esc(c.label)} ${c.done}/${c.total}</button>`).join('')}

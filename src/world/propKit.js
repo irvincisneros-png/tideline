@@ -109,3 +109,26 @@ export function wall(low, high, outHex, inHex, dir) {
   const ko = colour(outHex), ki = colour(inHex), inv = [-dir[0], -dir[1], -dir[2]];
   return [facetGeometry(pos, tris, () => ko, () => dir), facetGeometry(pos, tris, () => ki, () => inv)];
 }
+
+/**
+ * A tapered tube along a path of THREE.Vector3 points (parallel-transport frames): `radii[i]` at each point, `N` sides, `ridge(u, j, angle) -> multiplier` bumps the radius (bark ridges),
+ * `colorFn(u, v) -> hex|Color` colours each face (v is the way round: j = floor(v * N)). `cap` closes the far end in that hex colour (a snapped, pale-wood end).
+ */
+export function tube(pts, radii, N, colorFn = () => 0x888888, { ridge = null, cap: capHex = null } = {}) {
+  const T = new THREE.Vector3(), Np = new THREE.Vector3(), B = new THREE.Vector3(), rings = [];
+  for (let i = 0; i < pts.length; i++) {
+    T.subVectors(pts[Math.min(pts.length - 1, i + 1)], pts[Math.max(0, i - 1)]).normalize();
+    if (i === 0) Np.crossVectors(T, Math.abs(T.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize();
+    else { Np.addScaledVector(T, -Np.dot(T)); Np.normalize(); }
+    B.crossVectors(T, Np);
+    const row = [];
+    for (let j = 0; j < N; j++) {
+      const a = (j / N) * Math.PI * 2, k = radii[i] * (ridge ? ridge(i / (pts.length - 1), j, a) : 1), c = Math.cos(a) * k, s = Math.sin(a) * k;
+      row.push([pts[i].x + Np.x * c + B.x * s, pts[i].y + Np.y * c + B.y * s, pts[i].z + Np.z * c + B.z * s]);
+    }
+    rings.push(row);
+  }
+  const parts = [loft(rings, colorFn, { close: true })];
+  if (capHex != null) parts.push(cap(rings[rings.length - 1], capHex, [T.x, T.y, T.z]));
+  return parts.length > 1 ? mergeGeometries(parts, false) : parts[0];
+}

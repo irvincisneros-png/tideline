@@ -361,7 +361,7 @@ test('the save migrates v2 to v3: progress kept, a small credit grant, starting 
   const v2 = { v: 2, catches: [{ id: 'tailor', spot: 'jetty', tide: 'rising', daytime: 'day', time: 5, length: 30 }], guide: { nextN: 3, e: { tailor: { ident: true } } }, steward: { points: 4, litter: 2, checks: 1, clean: 1, fines: 0 },
     esky: [{ id: 'bonito' }], inventory: { have: { 'tool-tagkit': 1 }, cards: {}, worn: null, lure: 'white' }, npc: { day: 4, met: { mitra: 1 }, accepted: {}, done: { 'mitra-licence': 1 }, quizFail: {}, rot: {} }, angler: { name: 'Kai' }, stock: { 'jetty:tailor': 55 }, gear: { rig: 'float', bait: 'prawn' } };
   const p = migrateProgress(structuredClone(v2));
-  assert.equal(p.v, 3); assert.equal(SAVE_VERSION, 3);
+  assert.equal(p.v, 4); assert.equal(SAVE_VERSION, 4);
   assert.equal(p.coins, RATES.migrationGrant);
   assert.equal(p.catches.length, 1); assert.equal(p.guide.e.tailor.ident, true); assert.equal(p.npc.day, 4); assert.equal(p.angler.name, 'Kai'); assert.equal(p.stock['jetty:tailor'], 55);
   assert.equal(p.steward.litter, 2); assert.equal(p.steward.safety, undefined); assert.deepEqual(p.gear, { rig: 'float', bait: 'prawn' }); assert.equal(p.inventory.lure, 'white'); assert.ok(p.inventory.have['tool-tagkit']);
@@ -374,16 +374,16 @@ test('the save migrates v2 to v3: progress kept, a small credit grant, starting 
   assert.equal(again.coins, p.coins); assert.deepEqual(again.shop, p.shop); assert.deepEqual(again.econ.first, p.econ.first);
 });
 
-test('a brand-new save starts at v3 with the small starting grant, the starter kit and no gear it has not earned', () => {
+test('a brand-new save starts at the current version (v4) with the small starting grant, the starter kit and no gear it has not earned', () => {
   const p = fresh();
-  assert.equal(p.v, 3); assert.equal(p.coins, RATES.startGrant);
+  assert.equal(p.v, 4); assert.equal(p.coins, RATES.startGrant);
   assert.equal(S.gearStats(p).rodId, 'rod-1'); assert.equal(S.gearStats(p).lineId, 'line-std');
   assert.deepEqual(p.inventory.have, {});
   assert.deepEqual(p.shop.owned, {});
-  assert.equal(migrateProgress(null).v, 3, 'garbage in, a clean save out');
+  assert.equal(migrateProgress(null).v, 4, 'garbage in, a clean save out');
   // A v1 (very old) save also comes through.
   const old = migrateProgress({ journal: { a: 1 }, catches: [] });
-  assert.equal(old.v, 3); assert.equal(old.coins, RATES.migrationGrant); assert.deepEqual(old.journal, { a: 1 });
+  assert.equal(old.v, 4); assert.equal(old.coins, RATES.migrationGrant); assert.deepEqual(old.journal, { a: 1 });
   // A v3 save keeps its coins and shop.
   const v3 = migrateProgress({ v: 3, coins: 77, shop: { owned: { 'rod-2': 5 }, equip: { rod: 'rod-2' }, bait: { prawn: 3 } } });
   assert.equal(v3.coins, 77); assert.equal(v3.shop.equip.rod, 'rod-2'); assert.equal(v3.shop.equip.line, 'line-std'); assert.equal(v3.shop.bait.prawn, 3);

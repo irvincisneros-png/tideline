@@ -183,7 +183,7 @@ test('Old Tam moves to the harbour wharf at night; the co-op fisher lives there 
   for (const t of ['dawn', 'day', 'dusk']) for (const place of placesOf(slotAt(nell, 'harbour', t))) assert.ok(PLACES.harbour[place], `place ${place}`);
   const all = JSON.stringify(nell.topics);
   assert.match(all, /recreational fishers cannot sell/i); assert.match(all, /commercial/i); assert.match(all, /co-op/i); assert.match(all, /quota/i); assert.match(all, /bycatch/i);
-  assert.match(all, /Not yet|promise, not a door/i);   // the commercial licence is teased, not unlocked
+  assert.match(all, /every kind of fish in your Fish Guide is Identified|awards night/i);   // the commercial licence is teased, not unlocked
   assert.ok(nell.topics.some(t => t.teaser === 'commercial'));
   assert.ok(nell.gossip.length >= 3 && nell.tips.length >= 3);
   // one show-me trade and one quiz trade (drawing on the worksheet quiz bank), rewards that exist and come from her

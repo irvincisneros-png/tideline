@@ -263,7 +263,7 @@ const sell = await readAll();
 check(/recreational fishers cannot sell/i.test(sell ?? '') && /licen[cs]ed commercial/i.test(sell ?? ''), `Nell: recreational fishers cannot sell, licensed commercial fishers can: "${sell?.slice(0, 70)}…"`);
 await choose('co-op'); check(/co-op is a business/i.test(await readAll()), 'Nell explains what a co-op is');
 await choose('commercial licence'); const tease = await readAll();
-check(/not yet/i.test(tease) && /promise, not a door/i.test(tease), 'the commercial licence is teased, not unlocked');
+check(/every kind of fish in your Fish Guide is Identified|awards night/i.test(tease) && /only place/i.test(tease), 'the commercial licence is teased (what it needs), not unlocked before then');
 check(await ev(() => !window.__game.progress.inventory.have['licence-commercial'] && !JSON.stringify(window.__game.progress).includes('commercialLicence')), 'no commercial licence was granted');
 await choose('Back');
 await choose('Jobs and trades'); await t.wait(200);

@@ -15,6 +15,9 @@ import { esc } from '../ui/panels.js';
 import { payMission, missionCoins, enterComp, compStanding, payLitter, litterUnpaid, today as econToday, compOfDay, RIVALS } from '../economy/coins.js';
 import { RATES, COIN } from '../content/shop.js';
 import { addBait } from '../economy/store.js';
+import { hasLicence, coopEligible, coopProgress, grantLicence, START_ADVANCE } from '../economy/commercial.js';
+import { endingStatus, pendingCeremony, ensureEnding } from '../fishing/ending.js';
+import { COOP } from '../content/coop.js';
 
 const shuffle = (a, rnd = Math.random) => { const o = a.map((v, i) => ({ v, i })); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
 
@@ -64,7 +67,8 @@ export class Talk {
       out.push({ id: 'trades', label: `Jobs and trades${flag}` });
     }
     if (npc.id === 'mitra') out.push({ id: 'shop', label: 'Shop' });
-    if (npc.id === 'bev') out.push({ id: 'comp', label: "Today's club comp" });
+    if (npc.id === 'bev') { out.push({ id: 'comp', label: "Today's club comp" }); out.push({ id: 'awards', label: pendingCeremony(p) ? '\ud83c\udfc6 Awards night is ready!' : 'Awards night' }); }
+    if (npc.id === 'nell' && (hasLicence(p) || coopEligible(p))) out.push({ id: 'coop', label: hasLicence(p) ? '\ud83d\udea2 The co-op' : '\ud83d\udea2 Co-op licence' });
     if (npc.id === 'fatima') out.push({ id: 'tally', label: 'Clean-up tally' });
     if (npc.id === 'mitra' && (p.esky?.length ?? 0) > 0) out.push({ id: 'sell', label: 'Sell my fish' });
     out.push({ id: 'bye', label: 'Bye' });
@@ -119,6 +123,37 @@ export class Talk {
       await dlg.say({ who, text: this.fmt('You are on the board, {name}! Fish clean and measure carefully. Head home when you are done and I will settle the board.'), button: 'Let us go' });
     }
   }
+  /** Bev: awards night. Says what it takes; once you qualify (or have been before) she starts the ceremony. */
+  async awards(npc, who) {
+    const g = this.game, p = this.p, dlg = g.dialogue, st = endingStatus(p), e = ensureEnding(p), pend = pendingCeremony(p);
+    if (pend || e.awards || e.milestone) {
+      const kind = pend ?? (e.awards ? 'awards' : 'milestone');
+      const i = await dlg.say({ who, text: this.fmt(pend ? (kind === 'awards' ? "It's time, {name}! Everyone is at the club tonight. Shall we start awards night?" : 'Every fish caught, {name}! The club wants to celebrate. Shall we?') : "Want to see the ceremony again, {name}? Everyone loved it."), choices: ['Start the ceremony', 'Not now'], cancel: 1 });
+      if (i === 0) { dlg.hide(); this.mgr.ceremonyPending = kind; }
+      return;
+    }
+    await dlg.say({ who, text: this.fmt(`Awards night happens when you have <b>Mastered all ${st.total} kinds of fish</b> (you have ${st.mastered}) and the bay is healthy: <b>Bay Health ${st.bayNeed}% or more</b> (it is ${Math.round(st.bay)}% now). Keep catching, measuring and releasing the small ones.<br><small class="dlg-note">Catch every kind of fish (${st.caught} of ${st.total} so far) and the club will hold a smaller celebration first.</small>`), button: 'Got it' });
+  }
+  /** Nell: the co-op licence (the commercial chapter) and the co-op panel. */
+  async coop(npc, who) {
+    const g = this.game, p = this.p, dlg = g.dialogue;
+    if (!hasLicence(p)) {
+      await dlg.sequence(who, [
+        this.fmt("{name}, you've caught them all, named them, and the bay is in good shape. You've earned a look at my side of the deck."),
+        'A co-op licence is permission to fish commercially. With it you can use nets, lines and traps, land a haul at the co-op and sell it. That is the only place in this whole game where a fish can be sold. Recreational fish never can.',
+        `The catch: quotas, closures, rules about nets and bycatch, and a stock status that decides what I can land. You also get ${START_ADVANCE} ${COOP.money.name} to start. They are for the co-op only, not for Mitra's shop.`,
+      ], 'Go on');
+      const i = await dlg.say({ who, text: 'Want the licence?', choices: ['Sign the licence', 'Not yet'], cancel: 1 });
+      if (i !== 0) return;
+      const r = grantLicence(p);
+      if (!r.ok) return;
+      g.persist(); g.audio.play('newSpecies'); g.toast(`\ud83d\udea2 Co-op licence signed! ${START_ADVANCE} ${COOP.money.name} to start.`, 'good');
+    }
+    await dlg.say({ who, text: this.fmt('Right, {name}. Nets lab first, then a haul, then the co-op counter. Have a look.'), button: 'Open the co-op' });
+    dlg.hide();
+    await g.openCoop();
+  }
+
   /** Fatima: pays credits for the pieces of litter you have pulled out of the water (the green zone catches it on the catch bar). */
   async tally(npc, who) {
     const g = this.game, p = this.p, dlg = g.dialogue, total = p.steward?.litter ?? 0;

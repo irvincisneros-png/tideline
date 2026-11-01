@@ -99,7 +99,7 @@ export class Outing {
 
   // ---------------------------------------------------------------- the outing summary card
   summary(o) {
-    const g = this.game, p = this.p;
+    const g = this.game, p = this.p, pend = g.pendingCeremony();
     const dBay = o.bay1 - o.bay0, dSt = o.st1 - o.st0;
     const sgn = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}`;
     const accPct = o.meas ? Math.round(o.acc / o.meas * 100) : null;
@@ -130,10 +130,11 @@ export class Outing {
       </div>
       ${o.gains.length ? `<h3>Fish Guide</h3><ul class="gains">${o.gains.map(x => `<li>${esc(SPECIES_BY_ID[x.id].name)}: <b>${G.TIER_LABEL[x.tier]}</b></li>`).join('')}</ul>` : ''}
       ${changes.length ? `<h3>Stock health changes</h3><p class="muted">${changes.slice(0, 6).map(c => `${esc(SPECIES_BY_ID[c.id]?.name ?? c.id)} (${esc((SPOT_INFO[c.spot]?.label ?? c.spot).replace('Lake Illawarra ', 'Lake '))}) ${Math.round(c.was)} → ${Math.round(c.now)}`).join(' · ')}</p>` : ''}
-      <p class="sum-actions"><button class="btn primary" id="sum-again">Fish again</button> <button class="btn" id="sum-guide">📗 Fish Guide</button> <button class="btn ghost" id="sum-title">Title screen</button></p>
+      ${pend ? `<div class="coop-offer club-offer">${pend === 'awards' ? '\ud83c\udfc6 <b>Awards night!</b> You have Mastered every fish and the bay is healthy. The club is waiting for you on Bellambi beach.' : '\ud83c\udf89 <b>You have caught every kind of fish!</b> The club wants to celebrate with you on Bellambi beach.'}</div>` : ''}
+      <p class="sum-actions"><button class="btn primary" id="sum-again">${pend ? (pend === 'awards' ? 'Go to the club' : 'Join the celebration') : 'Fish again'}</button> <button class="btn" id="sum-guide">📗 Fish Guide</button> <button class="btn ghost" id="sum-title">Title screen</button></p>
     </div>`, null, { locked: true, flow: 'summary' });
     const b = g.panels.body;
-    b.querySelector('#sum-again').onclick = () => { g.panels.close(true); p.outing = null; g.startLand(null); };
+    b.querySelector('#sum-again').onclick = () => { g.panels.close(true); p.outing = null; if (pend) g.runCeremony(pend); else g.startLand(null); };
     b.querySelector('#sum-title').onclick = () => { g.panels.close(true); p.outing = null; g.persist(); g.enterMenu(); };
     b.querySelector('#sum-guide').onclick = () => g.openGuide({ back: () => this.summary(o) });
   }

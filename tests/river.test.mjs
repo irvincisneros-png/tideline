@@ -5,7 +5,9 @@ import { SPECIES, SPECIES_BY_ID, SPOT_INFO, REGIONS, speciesInRegion } from '../
 import { SPOTS, biteWeights, judge, RULES, DEFAULT_CTX, closedNow, SEASON_MONTH } from '../src/fishing/catches.js';
 import { DayConditions, seasonOfMonth } from '../src/fishing/gear.js';
 import { ECOSYSTEMS, ecoById } from '../src/ecosystems/index.js';
-import { river, heightAt, colorAt, bankDist, centre, halfWidth, WEIR_X, spotAt, bassClosed, rockiness } from '../src/ecosystems/river.js';
+import { river, heightAt, colorAt, bankDist, centre, halfWidth, WEIR_X, spotAt, bassClosed, rockiness, deckAt, barAt, pathAt } from '../src/ecosystems/river.js';
+import { WEIR_STEPS, weirTop } from '../src/world/riverProps.js';
+import * as RT from '../src/world/riverTrees.js';
 import { siteLock } from '../src/ecosystems/unlock.js';
 import { LICENCE, BASS_SEASON } from '../src/content/river.js';
 import { pestVerdict, recordPest, FORBIDDEN_PEST_WORDS, PEST_RULE } from '../src/fishing/pest.js';
@@ -116,4 +118,43 @@ test('the river opens once six species are Identified, and the picker shows the 
   identify(p, 5); L = siteLock(p, river); assert.ok(L.locked && L.have === 5);
   identify(p, 6); L = siteLock(p, river); assert.equal(L.locked, false);
   assert.ok(river.unlock.n > ecoById('harbour').unlock.n, 'the river is gated after the harbour');
+});
+
+// ---------------------------------------------------------------- the polish pass: the landing, the stepped weir, the fishway, the snags and the bank plants
+test('you spawn on dry ground well back from the water, on a flat landing with a timber deck toward the river', () => {
+  const sp = river.land.spawn, h = heightAt(sp.x, sp.z);
+  assert.ok(bankDist(sp.x, sp.z) > 3.5, 'a few steps back from the water'); assert.ok(h > 0.5, 'a clear half metre above the water (no wading at spawn)');
+  assert.ok(Math.abs(heightAt(sp.x + 1.5, sp.z) - h) < 0.12 && Math.abs(heightAt(sp.x, sp.z + 1.5) - h) < 0.12, 'the landing pad is flat');
+  const dz = deckAt(-30, centre(-30) + halfWidth(-30) + 2.7); assert.ok(dz > 0.6 && dz < 0.8, 'a deck on the bank'); assert.equal(deckAt(-20, centre(-20) + halfWidth(-20) + 2.7), null);
+  assert.ok(Math.hypot(river.land.home.x - sp.x, river.land.home.z - sp.z) > river.land.home.r, 'spawn is outside the head-home prompt so the first view is clear');
+  assert.ok(pathAt(sp.x, sp.z + 4) > 0.8, 'a packed gravel path leads inland');
+});
+test('the weir is a stepped concrete weir: a walkable crest and treads that step down, with a deck height for each', () => {
+  assert.ok(WEIR_STEPS.length >= 3); for (let i = 1; i < WEIR_STEPS.length; i++) { assert.equal(WEIR_STEPS[i][0], WEIR_STEPS[i - 1][1], 'steps are contiguous'); assert.ok(WEIR_STEPS[i][2] < WEIR_STEPS[i - 1][2], 'each tread is lower'); }
+  assert.equal(WEIR_STEPS[0][2], 0.4, 'the crest stays at 0.4 m');
+  const cz = centre(WEIR_X); for (const z of [-9, -3, 0, 4, 9]) { assert.equal(deckAt(WEIR_X, cz + z), 0.4); assert.ok(deckAt(WEIR_X + 2, cz + z) < 0.4 && deckAt(WEIR_X + 2, cz + z) > 0.1, 'the first step down is walkable'); }
+  assert.equal(weirTop(0), 0.4); assert.equal(weirTop(-5), null); assert.equal(deckAt(WEIR_X + 2, cz + halfWidth(WEIR_X) + 6), null, 'no deck out on the bank');
+});
+test('the river models: stepped weir body, fishway, landing, post sign, flagstones and three gnarly snags with real detail', () => {
+  const m = buildRiverModels(); const tris = n => m.get(n).attributes.position.count / 3;
+  for (const n of ['weir_body', 'fish_ladder', 'landing', 'post_sign', 'flagstone_0', 'weir_rail', 'notice_board', 'snag_log_0', 'snag_log_1', 'snag_log_2']) assert.ok(m.has(n), n);
+  for (let v = 0; v < 3; v++) { assert.ok(tris(`snag_log_${v}`) > 1000 && tris(`snag_log_${v}`) < 4000, 'a detailed but light snag'); const c = m.get(`snag_log_${v}`).attributes.color; let lo = 9, hi = 0; for (let i = 0; i < c.count; i++) { lo = Math.min(lo, c.getX(i)); hi = Math.max(hi, c.getX(i)); } assert.ok(hi - lo > 0.3, 'bark has real colour variation'); }
+  assert.ok(tris('weir_body') > 1500, 'panels, joints and wing walls'); assert.ok(tris('fish_ladder') > 300);
+  for (const [k, g] of m) assert.ok(g.attributes.position.array.every(Number.isFinite), k);
+  const bb = (n) => { const g = m.get(n); g.computeBoundingBox(); return g.boundingBox; };
+  assert.ok(bb('weir_body').max.y > 0.39 && bb('weir_body').max.y < 1.3, 'the crest sits at 0.4 m and the walls a little above'); assert.ok(bb('snag_log_0').max.y > 1.0, 'a root ball standing up'); assert.ok(bb('snag_log_0').min.y < -0.2, 'half sunk');
+});
+test('bank plants: she-oak, water gum, lomandra, reeds, boulders and pebbles are light, finite and carry the attributes the scatter needs', () => {
+  const lim = { sheOak: 1500, waterGum: 1500, lomandra: 500, reeds: 500, boulder: 200, pebbles: 500 };
+  for (const [n, f] of Object.entries({ sheOak: RT.sheOak, waterGum: RT.waterGum, lomandra: RT.lomandra, reeds: RT.reeds, boulder: RT.boulder, pebbles: RT.pebbles })) {
+    const g = f(1000 + n.length); for (const a of ['position', 'normal', 'color', 'uv']) assert.ok(g.attributes[a], `${n}.${a}`);
+    assert.ok(g.attributes.position.array.every(Number.isFinite), n); assert.ok(g.attributes.position.count / 3 < lim[n], `${n} stays light (${g.attributes.position.count / 3} tris)`);
+  }
+  const oak = RT.sheOak(1000); oak.computeBoundingBox(); assert.ok(oak.boundingBox.max.y > 5 && oak.boundingBox.max.y < 9, 'a tall slim she-oak');
+  const gum = RT.waterGum(1000, 3); gum.computeBoundingBox(); assert.ok(gum.boundingBox.max.x > 2, 'the water gum leans out toward +x');
+  assert.ok(river.coral.some(c => c[0] === 'riverreeds') && river.coral.some(c => c[0] === 'riverlomandra') && river.coral.some(c => c[0] === 'riverpebbles') && river.coral.some(c => c[0] === 'riverboulder'));
+});
+test('gravel bars sit on the inside of the bends, just clear of the water, and never block the channel', () => {
+  let bars = 0; for (let x = -80; x <= 80; x += 2) for (const side of [1, -1]) { const z = centre(x) + side * (halfWidth(x) - 0.4), b = barAt(x, z); if (b > 0.9) { bars++; assert.ok(heightAt(x, z) > 0.05, `bar x=${x} is above the water`); assert.ok(Math.abs(heightAt(x, centre(x))) > 0.2, 'the middle of the channel is still deep'); } }
+  assert.ok(bars > 6, 'there are several bars'); assert.equal(barAt(-30, centre(-30) + halfWidth(-30) + 4.6), 0, 'no bar at the landing'); assert.equal(barAt(WEIR_X, centre(WEIR_X) + 8), 0, 'none at the weir');
 });

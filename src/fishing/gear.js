@@ -119,6 +119,12 @@ export const MIN_PER_SEC = 3;
 const TIDE_PERIOD = 744; // minutes, ~12.4 h
 export const TIME_HOURS = { dawn: 6.2, day: 11, dusk: 17.7, night: 22 };
 const TIDE_LABEL = { rising: 'Rising tide', high: 'High tide', falling: 'Falling tide', low: 'Low tide' };
+/** A river has no tide and no swell: it has FLOW. `normal` is the usual run, `high` is after rain (faster, browner water), `low` is a dry spell. */
+export const FLOWS = ['low', 'normal', 'high'];
+export const FLOW_LABEL = { low: 'Low flow', normal: 'Normal flow', high: 'After rain: high flow' };
+export const FLOW_NOTE = { low: 'a dry spell, slow and clear', normal: 'the river running as usual', high: 'a rain-fed rise, fast and murky' };
+/** The water clarity the lure colours use on a river (it follows the flow, not the swell). */
+export const FLOW_CLARITY = { low: 'clear', normal: 'stained', high: 'murky' };
 
 export function seasonFromDate(d = new Date()) {
   const m = d.getMonth();
@@ -140,7 +146,12 @@ export class DayConditions {
     const phase = TIDES.includes(opts.tide) ? { low: 0, rising: 0.25, high: 0.5, falling: 0.75 }[opts.tide] : rnd();
     this.tideOffset = phase * TIDE_PERIOD - this.minutes;
     this.swellBase = opts.swell ?? 0.7 + rnd() * 1.4;
+    // The river's flow (?flow=low|normal|high): most days are normal, now and then it is after rain.
+    this.flow = FLOWS.includes(opts.flow) ? opts.flow : (r => (r < 0.62 ? 'normal' : r < 0.85 ? 'high' : 'low'))(rnd());
+    this.fresh = false;   // true at a freshwater site: no tide, no swell
   }
+  /** Tell the day which kind of water it is (main.js, from eco.fresh). A river reads flow; the sea reads tide and swell. */
+  setFresh(on) { this.fresh = !!on; }
   update(dt) { this.minutes += dt * MIN_PER_SEC; }
   /** Tide height 0 (low) .. 1 (high). */
   get tideHeight() { return (1 - Math.cos(this.tidePhase * Math.PI * 2)) / 2; }
@@ -151,8 +162,12 @@ export class DayConditions {
   get swell() { return Math.max(0.2, this.swellBase + 0.2 * Math.sin(this.minutes / 47)); }
   get clock() { const h = Math.floor(this.hour), m = Math.floor(this.minutes % 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
   /** Water clarity today (clear / stained / murky), from the swell: it decides which lure colour works (economy/effects.js). */
-  get clarity() { return clarityOf(this.swell); }
+  get clarity() { return this.fresh ? FLOW_CLARITY[this.flow] : clarityOf(this.swell); }
   /** The bite-model context for the tackle the player has chosen. `extra` adds the gear modifiers (shy, lureMod). */
-  context(gear, stock, extra = {}) { return { rig: gear.rig, bait: gear.bait, tide: this.tide, time: this.time, season: this.season, month: this.month, stock, clarity: this.clarity, ...extra }; }
-  chip() { return `${TIDE_LABEL[this.tide]} · ${this.clock} ${this.time} · ${this.season} · swell ${this.swell.toFixed(1)} m`; }
+  context(gear, stock, extra = {}) {
+    // A river has no tide: the bite model gets `tide: null` (a tide match is neutral) and the day's flow instead.
+    const water = this.fresh ? { tide: null, flow: this.flow } : { tide: this.tide, flow: null };
+    return { rig: gear.rig, bait: gear.bait, ...water, time: this.time, season: this.season, month: this.month, stock, clarity: this.clarity, ...extra };
+  }
+  chip() { return this.fresh ? `${FLOW_LABEL[this.flow]} · ${this.clock} ${this.time} · ${this.season}` : `${TIDE_LABEL[this.tide]} · ${this.clock} ${this.time} · ${this.season} · swell ${this.swell.toFixed(1)} m`; }
 }

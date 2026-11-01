@@ -319,7 +319,7 @@ export class CatchFlow {
     p.catches ??= [];
     const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net, depth: ctx.depth });
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
+      time: Date.now(), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
     p.catches.push(row);
     adjustStock(p, this.spot, id, keep ? (v.legal ? -1 : -4) : 1 + (surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));
@@ -345,6 +345,9 @@ export class CatchFlow {
     const tier = G.tierOf(p, id);
     if (G.TIERS.indexOf(tier) > G.TIERS.indexOf(this.tierBefore) && tier === 'mastered') g.toast(`📗 Mastered: ${this.sp.name}! Its guide entry now shows its status, swap and rules.`, 'good');
     else if (tier === 'identified' && this.tierBefore !== 'identified') g.toast(`📗 Identified: ${this.sp.name}. Measure it accurately and make the right call to master it.`, 'good');
+    // A ceremony has just become due (every fish Caught, or awards night): say so once, and where to find it.
+    const due = g.pendingCeremony?.();
+    if (due && g.endingToldFor !== due) { g.endingToldFor = due; setTimeout(() => g.toast(due === 'awards' ? '🏆 Awards night is ready! Head home (H) and the club will be waiting on Bellambi beach.' : '🎉 You have caught every kind of fish! Head home (H) for a celebration at the club.', 'good'), 2200); }
     const flag = G.needsRekey(p, id);
     if (flag && !this.flagToasted) g.toast(`📗 Fish Guide: "Unknown fish #${e.caught.n}" does not match. Open the guide (J) to re-key it.`, 'warn');
   }

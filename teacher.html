@@ -4,53 +4,233 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TideLine — Teacher page</title>
+  <meta name="description" content="Teacher notes for TideLine: syllabus mapping for NSW Aquatic Technology 7–10 (Aquatic harvesting), a 3–4 lesson sequence, deep links and QR codes, the logbook export and the data sources and caveats." />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
   <style>
     html, body { overflow: auto; height: auto; }
-    body { background: linear-gradient(180deg, #8fd3ea 0%, #bfe9f5 40%, #fff3d2 100%) fixed; min-height: 100vh; }
-    main { width: min(980px, 100%); margin: 0 auto; padding: clamp(16px, 4vw, 40px); }
-    .t-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-    .t-card { background: var(--cream); border: 4px solid var(--teal-ink); border-radius: 22px; padding: 14px; box-shadow: 0 6px 0 rgba(31,95,107,.4); }
-    .t-card h3 { margin: 0 0 6px; text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 17px; }
-    .t-card p { font-size: 14px; color: var(--teal-ink); line-height: 1.45; }
-    .t-card canvas { width: 120px; height: 120px; image-rendering: pixelated; border-radius: 8px; float: right; margin-left: 10px; }
-    .t-card input { width: 100%; background: var(--cream3); border: 2px solid var(--teal-ink); color: var(--teal-ink); border-radius: 10px; padding: 6px 8px; font-size: 12px; }
-    .opts { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 20px; font-size: 14px; }
-    h2.eco { margin: 28px 0 10px; }
+    body { background: linear-gradient(180deg, #8fd3ea 0%, #bfe9f5 40%, #fff3d2 100%) fixed; min-height: 100vh; line-height: 1.5; }
+    main { width: min(1040px, 100%); margin: 0 auto; padding: clamp(14px, 4vw, 40px); }
     a { color: #0d7a72; }
-    main > p, .opts, h2.eco { background: var(--cream); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 14px; }
-    h2.eco { display: inline-block; border-radius: 99px; font-family: var(--font-display); }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .top .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    nav.toc { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 14px 0 6px; font-size: 14px; font-weight: 800; }
+    nav.toc a { background: var(--cream); border: 3px solid var(--teal-ink); border-radius: 99px; padding: 3px 12px; text-decoration: none; color: var(--teal-deep); box-shadow: var(--shadow-sm); }
+    section.card { background: var(--cream); border: 4px solid var(--teal-ink); border-radius: 22px; padding: 6px clamp(14px, 3vw, 24px) 18px; margin: 18px 0; box-shadow: 0 6px 0 rgba(31, 95, 107, .4); }
+    section.card > h2 { font-family: var(--font-display); font-size: 24px; color: var(--teal-deep); margin: 14px 0 6px; }
+    section.card h3 { font-family: var(--font-display); font-size: 16px; color: var(--teal-deep); margin: 16px 0 4px; }
+    p, li { font-size: 15px; } .muted { color: var(--muted); font-weight: 700; }
+    .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 10px 0; }
+    .glance div { background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 12px; text-align: center; }
+    .glance b { display: block; font-family: var(--font-display); font-size: 26px; color: var(--teal-deep); line-height: 1.1; } .glance span { font-size: 13px; color: var(--muted); font-weight: 700; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--cream3); }
+    th, td { border: 2px solid var(--teal-ink); padding: 6px 9px; text-align: left; vertical-align: top; }
+    thead th { background: var(--turq-pale); font-family: var(--font-display); }
+    tbody th { background: #fff7de; width: 19%; }
+    .wrap { overflow-x: auto; }
+    code, .code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; background: #fff; border: 2px solid var(--line); border-radius: 6px; padding: 0 5px; word-break: break-all; }
+    .lesson { border: 3px solid var(--teal-ink); border-radius: 16px; background: var(--cream3); padding: 4px 14px 10px; margin: 10px 0; break-inside: avoid; }
+    .lesson h3 { margin-top: 10px; } .lesson .when { float: right; font-size: 13px; color: var(--muted); font-weight: 800; }
+    .lesson ul { margin: 4px 0; padding-left: 20px; }
+    .box { border: 3px solid var(--teal-ink); border-left-width: 12px; border-radius: 14px; background: #fff7de; padding: 6px 14px 10px; margin: 12px 0; break-inside: avoid; }
+    .box.warn { border-left-color: #ffb347; background: #fff0c4; } .box.src { border-left-color: var(--turq2); background: var(--turq-pale); }
+    .box h3 { margin-top: 8px; }
+    .tags span { display: inline-block; font-size: 11.5px; font-weight: 800; border: 2px solid var(--teal-ink); border-radius: 99px; padding: 0 8px; margin: 0 4px 2px 0; background: #fff; }
+    .t-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .t-card { background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 18px; padding: 12px; break-inside: avoid; overflow: hidden; }
+    .t-card h3 { margin: 0 0 4px; text-transform: none; letter-spacing: 0; } .t-card p { font-size: 13px; color: var(--teal-ink); margin: 4px 0; }
+    .t-card canvas { width: 104px; height: 104px; image-rendering: pixelated; border-radius: 8px; float: right; margin-left: 10px; background: #fff; }
+    .t-card input, .builder input, .builder select { width: 100%; background: #fff; border: 2px solid var(--teal-ink); color: var(--teal-ink); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; font-family: inherit; }
+    .builder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 12px; margin: 8px 0; }
+    .builder label { font-size: 12.5px; font-weight: 800; color: var(--teal-deep); display: block; }
+    .builder-out { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; } .builder-out canvas { width: 130px; height: 130px; image-rendering: pixelated; background: #fff; border: 3px solid var(--teal-ink); border-radius: 8px; }
+    .builder-out .url { flex: 1 1 260px; }
+    .print-only { display: none; }
+    @media (max-width: 600px) { .lesson .when { float: none; display: block; } th, td { padding: 5px 6px; font-size: 13px; } tbody th { width: auto; } }
+    @media print {
+      @page { margin: 14mm; }
+      html, body { background: #fff !important; }
+      body { font-size: 11pt; color: #000; }
+      main { width: 100%; padding: 0; }
+      nav.toc, .top .btns, .builder, .builder-out canvas, #quality-pick, .noprint, .t-card input { display: none !important; }
+      section.card, .lesson, .box, .t-card, .glance div { box-shadow: none !important; border-width: 2px; background: #fff !important; }
+      section.card { break-inside: auto; margin: 10px 0; padding-bottom: 6px; }
+      section.card > h2 { break-after: avoid; }
+      a { color: #000; text-decoration: underline; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; word-break: break-all; }
+      table { background: #fff; font-size: 9.5pt; } th, td { border-color: #555; } thead th, tbody th { background: #eee !important; }
+      tr, .lesson, .box { break-inside: avoid; }
+      .print-only { display: block; }
+      .t-card canvas { width: 70px; height: 70px; }
+      .logo { font-size: 26px; text-shadow: none; }
+    }
   </style>
 </head>
 <body>
-  <main>
+<main>
+  <div class="top">
     <div class="logo">Tide<span>Line</span> · Teacher page</div>
-    <p>Share a spot link or QR code. Students open it in Chrome/Edge on a laptop (keyboard + mouse) or on a tablet. Nothing is uploaded: field guides and catch logs stay on each device; students can export a CSV from their field guide.</p>
-    <div class="opts">
-      <label>Graphics <select id="o-q"><option value="">Auto</option><option value="low">Low (school laptops)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+    <div class="btns"><button class="btn small" onclick="print()">🖨 Print this page</button> <a class="btn small primary" href="index.html">Play TideLine</a></div>
+  </div>
+  <p>TideLine is a cosy 3D fishing game on the Illawarra coast for <b>NSW Aquatic Technology 7–10, option Aquatic harvesting</b> (Stage 5, Module 2). Students cast, land a fish, name it with a dichotomous key, measure it and choose: keep it or release the small. Nothing is uploaded: each student’s Fish Guide and logbook stay on their own device.</p>
+  <nav class="toc" aria-label="On this page"><a href="#glance">At a glance</a><a href="#lessons">Lesson sequence</a><a href="#links">Deep links and QR</a><a href="#export">Progress export</a><a href="#syllabus">Syllabus map</a><a href="#sources">Data sources and caveats</a></nav>
+
+  <section class="card" id="glance">
+    <h2>At a glance</h2>
+    <div class="glance"><div><b>25</b><span>species in the Illawarra Fish Guide</span></div><div><b>5</b><span>sites: beach and rocks, lake, harbour, offshore reef, river</span></div><div><b>3–4</b><span>lessons (about 50 minutes each)</span></div><div><b>0</b><span>accounts, uploads or ads</span></div></div>
+    <ul>
+      <li><b>Devices.</b> Chrome or Edge on a school Chromebook or laptop (keyboard and mouse), or a phone or tablet held sideways (touch controls). It needs WebGL 2. The first load downloads about 5 MB (3D models and scripts), then the browser caches it; another site adds a little more. For slow Chromebooks add <code>?quality=low</code> (or choose Low in Settings).</li>
+      <li><b>The game spine.</b> Each fish is <i>Seen</i> → <i>Caught</i> → <i>Identified</i> (the key) → <i>Mastered</i> (a measure within 1 cm and the right keep-or-release call). The tagline: <i>“Gotta catch ’em all… and release the small.”</i></li>
+      <li><b>Endings.</b> Every fish Caught: a club celebration. Every fish Mastered and Bay Health at 71% or more: awards night at the Illawarra Anglers’ Club, then the credits. After either the student keeps playing. Nell (Belmore Basin) then offers the commercial <b>co-op licence</b> chapter.</li>
+      <li><b>Money.</b> Recreational fishers cannot sell their catch, so <i>Club credits</i> are paid only for good science and good care (records, tags, comps, missions, litter). The only place a fish is ever sold is the co-op, with the commercial licence, and only a commercial haul.</li>
+    </ul>
+  </section>
+
+  <section class="card" id="lessons">
+    <h2>A 3–4 lesson sequence</h2>
+    <p class="muted">Students work alone or in pairs. Each lesson ends with one “show me” from the logbook or Fish Guide. Use the deep links below to start every student in the right place; <code>?play=1</code> skips the title screen and sends them straight to the water.</p>
+    <div class="lesson"><span class="when">Lesson 1 · about 50 min</span><h3>Rules on the beach: measure, bag and release</h3>
+      <ul><li><b>Start:</b> Bellambi beach and rock platform (<code>?eco=rocky&amp;play=1</code>). Meet Sione (rock safety), Bev (the club) and the Fisheries Officer.</li>
+      <li><b>Do:</b> cast, land 5 fish, measure each on the brag mat, decide keep or release; talk to the Officer on the way home.</li>
+      <li><b>Look for:</b> students who measure to the nearest cm; “one cm under is still undersize”; why a slot limit protects big breeders.</li>
+      <li><b>Show me:</b> open the logbook (<kbd>L</kbd>): which fish were legal to keep, and why not for the others?</li></ul></div>
+    <div class="lesson"><span class="when">Lesson 2 · about 50 min</span><h3>The lake: name it, then master it</h3>
+      <ul><li><b>Start:</b> Lake Illawarra (<code>?eco=seagrass&amp;play=1</code>), a rising tide in the morning (<code>&amp;tide=rising&amp;time=dawn</code>). Meet Mitra (licence, fee, bait limits), Old Tam and Dr Priya (tag and release).</li>
+      <li><b>Do:</b> solve the dichotomous key for two species; Master one; collect bait inside the DPIRD limits; tag and release a legal fish.</li>
+      <li><b>Show me:</b> the Fish Guide (<kbd>J</kbd>): one Mastered card with its stock status and sustainable swap.</li></ul></div>
+    <div class="lesson"><span class="when">Lesson 3 · about 50 min</span><h3>Technology, safety and pests: harbour, reef and river</h3>
+      <ul><li><b>Start:</b> Belmore Basin (<code>?eco=harbour&amp;play=1&amp;time=dusk</code>, opens at 5 species Identified; the deep link opens it anyway). Squid jigging and the wharf lamps; the offshore reef (<code>?eco=reef&amp;play=1</code>) with the fish finder; the freshwater river (<code>?eco=river&amp;play=1&amp;flow=high</code>).</li>
+      <li><b>Do:</b> read the fish finder (arches, clouds, the thick bottom line); the lifejacket and safety beat; the river’s <i>flow</i> instead of tide; the bass closed season (<code>&amp;season=winter</code>) and the carp “best practice” card.</li>
+      <li><b>Show me:</b> what is the difference between a rule (closed season) and best practice (pest fish)?</li></ul></div>
+    <div class="lesson"><span class="when">Lesson 4 (extension) · about 50 min</span><h3>Awards night and the commercial chapter</h3>
+      <ul><li><b>Start:</b> students who have reached 100% Caught see the club celebration; those who have Mastered everything see awards night (<code>?ceremony=awards</code> previews it for the class). Then Nell’s <b>co-op licence</b> at Belmore Basin.</li>
+      <li><b>Do:</b> in the <b>Nets lab</b> choose a gear, a mesh size, a bycatch reduction device (BRD) and a turtle excluder (TED) and meet the lab goals; land a haul and sell it at the co-op; read the stock status and the sustainable swaps.</li>
+      <li><b>Show me:</b> compare the recreational and commercial table in the Sell tab. Why can an esky full of legal fish never be sold, even with a licence?</li></ul></div>
+  </section>
+
+  <section class="card" id="links">
+    <h2>Deep links and QR codes</h2>
+    <p>Add these to the web address (after <code>index.html</code>, joined with <code>&amp;</code>) to start every student in the same place.</p>
+    <div class="wrap"><table>
+      <thead><tr><th>Parameter</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><th><code>?play=1</code></th><td>Skip the title screen and start fishing. (Also skips the reef’s boat-trip scene.)</td></tr>
+        <tr><th><code>&amp;eco=</code></th><td>The site: <code>rocky</code> (Bellambi beach and rocks), <code>seagrass</code> (Lake Illawarra), <code>harbour</code> (Belmore Basin), <code>reef</code> (offshore reef), <code>river</code> (freshwater river). A deep link opens a site even before students have unlocked it.</td></tr>
+        <tr><th><code>&amp;season=</code></th><td><code>summer</code>, <code>autumn</code>, <code>winter</code> or <code>spring</code>. <code>winter</code> closes keeping of Australian bass (May to August) on the river. <code>&amp;month=6</code> sets a month (1–12).</td></tr>
+        <tr><th><code>&amp;time=</code></th><td><code>dawn</code>, <code>day</code>, <code>dusk</code> or <code>night</code> (or an hour such as <code>18.5</code>). Every site has a sunset and a dark-blue night; squid bite only at dusk and night.</td></tr>
+        <tr><th><code>&amp;tide=</code></th><td><code>rising</code>, <code>high</code>, <code>falling</code> or <code>low</code>. Sea sites only: the river has no tide.</td></tr>
+        <tr><th><code>&amp;flow=</code></th><td><code>low</code>, <code>normal</code> or <code>high</code> (after rain). River only.</td></tr>
+        <tr><th><code>&amp;swell=</code></th><td>Swell in metres. A swell of 2.5 m or more washes the rock platform and the harbour breakwall (a good safety lesson).</td></tr>
+        <tr><th><code>&amp;creator</code></th><td>With <code>?play=1</code>: open the character creator before the first outing (a new device).</td></tr>
+        <tr><th><code>&amp;quality=</code></th><td><code>low</code> for school Chromebooks, <code>medium</code> or <code>high</code>.</td></tr>
+        <tr><th><code>&amp;officer=</code></th><td><code>1</code> always runs the Fisheries Officer’s esky check on the way home; <code>0</code> never does.</td></tr>
+        <tr><th><code>&amp;ceremony=</code></th><td><code>awards</code> or <code>milestone</code>: preview the club ceremony straight away (it also marks that ceremony as seen on that device).</td></tr>
+        <tr><th><code>&amp;touch=1</code></th><td>Force the touch controls on a laptop (and <code>0</code> forces them off).</td></tr>
+      </tbody></table></div>
+    <h3>Link builder</h3>
+    <div class="builder" aria-label="Link builder">
+      <label>Site <select id="b-eco"></select></label>
+      <label>Season <select id="b-season"><option value="">Today’s</option><option>summer</option><option>autumn</option><option>winter</option><option>spring</option></select></label>
+      <label>Time of day <select id="b-time"><option value="">Dawn (default)</option><option>day</option><option>dusk</option><option>night</option></select></label>
+      <label>Tide / river flow <select id="b-water"><option value="">Random</option><option value="tide=rising">Tide: rising</option><option value="tide=high">Tide: high</option><option value="tide=falling">Tide: falling</option><option value="tide=low">Tide: low</option><option value="flow=low">River flow: low</option><option value="flow=normal">River flow: normal</option><option value="flow=high">River flow: high (after rain)</option></select></label>
+      <label id="quality-pick">Graphics <select id="b-q"><option value="">Auto</option><option value="low">Low (school laptops)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <label>Start <select id="b-play"><option value="1">At the water (?play=1)</option><option value="">On the title screen</option></select></label>
     </div>
+    <div class="builder-out"><canvas id="b-qr" aria-label="QR code for the link"></canvas><div class="url"><label for="b-url" class="muted">Copy this link for your LMS, or show the QR code:</label><input id="b-url" readonly onclick="this.select()"></div></div>
+    <h3>One QR code per site</h3>
     <div id="list"></div>
-    <h2 class="eco">Syllabus links</h2>
-    <p>Designed for NSW Aquatic Technology 7–10, option Aquatic harvesting: recreational fishing, matching tackle and technique to the target species, size and bag limits, catch and release, and keeping a catch record (species identification, measuring, exporting data).</p>
-    <p><a href="index.html">← Back to TideLine</a></p>
-  </main>
-  <script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js", "three/examples/jsm/": "./vendor/three/examples/jsm/" } }</script>
-  <script type="module">
-    import { ECOSYSTEMS } from './src/ecosystems/index.js';
-    import { qrEncode, drawQR } from './src/ui/qr.js';
-    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    const base = new URL('index.html', location.href).href;
-    function render() {
-      const q = document.querySelector('#o-q').value;
-      document.querySelector('#list').innerHTML = `<h2 class="eco">Spots</h2><div class="t-grid">${ECOSYSTEMS.map(e => {
-        const p = new URLSearchParams({ eco: e.id, play: '1' }); if (q) p.set('quality', q);
-        const url = `${base}?${p}`;
-        return `<div class="t-card"><canvas data-url="${esc(url)}"></canvas><h3>${esc(e.name)}</h3><p>${esc(e.place)} — ${esc(e.blurb)}</p><input readonly value="${esc(url)}" onclick="this.select()"></div>`;
-      }).join('')}</div>`;
-      document.querySelectorAll('canvas[data-url]').forEach(c => { try { drawQR(c, qrEncode(c.dataset.url), 4); } catch { c.remove(); } });
-    }
-    document.querySelector('#o-q').onchange = render;
-    render();
-  </script>
+  </section>
+
+  <section class="card" id="export">
+    <h2>Progress export (logbook CSV)</h2>
+    <p>Everything is saved on the device in the browser’s local storage: the Fish Guide, the logbook, the esky, credits and the angler. Nothing leaves the device, so there is nothing to log in to, and a shared Chromebook keeps one student’s game per browser profile (use <b>New game</b> on the title screen to start again).</p>
+    <ul>
+      <li><b>Logbook (CSV).</b> Press <kbd>L</kbd> (the 📒 button on a phone) then <b>Export logbook (CSV)</b>. One row per fish, which opens in Sheets or Excel for the numeracy tasks. Columns: <code>angler, date, spot, tide or river flow, time of day, species, length cm, your measure cm, accurate, kept or released, legal to keep, why not, rig, bait</code>. “Accurate” is a measure within 1 cm of the real length.</li>
+      <li><b>Fish Guide (CSV).</b> The Fish Guide (<kbd>J</kbd>) exports one row per species with its tier, longest catch, accurate measures and correct decisions.</li>
+      <li><b>Class data idea.</b> Collect the CSVs into one sheet: which species were most often undersize? What is the average measuring error? Which spot gave the most legal fish?</li>
+      <li><b>Printing.</b> This page prints cleanly: use your browser’s Print (the QR codes and links are kept).</li>
+    </ul>
+  </section>
+
+  <section class="card" id="syllabus">
+    <h2>Syllabus map</h2>
+    <p><b>NSW Aquatic Technology 7–10 · Aquatic harvesting · Module 2 worksheets.</b> Worksheet numbers are the ones the content dataset cites for each fact. The game’s facts and quiz questions come from these worksheets and from NSW DPIRD. <span class="muted">Outcome codes and exact dot-point wording have not been checked against the NESA syllabus document: please line the rows up with your program before you rely on them.</span></p>
+    <div class="wrap"><table>
+      <thead><tr><th>Game system</th><th>What students do</th><th>Syllabus topic (Aquatic harvesting)</th><th>Module 2 worksheets</th></tr></thead>
+      <tbody>
+        <tr><th>Brag mat, bag and size limits</th><td>Measure total length (snout to tail tip, mouth closed); judge minimum size, slot, bag and possession limits; keep or release.</td><td>Recreational fishing: regulations and sustainable practices; size, bag and possession limits and the reasons for them.</td><td>2.1.15 (also 2.1.14)</td></tr>
+        <tr><th>Fish Guide and dichotomous key</th><td>Identify species from visible features; learn habitat, status and the sustainable swap.</td><td>Identifying and classifying target species; species characteristics and habitat.</td><td>2.1.3, 2.1.5, 2.1.15</td></tr>
+        <tr><th>Tackle box and bite model</th><td>Match rig and bait to the target; read tide, time, season; collect bait inside the limits.</td><td>Recreational fishing methods, rigs and bait; bait collection limits; bait handling.</td><td>2.1.6, 2.1.10, 2.1.11, 2.1.12</td></tr>
+        <tr><th>Catch and release</th><td>Wet hands, quick release, circle hooks, release weights for deep fish (barotrauma), the release survival card; tag and release.</td><td>Handling and releasing fish to improve survival; tagging in monitoring.</td><td>2.1.12, 2.1.16, 2.2.6</td></tr>
+        <tr><th>Logbook and CSV</th><td>Record species, length, where, when, bait and the decision; export and analyse.</td><td>Keeping catch records and using data to judge a population.</td><td>2.1.3</td></tr>
+        <tr><th>Licence, fee, Fisheries Officer</th><td>Learn the recreational fishing fee, exemptions and where the money goes; esky checks; FishSmart.</td><td>Licences and compliance; the Recreational Fishing Trusts.</td><td>2.1.14, 2.1.11</td></tr>
+        <tr><th>Rock and boat safety</th><td>Lifejacket, swell, alone or not; the boat-trip safety beat.</td><td>Safety in aquatic harvesting.</td><td>2.1.12 and the program booklet</td></tr>
+        <tr><th>Fish finder, GPS, apps</th><td>Read the sounder (arches, clouds, the thick bottom line); learn what electronics can and cannot do.</td><td>Technology in recreational fishing; its effect on sustainability.</td><td>2.1.7, 2.1.13</td></tr>
+        <tr><th>Stock health and Bay Health</th><td>Keep legal fish and release the small; watch stock and Bay Health move; see the six SAFS statuses.</td><td>Sustainability of fish stocks; monitoring stocks.</td><td>2.2.6, 2.1.15</td></tr>
+        <tr><th>Pests and biosecurity</th><td>Carp on the river (best practice, not law); local bait instead of imported prawns; clean, check, dry.</td><td>Impacts of introduced species; biosecurity.</td><td>1.2.1, 1.2.2 (Module 1) and the DPIRD pest fish page</td></tr>
+        <tr><th>Sea Country ranger and cards</th><td>Talk with Ranger Jo; read the Sea Country story cards; the cultural fishing quiz.</td><td>Aboriginal and Torres Strait Islander Peoples’ fishing practices; two-way science.</td><td>2.1.1, 2.2.1, 1.3.1, 5.1.1 <b>(pending AEO/AECG review)</b></td></tr>
+        <tr><th>Club credits and the tackle shop</th><td>Earn credits from good science, never from selling fish; spend them on gear that helps the fish.</td><td>Why recreational fishers cannot sell their catch; commercial and recreational fishing compared.</td><td>2.1.14, 2.2.1, 2.2.5</td></tr>
+        <tr><th>Co-op licence · Nets lab</th><td>Choose a gear and a mesh size, add a BRD or TED, run a haul and read the target and bycatch.</td><td>Commercial fishing methods; mesh size; bycatch reduction; effects on the seabed and non-target species.</td><td>2.2.2, 2.2.3, 2.2.7</td></tr>
+        <tr><th>Co-op licence · Sell and quota</th><td>Land a commercial haul inside a quota and sell it; see how stock status changes the quota and price.</td><td>Management of commercial fisheries: licences, quotas, closures, size limits; who manages the fishery; the supply chain from fisher to customer.</td><td>2.2.4, 2.2.5, 2.2.6</td></tr>
+        <tr><th>Awards night</th><td>A club ceremony that quotes each student’s own releases, accurate measures, litter, tags and Bay Health.</td><td>Reflection on sustainable and responsible practice.</td><td>Whole unit</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section class="card" id="sources">
+    <h2>Data sources and caveats</h2>
+    <div class="box src"><h3>Data sources</h3>
+      <ul>
+        <li><b>NSW DPIRD</b> (Department of Primary Industries and Regional Development, dpird.nsw.gov.au): size, bag and possession limits, the recreational fishing fee and exemptions, closed seasons, Lake Illawarra closures, Bushrangers Bay, the catch-and-release page and Wollongong Council’s rock fishing page. Limits were checked on 31 October to 1 November 2026. <b>Limits change: check FishSmart or the DPIRD website before using the numbers in class.</b></li>
+        <li><b>Module 2 teacher worksheets</b>: the most authoritative source for rules, the Fish Guide hints, the quiz bank and the commercial fishing content.</li>
+        <li><b>SAFS</b> (Status of Australian Fish Stocks, fish.gov.au, 6th edition, 2024): the stock status of each species. Stock status is by region: a species can be sustainable in NSW and depleted elsewhere.</li>
+        <li><b>GoodFish</b> (Australian Marine Conservation Society): TideLine <i>points to</i> GoodFish and the FishSmart app and does not copy their colour ratings, because the ratings vary by state and change over time.</li>
+      </ul></div>
+    <div class="box warn"><h3>Caveats: please read before a class uses it</h3>
+      <ul>
+        <li><b>Sea Country content pending AEO/AECG review.</b> The Sea Country ranger’s dialogue, the six Sea Country story cards and the cultural fishing quiz use only worksheet-sourced material (nothing marked [unverified]) and describe practices as living knowledge. They have <b>not yet been checked</b> by the school’s Aboriginal Education Officer (AEO) or the local Aboriginal Education Consultative Group (AECG). Please have them checked, or switch the ranger off by not talking to her, before a class uses them.</li>
+        <li><b>Carp wording.</b> The game teaches “best practice”, not law: DPIRD encourages keeping and humanely disposing of carp and never moving live carp. Returning a carp is not taught as an offence, because the dataset’s source for this is a search summary and other states differ. Please check the DPIRD pest fish page. The redfin perch rule (live possession) is not taught for the same reason.</li>
+        <li><b>Unverified biology.</b> Rig, bait, tide, time, season, typical length, fight strength and the identification features are general angler and biology knowledge, not checked against a source. They are gameplay tuning and may differ from real fishing. The river flow preference (bass and eels feed harder after rain) is the same kind of tuning.</li>
+        <li><b>The nets lab and the co-op use game numbers.</b> The worksheets give levels (seabed High or Low; bycatch Low, Medium to High, High) and mesh definitions, not percentages, prices or quotas. The haul percentages, prices, quota sizes and the rule that the open gap is half the stretched mesh are made up for the simulation, and the screen says so.</li>
+        <li><b>Quotas and ITQs.</b> The worksheets define a quota as a limit per year. Individual transferable quotas are not in the dataset, so the game does not teach them.</li>
+        <li><b>Release survival</b> ranges are from DPIRD (for example bream 72 to 97%, snapper 67 to 92%); the game starts from the middle of each range. A deeply hooked bream whose line is cut (12% to over 85%) is a separate lesson.</li>
+        <li><b>Stock status moves.</b> Mulloway are “recovering” in the 6th edition (older editions said “depleted”) and jackass morwong (Eastern stock) are “depleted”. Some DPIRD pages cannot be fetched automatically, so a few statements are tagged as read from a search summary in the content dataset; they are listed on the content file for checking.</li>
+        <li><b>Syllabus codes.</b> The syllabus map above uses worksheet numbers and topic wording; outcome codes are not given. Please confirm them against the NESA document.</li>
+      </ul></div>
+    <p class="muted">Progress is stored in the browser’s local storage on each device and is never uploaded. Clearing the browser’s site data, or a different browser profile, starts a new game.</p>
+    <p class="noprint"><a href="index.html">← Back to TideLine</a> · <a href="https://irvincisneros-png.github.io/">← Learning Hub</a></p>
+  </section>
+</main>
+<script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js", "three/examples/jsm/": "./vendor/three/examples/jsm/" } }</script>
+<script type="module">
+  import { ECOSYSTEMS } from './src/ecosystems/index.js';
+  import { qrEncode, drawQR } from './src/ui/qr.js';
+  const $ = s => document.querySelector(s);
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const base = new URL('index.html', location.href).href;
+  const qr = (canvas, url, px) => { try { drawQR(canvas, qrEncode(url), px); } catch { canvas.remove(); } };
+  // The per-site QR list (uses the chosen graphics tier).
+  function renderList() {
+    const q = $('#b-q').value;
+    $('#list').innerHTML = `<div class="t-grid">${ECOSYSTEMS.map(e => {
+      const p = new URLSearchParams({ eco: e.id, play: '1' }); if (q) p.set('quality', q);
+      const url = `${base}?${p}`;
+      return `<div class="t-card"><canvas data-url="${esc(url)}" aria-label="QR code for ${esc(e.name)}"></canvas><h3>${esc(e.name)}</h3><p>${esc(e.place)}</p><input readonly value="${esc(url)}" onclick="this.select()" aria-label="Link for ${esc(e.name)}"></div>`;
+    }).join('')}</div>`;
+    document.querySelectorAll('canvas[data-url]').forEach(c => qr(c, c.dataset.url, 3));
+  }
+  function renderBuilder() {
+    const p = new URLSearchParams();
+    if ($('#b-play').value) p.set('play', '1');
+    p.set('eco', $('#b-eco').value);
+    for (const [id, key] of [['#b-season', 'season'], ['#b-time', 'time'], ['#b-q', 'quality']]) if ($(id).value) p.set(key, $(id).value);
+    const w = $('#b-water').value; if (w) { const [k, v] = w.split('='); p.set(k, v); }
+    const url = `${base}?${p}`;
+    $('#b-url').value = url;
+    const c = $('#b-qr'); const fresh = c.cloneNode(); c.replaceWith(fresh); qr(fresh, url, 3);
+  }
+  $('#b-eco').innerHTML = ECOSYSTEMS.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+  for (const id of ['#b-eco', '#b-season', '#b-time', '#b-water', '#b-q', '#b-play']) $(id).onchange = () => { renderBuilder(); if (id === '#b-q') renderList(); };
+  renderBuilder(); renderList();
+</script>
 </body>
 </html>

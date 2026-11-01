@@ -71,7 +71,7 @@ export function payRecord(p, row, identified) {
   addCoins(p, amount, 'record', `${sp?.name ?? row.id} ${row.length} cm`);
   return { amount, parts, why: '' };
 }
-export const comboKey = r => `${r.id}|${r.spot}|${r.tide}|${r.daytime}`;
+export const comboKey = r => `${r.id}|${r.spot}|${r.tide ?? r.flow}|${r.daytime}`;
 
 // ================================================================== 2. tag and release
 /** A tagged fish counts for pay when it is legal size, released (not kept), and handled well: wet hands and 10 s or less out of the water. */

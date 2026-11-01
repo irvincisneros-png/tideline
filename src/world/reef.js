@@ -108,7 +108,7 @@ export class Reef {
         if (!list.length) return;
         const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: gen.rough, metalness: 0, side: gen.upright || gen.doubleSide || gen.foliage ? THREE.DoubleSide : THREE.FrontSide });
         // Leaf-card plants: painted foliage atlas, alpha-cut (soft edges with MSAA); shadows inherit the cut-out.
-        if (gen.foliage) { mat.map = foliageAtlas(); mat.alphaTest = 0.45; mat.alphaToCoverage = true; }
+        if (gen.foliage) { mat.map = gen.atlas ? gen.atlas() : foliageAtlas(); mat.alphaTest = 0.45; mat.alphaToCoverage = true; }
         // Only reef-building/soft corals with zooxanthellae bleach (not sea fans, sponges or rock).
         patchUnderwater(mat, { cutaway: !!(gen.land || gen.upright), coral: gen.bleaches ?? !['rock', 'seafan', 'sponge'].includes(kind), sway: gen.sway ?? 0, transl: gen.transl ?? 0, detail: !gen.foliage, detailScale: gen.detailScale ?? 38 });
         const name = (gen.as ?? kind) + vi;

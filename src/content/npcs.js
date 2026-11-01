@@ -601,8 +601,8 @@ export const NPCS = {
         'Yes. Lake Illawarra has some commercial fishing in the estuary. That is a different job from ours, and it follows its own rules. Rod and line only for you around the lake entrance, remember.',
       ] },
       { q: 'Could I get a commercial licence one day?', a: [
-        'Ha! Maybe. But not yet. The commercial licence is the last chapter, for when your Fish Guide is full and the bay is healthy. Then you could look at quotas, nets and bycatch from my side of the deck.',
-        'It is a promise, not a door you can open today. For now, keep catching, measuring, and releasing the small ones.',
+        'Ha! Maybe. The co-op licence is the last chapter. Come and see me once every kind of fish in your Fish Guide is Identified, or after awards night at the club. Then you can look at quotas, nets and bycatch from my side of the deck, and sell a commercial haul at the co-op.',
+        'It is the only place anyone can sell fish in this game, and recreational fish never can. For now, keep catching, measuring, and releasing the small ones.',
       ], teaser: 'commercial' },
     ],
     tips: [
