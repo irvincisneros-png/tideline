@@ -1,7 +1,8 @@
 // Hero-shot capture for the visual pass: the shots that say whether the game reads as a cosy, sunny, top-down fishing diorama.
 // Usage: python3 devserver.py 8451 &  then  URL=http://localhost:8451/ node tests/playtest/look.mjs [high|low]
 // Writes playtest-shots/look/<viewport>/NN-name.png for a 1280x720 desktop view and a 375x812 phone-width view:
-//   title, beach from above, rock platform, Lake Illawarra jetty, angler winding up and casting, catch bar mid-fight, angler holding the catch, keep/release modal.
+//   title, beach from above (wrack, shells, umbrellas, footprints), the beach-access path, rock platform, Lake Illawarra jetty, angler winding up and casting, catch bar mid-fight,
+//   angler holding the catch, the dichotomous-key inspection panel, the brag mat and the keep/release card.
 // Exits 0 if every shot was taken with no console errors.
 import { launch } from './harness.mjs';
 
@@ -24,8 +25,14 @@ for (const [tag, width, height] of VIEWS) {
   t = await launch({ query: `eco=rocky&quality=${quality}&play=1&time=day&tide=rising&season=summer`, outDir: out, width, height });
   await t.wait(1200);
   await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
-  await t.teleport(4, 88, { camYaw: -0.5, heading: Math.PI, zoom: 17 });
+  await t.teleport(4, 88, { camYaw: -0.5, heading: Math.PI, zoom: 14 });
+  await t.page.evaluate(() => { window.__game.walker.heading = 0; });
+  for (let i = 0; i < 4; i++) await t.hold('KeyS', 350); // leave a trail of footprints
+  await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
   await snap(t, 'beach-from-above');
+  await t.teleport(-3, 112, { camYaw: 0.2, heading: 0, zoom: 15, pitch: 1.0 });
+  await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
+  await snap(t, 'beach-access-path');
   await t.teleport(-8, 104, { camYaw: 3.0, heading: 0, zoom: 21, pitch: 1.0 });
   await snap(t, 'beach-dunes-tower-pines');
   await t.teleport(70, 90, { camYaw: -0.3, heading: Math.PI, zoom: 19 });
@@ -60,8 +67,17 @@ for (const [tag, width, height] of VIEWS) {
   await t.page.evaluate(() => window.__game.fishing.land());
   await t.wait(700);
   await snap(t, 'angler-holding-catch');
-  await t.page.waitForSelector('#fx-keep', { timeout: 6000 }).catch(() => { ok = false; console.log('FAIL: keep/release modal did not open'); });
+  await t.page.waitForSelector('.key-grid', { timeout: 6000 }).catch(() => { ok = false; console.log('FAIL: the key panel did not open'); });
+  await t.wait(900);
+  await snap(t, 'key-inspect');
+  const path = await t.page.evaluate(async () => { const K = await import('/src/fishing/key.js'), S = await import('/src/fishing/species.js'); return K.pathTo(K.KEY, S.SPECIES_BY_ID[window.__game.catchFlow.id]); });
+  for (const a of path) await t.page.click(`.opt[data-a="${a}"]`);
+  await t.page.click('#key-ok'); await t.wait(500);
+  await t.page.click('#m-lock').catch(() => { ok = false; console.log('FAIL: brag mat did not open'); });
   await t.wait(400);
+  await snap(t, 'brag-mat');
+  await t.page.click('#m-next'); await t.wait(400);
+  await t.page.waitForSelector('#fx-keep', { timeout: 6000 }).catch(() => { ok = false; console.log('FAIL: keep/release card did not open'); });
   await snap(t, 'keep-release');
   errors.push(...t.errors); await t.close();
 }

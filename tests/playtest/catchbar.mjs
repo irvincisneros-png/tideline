@@ -60,8 +60,9 @@ for (let round = 0; round < 8 && !landed; round++) {
   if (end.state === 'landed') {
     landed = true;
     await t.shot('landed');
+    // The landing flow takes over from here (tests/playtest/outing.mjs plays it through): the key opens for a new species, the brag mat for a known one.
+    if (!(await t.page.waitForSelector('.key-grid, #mat-board', { timeout: 6000 }).then(() => true).catch(() => false))) fail('the identify / measure panel did not open after landing');
     log.push(await t.page.evaluate(() => document.querySelector('#modal')?.innerText.replace(/\s+/g, ' ').slice(0, 160)));
-    await t.page.click('#fx-release'); await t.wait(500);
   } else { await t.shot('lost'); log.push(await t.page.evaluate(() => [...document.querySelectorAll('.toast')].map(e => e.textContent).join(' | '))); await t.wait(500); }
 }
 if (!landed) fail('never landed a fish');

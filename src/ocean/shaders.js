@@ -99,16 +99,21 @@ export const paintGLSL = /* glsl */`
 float pHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 // Stylised caustics: the edges of slowly moving Voronoi cells form a bright web of light lines.
 vec2 cHash2(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
+float pNoise(vec3 x);
+// Cell edges of a moving Voronoi web, broken into short bright strands: each cell wobbles at its own pace and the lines fade in and out
+// in patches, so there is no big regular net. Call with p in cells (about 0.5-0.7 m across at the usual scale).
 float cosyCaustic(vec2 p, float t) {
   vec2 i = floor(p), f = fract(p);
   float d1 = 8.0, d2 = 8.0;
   for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
     vec2 g = vec2(float(x), float(y));
-    vec2 o = cHash2(i + g); o = 0.5 + 0.42 * sin(t + 6.2831 * o);
+    vec2 h = cHash2(i + g); vec2 o = 0.5 + 0.44 * sin(t * (0.55 + 0.9 * h.x) + 6.2831 * h);
     float d = length(g + o - f);
     if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
   }
-  return 1.0 - smoothstep(0.0, 0.07, d2 - d1);   // 1 on the cell edges
+  float edge = 1.0 - smoothstep(0.0, 0.055, d2 - d1);       // 1 on the cell edges
+  float broken = smoothstep(0.36, 0.64, pNoise(vec3(p * 1.9, t * 0.45)));   // patches where the strands are lit
+  return edge * (0.25 + 0.75 * broken);
 }
 float pNoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(pHash(i), pHash(i + vec3(1,0,0)), f.x), mix(pHash(i + vec3(0,1,0)), pHash(i + vec3(1,1,0)), f.x), f.y),
@@ -297,12 +302,12 @@ export function patchUnderwater(material, opts = {}) {
             // Crisp, bright caustic networks on sunlit, upward-facing surfaces in the shallows.
             float sunVis = clamp(dot(reflectedLight.directDiffuse, vec3(0.3333)) / max(dot(diffuseColor.rgb, vec3(0.3333)), 0.02) * 2.5, 0.0, 1.0);
             float upF = smoothstep(0.2, 0.8, normalize((vec4(normal, 0.0) * viewMatrix).xyz).y);
-            vec2 q = vWPos.xz * 0.55 + uSunDir.xz * depth * 0.15;
-            q += vec2(sin(q.y * 1.3 + uTime * 0.7), cos(q.x * 1.1 - uTime * 0.6)) * 0.35; // wobble the web so lines curve organically
-            float cw = cosyCaustic(q, uTime * 0.9);
-            if (uFull > 0.5) cw = max(cw, cosyCaustic(q * 1.6 + 7.3, uTime * 1.1) * 0.7);
-            cw *= 0.55 + 0.45 * pNoise(vec3(vWPos.xz * 0.15, uTime * 0.2)); // patches of brighter and softer light
-            outgoingLight += vec3(1.0, 0.99, 0.92) * cw * 0.42 * uCaustics * sunVis * upF * exp(-depth * 0.08) * smoothstep(0.0, 0.12, depth);
+            vec2 q = vWPos.xz * 1.5 + uSunDir.xz * depth * 0.25;
+            q += vec2(sin(q.y * 1.7 + uTime * 1.1), cos(q.x * 1.5 - uTime * 0.95)) * 0.42; // wobble the web so lines curve and shimmer
+            float cw = cosyCaustic(q, uTime * 1.3);
+            if (uFull > 0.5) cw = max(cw, cosyCaustic(q * 1.9 + 7.3, uTime * 1.6) * 0.6);
+            cw *= 0.5 + 0.5 * pNoise(vec3(vWPos.xz * 0.2, uTime * 0.25)); // patches of brighter and softer light
+            outgoingLight += vec3(1.0, 0.99, 0.92) * cw * 0.55 * uCaustics * sunVis * upF * exp(-depth * 0.08) * smoothstep(0.0, 0.12, depth);
           } else
           outgoingLight += reflectedLight.directDiffuse * min(c, 1.4) * uCaustics * exp(-depth * 0.09) * 1.5;
           outgoingLight *= exp(-uAbsorb * depth * (1.0 - 0.7 * uStyle)); // stylised: keep pastel colours readable

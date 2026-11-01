@@ -9,6 +9,7 @@ import { paint as P } from '../life/looks.js';
 import * as FL from '../world/flora.js';
 import * as FO from '../world/foliage.js';
 import { rock } from '../world/coral.js';
+import { dressBeach } from '../world/beachProps.js';
 
 const noise = makeNoise(77);
 const BARREN = { x: 28, z: -28, r: 16 };
@@ -38,11 +39,20 @@ function shoreHeight(x, z) {
   h += dune * (noise.fbm2(x * 0.035, z * 0.05, 4) * 2.6 + noise.fbm2(x * 0.15, z * 0.15, 2) * 0.45);
   return h;
 }
+/** Snap v (0..1) to n flat steps; k sets how sharp the risers are (smaller = sharper). */
+function terrace(v, n, k) { const f = clamp(v, 0, 0.9999) * n, i = Math.floor(f); return (i + smoothstep(0.5 - k, 0.5 + k, f - i)) / n; }
+/** 0..1: thin cracks and joints in the sandstone (ridged noise, the narrowest lines). */
+function crackAt(x, z) {
+  const a = 1 - Math.abs(noise.n2(x * 0.19 + 11, z * 0.23)), b = 1 - Math.abs(noise.n2(x * 0.31 - 5, z * 0.17 + 9));
+  return smoothstep(0.93, 0.985, Math.max(a, b * 0.97)) * smoothstep(0.4, 0.8, platformMask(x, z));
+}
 function platformHeight(x, z) {
   // Gently rising platform with stepped ledges, gutters and a seaward drop; sandstone bluff behind it.
   let h = 0.45 + 0.45 * smoothstep(66, 110, z);
-  const ledge = noise.fbm2(x * 0.06, z * 0.06, 3);
-  h += Math.round(ledge * 3) / 3 * 0.28 + noise.fbm2(x * 0.6, z * 0.6, 2) * 0.05;
+  // Tiered ledges: the height snaps to flat steps with short, steep risers between them (a few steps up and down across the platform).
+  const ledge = 0.5 + noise.fbm2(x * 0.045 + 3, z * 0.05, 3) * 1.1;
+  h += terrace(ledge, 4, 0.06) * 1.0 - 0.2 + noise.fbm2(x * 0.6, z * 0.6, 2) * 0.04;
+  h -= crackAt(x, z) * 0.14;
   h -= Math.pow(Math.max(0, Math.sin(x * 0.21 + z * 0.05 + noise.n2(x * 0.05, z * 0.05) * 2)), 12) * 0.5; // gutters
   h -= (1 - smoothstep(64, 70, z)) * 3.2;                           // seaward edge drops into the swell
   for (const [px, pz, r] of POOLS) { const d = Math.hypot(x - px, z - pz) / (r * 1.3 * (1 + 0.16 * noise.n2(x * 0.4, z * 0.4))); if (d < 1) h -= 1.45 * (1 - d * d); }
@@ -111,6 +121,15 @@ function shoreColor(x, z, h, slope) {
       // Gutters between the ledges are darker and weedy; each pool is ringed by wet olive algae so it reads clearly from above.
       const gut = Math.pow(Math.max(0, Math.sin(x * 0.21 + z * 0.05 + noise.n2(x * 0.05, z * 0.05) * 2)), 12);
       r = mix3(r, [0.5, 0.44, 0.28], Math.min(1, gut * 1.4));
+      // Ledge risers and cracks are darker, warm brown, so the tiers read as stepped rock from above.
+      if (z < 112) {
+        const gx = platformHeight(x + 0.7, z) - platformHeight(x - 0.7, z), gz = platformHeight(x, z + 0.7) - platformHeight(x, z - 0.7), g = Math.hypot(gx, gz) / 1.4;
+        r = mix3(r, [0.4, 0.27, 0.18], Math.min(1, smoothstep(0.08, 0.3, g) * 0.95 + crackAt(x, z) * 0.95));
+        // Baked sun shading on the risers (sun from the +x side): faces toward it are bright, faces away are dark, so the ledges read as steps.
+        const lit = Math.max(0.55, Math.min(1.3, 1 + (-gx * 0.55 + gz * 0.3) / 1.4 * 1.4));
+        r = [r[0] * lit, r[1] * lit, r[2] * lit];
+        r = mix3(r, [0.6, 0.45, 0.28], smoothstep(0.1, 0.3, noise.n2(x * 0.5, z * 0.5)) * 0.25 * (1 - smoothstep(0.1, 0.3, g))); // lighter, sunbaked ledge tops
+      }
       let pd = 9; for (const [px, pz, pr] of POOLS) pd = Math.min(pd, Math.hypot(x - px, z - pz) / (pr * 1.3));
       r = mix3(r, [0.42, 0.52, 0.3], smoothstep(1.45, 1.05, pd) * 0.85);
     }
@@ -140,7 +159,7 @@ addGenerator('heath', { fn: FO.heathShrub, foliage: true, noShadow: true, varian
 addGenerator('banksia', { fn: FO.banksiaTree, variants: 4, scale: [0.8, 1.3], radius: 1.1, sink: 0.1, rough: 0.75, sway: 0.004, cluster: 4, bleaches: false, as: 'coastbanksia', land: true, transl: 0.25, sat: 1.0, ao: 0.5, minH: 3.5, maxH: 18, region: { ...LANDX, zMin: 134, zMax: 198 } });
 addGenerator('norfolkpine', { fn: FO.banksiaTree, variants: 2, scale: [0.75, 1.15], radius: 0.7, sink: 0.1, rough: 0.8, cluster: 2, bleaches: false, as: 'norfolkpine', land: true, minH: 2.4, maxH: 14, region: { ...LANDX, zMin: 112, zMax: 150 } });
 addGenerator('casuarina', { fn: FO.banksiaTree, variants: 2, scale: [0.8, 1.25], radius: 0.6, sink: 0.1, rough: 0.8, cluster: 3, bleaches: false, as: 'casuarina', land: true, minH: 2.6, maxH: 14, region: { ...LANDX, zMin: 118, zMax: 160 } });
-addGenerator('hormosira', { fn: FL.neptunesNecklace, noShadow: true, variants: 3, scale: [1.2, 2.0], radius: 0.25, sink: 0, rough: 0.35, cluster: 8, bleaches: false, as: 'neptunesnecklace', land: true, soft: true, sat: 1.05, minH: 0.12, maxH: 0.85, region: { xMin: 46, xMax: 150, zMin: 66, zMax: 112 } });
+addGenerator('hormosira', { fn: FL.rockWeed, noShadow: true, variants: 4, scale: [0.7, 1.3], radius: 0.25, sink: 0.02, rough: 0.7, cluster: 7, bleaches: false, as: 'neptunesnecklace', land: true, soft: true, sat: 1.05, minH: 0.12, maxH: 0.85, region: { xMin: 46, xMax: 150, zMin: 66, zMax: 112 } });
 addGenerator('boulder', { fn: rock, variants: 3, scale: [1.6, 4.2], radius: 1.6, sink: 0.4, rough: 0.95, bleaches: false });
 
 // ---- Looks (procedural fish skins)
@@ -233,6 +252,7 @@ export const rocky = {
     intro: 'You\'re on the beach at Woonona. Walk down to the water, press R for your rod (T opens your tackle box), and try the rock platform to the east (right) too.',
     life: { ghostcrab: 28, oystercatcher: 4, silvergull: 12, waratahanemone: 70, bluelinedoctopus: 3 },
     flyingGulls: 6, gullCircle: { x: 5, z: 96 },
+    home: { x: -3, z: 118, r: 5, label: 'the beach access path' }, // the top of the access path: walk here (or press H) to head home and end the outing
     zones: {
       ghostcrab: rnd => ({ x: -70 + rnd() * 105, z: 99 + rnd() * 14 }),
       oystercatcher: (rnd, i) => ({ x: -40 + Math.floor(i / 2) * 35 + rnd() * 3, z: 85.5 + rnd() * 2.5 }),
@@ -264,6 +284,7 @@ export const rocky = {
       world.addCollider(x, T.heightAt(x, z) + 1, z, 1.1);
     }
     pr.place('esky', 58.5, 79.5, { rot: 0.4 }); pr.place('bucket', 59.7, 80.2, { rot: 0.4 });
+    dressBeach(world); // shells, driftwood, wrack, umbrellas, towels and the beach-access path
     // Chunky rounded sandstone boulders along the platform's seaward edge and the foot of the bluff.
     const warm = new THREE.Color(1.28, 0.96, 0.7);
     for (const [x, z, m, s, r] of [[53, 70, 'boulder_0', 1.9, 0.5], [66, 67, 'boulder_1', 2.4, 2.1], [80, 66.5, 'boulder_2', 1.7, 4], [96, 68, 'boulder_0', 2.6, 1], [112, 67, 'boulder_1', 2.0, 3], [128, 70, 'boulder_2', 2.8, 5], [146, 74, 'boulder_0', 2.2, 2],
@@ -293,7 +314,7 @@ export const rocky = {
     ['banksia', 240, (x, z) => notPlatform(x, z) * (z > 134 ? 1 : 0.1)],
     ['norfolkpine', 26, (x, z) => notPlatform(x, z) * (z > 114 && z < 146 ? 1 : 0.05)],
     ['casuarina', 30, (x, z) => notPlatform(x, z) * (z > 120 ? 1 : 0.05)],
-    ['hormosira', 120, (x, z) => platformMask(x, z)],
+    ['hormosira', 420, (x, z) => platformMask(x, z)],
     ['kelp', 1300, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h < -3 && h > -13 ? 1 : 0.1)],
     ['crayweed', 90, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h > -7 ? 1 : 0.2)],
     ['fingersponge', 70, (x, z, h) => (h < -11 ? 1 : 0.05)],

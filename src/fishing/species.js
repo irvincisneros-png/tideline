@@ -295,3 +295,58 @@ export const SPECIES = [
 ];
 
 export const SPECIES_BY_ID = Object.fromEntries(SPECIES.map(s => [s.id, s]));
+
+/**
+ * Visible features for the dichotomous key (fishing/key.js builds the key from these; tests make sure every species reaches its own leaf).
+ * Every value describes what you can see on the fish (and on its 3D model), matching the registered look in life/looks.js:
+ *   body: flattened (top to bottom) | torpedo | deep (flattened side to side) | slim | snake | tentacles
+ *   tail: forked | truncate (straight edge) | rounded | none (no tail fin)
+ *   yellow: tail | fins | none        markings: stripes | bars | spots | blotch (one dark spot) | patchwork | none
+ *   colour: silver | sandy | red | dark | blue | brown | pink
+ *   jaw: beak (long lower jaw) | pointed (long pointed snout) | blunt | large | small | thick-lips | tentacles
+ * `closer` lists features you can only check on the real fish in the hand (teeth, barbels, skin flaps): shown in the guide after
+ * identification, not used by the key. [unverified] biology: from the ID features in the content file (dataset A3) and common field guides.
+ */
+export const FEATURES = {
+  australiansalmon: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'spots', colour: 'silver', jaw: 'large' },
+  tailor: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'none', colour: 'silver', jaw: 'large', closer: 'Sharp, blade-like teeth in a big mouth.' },
+  sandwhiting: { body: 'slim', tail: 'truncate', yellow: 'none', markings: 'none', colour: 'sandy', jaw: 'pointed' },
+  yellowfinbream: { body: 'deep', tail: 'forked', yellow: 'fins', markings: 'none', colour: 'silver', jaw: 'small' },
+  luderick: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'bars', colour: 'dark', jaw: 'small', closer: 'Tiny, three-pointed teeth for scraping weed.' },
+  snapper: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'spots', colour: 'red', jaw: 'large' },
+  kingfish: { body: 'torpedo', tail: 'forked', yellow: 'tail', markings: 'stripes', colour: 'silver', jaw: 'large' },
+  bluegroper: { body: 'deep', tail: 'rounded', yellow: 'none', markings: 'none', colour: 'blue', jaw: 'thick-lips' },
+  duskyflathead: { body: 'flattened', tail: 'truncate', yellow: 'none', markings: 'spots', colour: 'sandy', jaw: 'large' },
+  mulloway: { body: 'torpedo', tail: 'truncate', yellow: 'none', markings: 'none', colour: 'silver', jaw: 'large', closer: 'A single small barbel (whisker) on the chin.' },
+  seamullet: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'none', colour: 'silver', jaw: 'blunt' },
+  silvertrevally: { body: 'deep', tail: 'forked', yellow: 'tail', markings: 'blotch', colour: 'silver', jaw: 'small' },
+  redmorwong: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'bars', colour: 'red', jaw: 'thick-lips' },
+  rockblackfish: { body: 'deep', tail: 'truncate', yellow: 'none', markings: 'none', colour: 'dark', jaw: 'small', closer: 'Teeth like incisors at the front of the jaw.' },
+  garfish: { body: 'slim', tail: 'forked', yellow: 'none', markings: 'none', colour: 'silver', jaw: 'beak' },
+  bonito: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'stripes', colour: 'silver', jaw: 'large', closer: 'Sharp, cone-shaped teeth.' },
+  wobbegong: { body: 'flattened', tail: 'rounded', yellow: 'none', markings: 'patchwork', colour: 'sandy', jaw: 'large', closer: 'Whisker-like skin flaps (tassels) around the mouth; a shark, so no scales.' },
+  squid: { body: 'tentacles', tail: 'none', yellow: 'none', markings: 'spots', colour: 'pink', jaw: 'tentacles' },
+  shortfineel: { body: 'snake', tail: 'rounded', yellow: 'none', markings: 'none', colour: 'brown', jaw: 'small' },
+};
+/** Deep-water fish: pulled up from about 10 m or more, they can suffer barotrauma and need a release weight to return to depth (content C17). */
+export const DEEP_WATER = new Set(['snapper', 'kingfish', 'redmorwong']);
+for (const s of SPECIES) { s.feat = FEATURES[s.id]; s.deepWater = DEEP_WATER.has(s.id); }
+
+/** The two regions in the Illawarra Fish Guide, and the fishing spots each one covers. */
+export const REGIONS = {
+  lake: { label: 'Lake Illawarra', spots: ['flats', 'seagrass', 'channel', 'jetty', 'mangrove'] },
+  bellambi: { label: 'Bellambi beach & rocks', spots: ['beach', 'rock'] },
+};
+export const speciesInRegion = region => SPECIES.filter(s => REGIONS[region].spots.some(k => s.spots[k]));
+
+const join = l => (l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} or ${l.at(-1)}`);
+const TIME_WORD = { dawn: 'dawn', day: 'midday', dusk: 'dusk', night: 'night' };
+/** Where-and-when hint shown for a Seen entry (from the bite-model data: best spots, time, tide and season). */
+export function whereWhen(sp) {
+  const spots = Object.entries(sp.spots).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => SPOT_INFO[k].label.replace('Lake Illawarra ', 'Lake ').replace('Bellambi ', '').toLowerCase());
+  const bits = [`Look around the ${join(spots)}.`];
+  if (sp.time.length) bits.push(`Best at ${join(sp.time.map(t => TIME_WORD[t]))}.`);
+  if (sp.tide.length) bits.push(`Usually on a ${join(sp.tide)} tide.`);
+  if (sp.season.length) bits.push(`Most often in ${join(sp.season)}.`);
+  return bits.join(' ');
+}

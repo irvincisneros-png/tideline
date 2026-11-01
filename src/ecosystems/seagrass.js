@@ -175,6 +175,7 @@ export const seagrass = {
     bounds: { xMin: -80, xMax: 80, zMin: JETTY.z1 - 0.6, zMax: 130 },
     intro: 'Welcome to Lake Illawarra. Walk out along the jetty (or wade the sand flats), press R for your rod and T for your tackle box, then cast over the flats, seagrass and channel. Rod and line only here: no crab traps or nets near the entrance.',
     life: {}, zones: {},
+    home: { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 8, r: 7, label: 'the bait shop' }, // walk here (or press H) to head home and end the outing
   },
   island: null,
   treeShadows: { casuarina: [2.4, 8], norfolkpine: [3, 12], coastbanksia: [2, 4] }, // low tier: soft blob shadows under reef-placed trees [radius, height]

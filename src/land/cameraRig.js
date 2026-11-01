@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
 
-export const CAM = { pitch: 1.06, pitchMin: 0.85, pitchMax: 1.25, dist: 15, distMin: 9, distMax: 22, fov: 42 }; // 1.06 rad = 61 degrees
+export const CAM = { pitch: 1.06, pitchMin: 0.85, pitchMax: 1.25, dist: 12.6, distMin: 7.5, distMax: 22, fov: 42 }; // 1.06 rad = 61 degrees
 
 export class CameraRig {
   constructor(camera, input, settings = {}) {

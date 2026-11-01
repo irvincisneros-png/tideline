@@ -459,6 +459,21 @@ export function coastalWattle(seed) {
 }
 
 /** Neptune's necklace (Hormosira banksii): chains of olive-brown, water-filled beads draped over the mid-shore rock platform. */
+/** Rock-platform weed: soft, rounded olive-green and golden-brown cushions (Neptune's necklace and turf weed seen from above). Reads as weed, not twigs. */
+export function rockWeed(seed) {
+  const rnd = mulberry32(seed + 5), parts = [], lobes = 5 + Math.floor(rnd() * 5);
+  for (let i = 0; i < lobes; i++) {
+    const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * 0.2, r = 0.09 + rnd() * 0.1;
+    const g = new THREE.SphereGeometry(r, seg(9, 6), seg(6, 4));
+    g.scale(1.25 + rnd() * 0.4, 0.5 + rnd() * 0.2, 1.1 + rnd() * 0.3); g.rotateY(rnd() * 6);
+    g.translate(Math.cos(a) * d, r * 0.3, Math.sin(a) * d);
+    const warm = rnd(), tone = 0.85 + rnd() * 0.3;
+    colorize(g, v => { const top = Math.max(0, Math.min(1, v.y / (r * 0.9))); return lerp3(lerp3([0.16, 0.24, 0.08], [0.3, 0.27, 0.08], warm), lerp3([0.3, 0.4, 0.12], [0.56, 0.46, 0.16], warm), top).map(x => x * tone); });
+    parts.push(strip(g));
+  }
+  return mergeGeometries(parts);
+}
+
 export function neptunesNecklace(seed) {
   const rnd = mulberry32(seed);
   const parts = [];

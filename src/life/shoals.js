@@ -1,9 +1,14 @@
 // Dark fish silhouettes drifting through the clear shallows near the angler: schools of 3-6, species-agnostic shapes (decorative for
 // now; they are the fish you can cast to). One instanced mesh of flat, opaque, dark-teal fish under the water: the water layer tints
 // them paler the deeper they swim, exactly like seeing real fish from above. They keep to water 0.4-2.4 m deep and shy away from the angler.
+// Each school is one species (picked from the catch table of the spot it is swimming over, scaled to that species' size): a school within
+// SEEN_RANGE of the angler marks the species as Seen in the Fish Guide (onSeen(id, 'school')).
 import * as THREE from 'three';
 import { mulberry32 } from '../core/noise.js';
 import { globalUniforms } from '../ocean/shaders.js';
+import { SPOTS, SPECIES_BY_ID } from '../fishing/catches.js';
+
+export const SEEN_RANGE = 8; // metres: a school this close to the angler counts as Seen in the Fish Guide
 
 function fishGeometry() {
   const s = new THREE.Shape();
@@ -18,7 +23,7 @@ export class Shoals {
   constructor(scene, quality) {
     this.scene = scene;
     const low = quality.shadows === 0 && quality.coralScale < 1;
-    this.schools = []; this.rnd = mulberry32(99);
+    this.schools = []; this.rnd = mulberry32(99); this.seen = new Set(); this.onSeen = null;
     const sizes = low ? [4, 3, 5] : [4, 5, 3, 6, 4];
     const total = sizes.reduce((a, b) => a + b, 0);
     const mat = new THREE.MeshBasicMaterial({ color: 0x123a44, side: THREE.DoubleSide, fog: false });
@@ -33,11 +38,19 @@ export class Shoals {
     scene.add(this.mesh);
     let k = 0;
     for (const n of sizes) {
-      const fish = Array.from({ length: n }, () => ({ i: k++, ox: (this.rnd() - 0.5) * 2.2, oz: (this.rnd() - 0.5) * 2.2, len: 0.42 + this.rnd() * 0.3, x: 0, z: 0, hd: 0, ph: this.rnd() * 6 }));
+      const fish = Array.from({ length: n }, () => { const len = 0.42 + this.rnd() * 0.3; return { i: k++, ox: (this.rnd() - 0.5) * 2.2, oz: (this.rnd() - 0.5) * 2.2, len, base: len, x: 0, z: 0, hd: 0, ph: this.rnd() * 6 }; });
       this.schools.push({ fish, c: new THREE.Vector2(), wp: new THREE.Vector2(), speed: 0.7 + this.rnd() * 0.4, flee: 0, ready: false, wait: this.rnd() * 3 });
     }
     this.zero = new THREE.Matrix4().makeScale(0, 0, 0);
     this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.v = new THREE.Vector3(); this.sc = new THREE.Vector3();
+  }
+  /** Which species swims in this school: weighted by the catch table of the fishing spot the school is over (nearest to where the angler stands). */
+  speciesAt(eco, p, x, z) {
+    const spot = eco?.fishing?.spotAt?.(p.x, p.z, x, z) ?? 'beach', tab = SPOTS[spot]?.fish;
+    if (!tab?.length) return null;
+    const total = tab.reduce((a, f) => a + f[1], 0); let r = this.rnd() * total;
+    for (const f of tab) if ((r -= f[1]) <= 0) return f[0];
+    return tab[0][0];
   }
   /** A spot of shallow water (0.4-2.4 m deep) 5-16 m from the angler, else null. */
   pick(world, p, minR = 5, maxR = 16) {
@@ -60,10 +73,13 @@ export class Shoals {
         const c = this.pick(world, p, 4, 18);
         if (!c) { s.wait = 1.5; s.ready = false; for (const f of s.fish) this.mesh.setMatrixAt(f.i, this.zero); continue; }
         s.c.copy(c); s.wp.copy(c); s.ready = true; s.wait = 0;
-        for (const f of s.fish) { f.x = c.x + f.ox; f.z = c.y + f.oz; f.hd = this.rnd() * 6.283; }
+        s.sp = this.speciesAt(eco, p, c.x, c.y);
+        const info = SPECIES_BY_ID[s.sp], mid = info ? (info.length[0] + info.length[1]) / 2 : 40, k2 = Math.max(0.8, Math.min(1.6, 0.6 + mid / 70));
+        for (const f of s.fish) { f.x = c.x + f.ox; f.z = c.y + f.oz; f.hd = this.rnd() * 6.283; f.len = f.base * k2; }
       }
       // Waypoint wandering; a flurry away from the angler when it comes close.
       const dp = Math.hypot(s.c.x - p.x, s.c.y - p.z);
+      if (s.sp && dp < SEEN_RANGE && !this.seen.has(s.sp)) { this.seen.add(s.sp); this.onSeen?.(s.sp, 'school'); }
       if (dp < 4.2 && s.flee <= 0) { s.flee = 1.6; s.wp.set(s.c.x + (s.c.x - p.x) * 2.5, s.c.y + (s.c.y - p.z) * 2.5); }
       s.flee = Math.max(0, s.flee - dt);
       const dx = s.wp.x - s.c.x, dz = s.wp.y - s.c.y, dl = Math.hypot(dx, dz), sp = s.flee > 0 ? 3.4 : s.speed;

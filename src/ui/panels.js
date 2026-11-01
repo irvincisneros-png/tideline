@@ -14,8 +14,11 @@ export class Panels {
     this.onClose = null;
   }
   get isOpen() { return !this.modal.classList.contains('hidden'); }
-  open(html, onClose) {
+  /** opts.locked: a step in the landing flow (key, measure, decide): Esc, the X and a click outside do nothing until it is finished. */
+  open(html, onClose, opts = {}) {
     if (!this.isOpen) { this.returnFocus = document.activeElement; this.game.audio.play('panelOpen'); }
+    this.locked = !!opts.locked; this.modal.classList.toggle('flow-lock', this.locked); document.body.classList.toggle('flow-open', this.locked);
+    this.modal.querySelector('.panel').dataset.flow = opts.flow ?? '';
     this.body.innerHTML = html;
     this.modal.classList.remove('hidden');
     this.game.input.clear();
@@ -24,8 +27,9 @@ export class Panels {
     this.onClose = onClose ?? null;
     this.body.scrollTop = 0; this.modal.querySelector('.panel').scrollTop = 0;
   }
-  close() {
-    if (!this.isOpen) return;
+  close(force = false) {
+    if (!this.isOpen || (this.locked && !force)) return;
+    this.locked = false; this.modal.classList.remove('flow-lock'); document.body.classList.remove('flow-open');
     this.modal.classList.add('hidden'); this.modal.classList.remove('dock-bottom');
     this.body.innerHTML = '';
     this.game.audio.play('panelClose');
@@ -67,42 +71,6 @@ export class Panels {
     if (onBack) $('#card-back', this.body).onclick = onBack;
   }
 
-  // ---------------------------------------------------------------- field guide (journal)
-  journal(eco, ecos, progress, startTab = 'species') {
-    const render = (ecoId, tab) => {
-      const e = ecos.find(x => x.id === ecoId);
-      const list = e.speciesInfo;
-      const have = list.filter(s => progress.journal[`${e.id}:${s.id}`]);
-      const groups = ['all', ...new Set(list.map(s => s.group))];
-      const total = ecos.reduce((a, x) => a + x.speciesInfo.length, 0);
-      const got = Object.keys(progress.journal).length;
-      const filtered = tab === 'all' || tab === 'species' ? list : list.filter(s => s.group === tab);
-      this.body.innerHTML = `
-        <h2>Field guide</h2>
-        <p>${got} of ${total} species logged across all spots. Catch a fish to add it; tap any entry for its card.</p>
-        <div class="tabs">${ecos.map(x => `<button data-eco="${x.id}" class="${x.id === ecoId ? 'on' : ''}">${esc(x.name)}</button>`).join('')}</div>
-        <div class="tabs">${groups.map(g => `<button data-tab="${g}" class="${(tab === g || (tab === 'species' && g === 'all')) ? 'on' : ''}">${g === 'all' ? 'All' : esc(g)}</button>`).join('')}
-          <span style="margin-left:auto;color:var(--muted);font-size:13px">${have.length}/${list.length} at ${esc(e.name)}</span></div>
-        <div class="journal-grid">${filtered.map(s => {
-          const j = progress.journal[`${e.id}:${s.id}`];
-          return `<button class="jcell ${j ? '' : 'unk'}" data-id="${s.id}" data-e="${e.id}">
-            <div class="ph" ${j?.photo ? `style="background-image:url(${j.photo})"` : ''}>${j?.photo ? '' : '?'}</div>
-            <div class="nm">${j ? esc(s.common) : esc(s.common)}<small>${j ? `Longest: ${j.best ?? '?'} cm` : 'Not yet caught'}</small></div></button>`;
-        }).join('')}</div>
-        <p style="margin-top:16px"><button class="btn small" id="j-csv">Export field guide + catch log (CSV)</button></p>`;
-      this.body.querySelectorAll('[data-eco]').forEach(b => b.onclick = () => render(b.dataset.eco, 'all'));
-      this.body.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => render(ecoId, b.dataset.tab));
-      this.body.querySelectorAll('.jcell').forEach(b => b.onclick = () => {
-        const ec = ecos.find(x => x.id === b.dataset.e);
-        const sp = ec.speciesInfo.find(s => s.id === b.dataset.id);
-        this.card(sp, progress.journal[`${ec.id}:${sp.id}`], () => render(ecoId, tab));
-      });
-      $('#j-csv', this.body).onclick = () => this.game.exportCSV();
-    };
-    this.open('');
-    render(eco.id, 'all');
-  }
-
   // ---------------------------------------------------------------- settings / help
   settings(settings, onChange) {
     const html = `<h2>Settings</h2>
@@ -123,16 +91,17 @@ export class Panels {
     $('#set-inv').onchange = e => ch('invertY', e.target.checked);
     $('#set-vol').oninput = e => ch('volume', +e.target.value);
     $('#set-rm').onchange = e => ch('reducedMotion', e.target.checked);
-    $('#set-reset').onclick = () => { if (confirm('Delete your field guide and catch log on this device?')) ch('resetProgress', true); };
+    $('#set-reset').onclick = () => { if (confirm('Delete your Fish Guide, logbook and esky on this device?')) ch('resetProgress', true); };
   }
   help() {
     this.open(`<h2>How to play</h2>
       <div class="help-grid">
         <div><h3>🚶 Walking</h3><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk (up the screen is forward) · <kbd>Shift</kbd> run · <kbd>Q</kbd><kbd>E</kbd> turn the camera · mouse wheel zooms.<br>Click an animal for its card. Wading stops at chest depth. Walk out along the jetty at Lake Illawarra.</p></div>
         <div><h3>🎣 Fishing</h3><p><kbd>T</kbd> tackle box: pick a rig and bait · <kbd>R</kbd> rod out (or away) · hold <kbd>Space</kbd> to wind up, release to cast · <kbd>Space</kbd> to strike when the float dips.<br>Then the <b>catch bar</b>: hold <kbd>Space</kbd> to lift the green zone, let go to let it fall. Keep the fish inside it to fill the meter. Pick up floating litter with the zone for steward points. Reef fish bolt for the reef line at the bottom!</p></div>
-        <div><h3>📏 Keep or release?</h3><p>Every fish you land is judged against NSW size and bag limits. Decide whether you may keep it. Releasing a legal fish is always allowed.</p></div>
-        <div><h3>📗 Field guide</h3><p><kbd>J</kbd> opens your field guide: every species you have caught, with its card. <kbd>P</kbd> pauses.</p></div>
-        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to turn the camera, pinch to zoom, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike. In the catch bar, hold the big button (or press and hold the bar) to lift the zone. 🎣 rod · 🧰 tackle box · 📗 field guide · ⏸ pause.</p></div>` : ''}
+        <div><h3>🔎 Identify, measure, decide</h3><p>Land a fish you do not know yet and you get the <b>dichotomous key</b>: turn the 3D fish and answer the two-choice questions until it names the fish. Then <b>measure</b> it on the brag mat (snout to tail tip, within 1 cm is Accurate). Then decide: <b>keep or release?</b> The rules stay hidden until you choose.</p></div>
+        <div><h3>🧊 Esky and heading home</h3><p>Kept fish go in your esky (illegal ones are marked). <kbd>H</kbd> or the Head home button ends the outing: sometimes a Fisheries Officer checks your esky. Then you see your outing summary.</p></div>
+        <div><h3>📗 Fish Guide and 📒 Logbook</h3><p><kbd>J</kbd> opens the Illawarra Fish Guide: Seen, Caught, Identified, Mastered. <kbd>L</kbd> opens your logbook (CSV export). <kbd>P</kbd> pauses.</p></div>
+        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to turn the camera, pinch to zoom, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike. In the catch bar, hold the big button (or press and hold the bar) to lift the zone. 🎣 rod · 🧰 tackle box · 📗 fish guide · 📒 logbook · 🏠 head home · ⏸ pause.</p></div>` : ''}
       </div>`);
   }
 }
