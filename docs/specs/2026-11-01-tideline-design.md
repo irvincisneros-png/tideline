@@ -83,6 +83,23 @@ Line weight / drag upgrades widen it. **Litter replaces treasure**: sometimes lo
 bag drifts through the bar; catching it raises the Steward rating. Long fights on deep offshore
 fish fill a **barotrauma meter** that feeds the release-weight step. Must work one-handed on touch.
 
+## Visual target (owner, 2026-11-01) — read from the Steam page of *I Just Wanted to Fish*
+Reproduce the *feel*, never its assets, names or UI layout:
+- **Camera:** high third-person, near top-down (pitch ~55–65°, ~12–18 m back), smoothly follows a
+  small character; gentle zoom (wheel/pinch). Fishing keeps the same camera: you see the angler, the
+  line arcing out and the float on the water. First-person removed.
+- **Water:** crystal-clear shallow turquoise over visible cream sand; painted caustic web on the
+  seabed; soft white foam line tracing the shore; sparkly sun glints; colour deepens to teal/blue
+  with depth; dark fish silhouettes visible swimming in the shallows (they are the fish you can cast to).
+- **Land:** warm cream sand, big soft tree shadows across it, chunky rounded rocks, clumps of
+  colourful weed/sponge in the water. Illawarra flavour: Norfolk Island pines, casuarinas, banksia
+  scrub, sandstone platform and bluff, pelicans, gulls.
+- **Built things:** plank wooden jetty with posts, tinnie/boats moored, bait-shop hut, fish-cleaning
+  table, lifeguard tower — all chunky, Blender-built.
+- **Characters:** stylised, cel-shaded, big readable heads, hats; NPC dialogue = a portrait bust at
+  bottom-left with a cream, rounded dialogue box (name tag, text, choices).
+- **UI:** every panel in the cream/teal cosy style (no dark slate panels anywhere).
+
 ## Game spine — complete the Illawarra Fish Guide (owner, 2026-11-01)
 Tagline: **"Gotta catch 'em all… and release the small."** (Never say "Pokédex".)
 - Each guide entry fills in tiers: **Seen** (fish finder, rock pool, another angler's bucket —
