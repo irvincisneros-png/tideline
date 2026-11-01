@@ -16,7 +16,7 @@ export function detectTouch() {
 const press = (code, type) => dispatchEvent(new KeyboardEvent(type, { code, key: code, bubbles: true }));
 
 // Button labels used when rewriting on-screen hints like "(hold W)" or "press Q".
-const LABELS = { Space: 'the big button', R: '🎣', J: '📗', P: '⏸', W: 'the joystick', Shift: 'push the joystick to the edge' };
+const LABELS = { Space: 'the big button', R: '🎣', T: '🧰', J: '📗', P: '⏸', W: 'the joystick', Shift: 'push the joystick to the edge' };
 
 export class TouchControls {
   constructor(game) {
@@ -38,6 +38,7 @@ export class TouchControls {
     root.innerHTML = `
       <div class="t-look" id="t-look"></div>
       <div class="t-top">
+        <button data-key="KeyT" class="t-land" aria-label="Tackle box">🧰</button>
         <button data-key="KeyJ" class="t-land" aria-label="Field guide">📗</button>
         <button data-key="KeyP" aria-label="Pause">⏸</button>
       </div>

@@ -220,7 +220,7 @@ export const rocky = {
   land: {
     spawn: { x: 6, z: 106, yaw: 0 },
     bounds: { xMin: -165, xMax: 155, zMin: 55, zMax: 194 }, // seaward edge; the walker also stops wading at chest depth (SWIM_DEPTH)
-    intro: 'You\'re on the beach at Woonona. Walk down to the water, press R for your rod, and try the rock platform to the east (right) too.',
+    intro: 'You\'re on the beach at Woonona. Walk down to the water, press R for your rod (T opens your tackle box), and try the rock platform to the east (right) too.',
     life: { ghostcrab: 28, oystercatcher: 4, silvergull: 12, waratahanemone: 70, bluelinedoctopus: 3 },
     flyingGulls: 6, gullCircle: { x: 5, z: 96 },
     zones: {

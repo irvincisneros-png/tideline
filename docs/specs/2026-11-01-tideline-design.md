@@ -83,6 +83,60 @@ Line weight / drag upgrades widen it. **Litter replaces treasure**: sometimes lo
 bag drifts through the bar; catching it raises the Steward rating. Long fights on deep offshore
 fish fill a **barotrauma meter** that feeds the release-weight step. Must work one-handed on touch.
 
+## Game spine — complete the Illawarra Fish Guide (owner, 2026-11-01)
+Tagline: **"Gotta catch 'em all… and release the small."** (Never say "Pokédex".)
+- Each guide entry fills in tiers: **Seen** (fish finder, rock pool, another angler's bucket —
+  silhouette + where/when hint) → **Caught** ("Unknown fish") → **Identified** (dichotomous key
+  solved) → **Mastered** (accurate brag-mat measure + correct keep/release call; reveals stock
+  status and the sustainable swap).
+- Spots are regions with per-spot completion ("Lake Illawarra 9/14"); a spot ribbon unlocks the next
+  spot and its gear (boat + fish finder, squid jig + harbour night, freshwater river).
+- Rare entries need conditions (night, tide phase, season, location, gear) — the lesson is
+  learned, not ground out.
+- Protected species are Mastered only by a correct release.
+- Ending: guide 100% Mastered **and** Bay Health above threshold (depleted stocks hide the last
+  rare fish until the bay recovers) → present the guide at the fishing club awards night, credits.
+  Post-game: commercial licence chapter.
+
+## NPCs — a living coast (owner, 2026-11-01)
+Original characters, cosy-modelled, with daily schedules; they fish (and sometimes land fish),
+walk, and react to the player (e.g. tut at an undersize keep nearby). E to talk.
+- Bait-shop owner (shop; rules, licence, swaps, "rec fishers can't sell catch"; sells gear).
+- Old wharf angler (jetty, dawn/dusk; rig + tide tips).
+- Lifeguard (beach tower; rock-fishing safety, swell, lifejacket law; gates the platform).
+- Fisheries officer (roams; esky inspections, explains each rule's reason).
+- Marine scientist (boat ramp; tag-and-release, citizen-science logbook pay).
+- Sea Country ranger (Lake Illawarra; First Nations content strictly from worksheets 2.1.1/2.2.1;
+  dialogue flagged for school AEO / local AECG review before release).
+- Kid angler rival/buddy (moves between spots; challenges + gossip).
+- Club comp organiser (fishing club; weekly comps, awards-night ending).
+- Clean-up volunteer (beach; litter missions, trades litter for gear).
+Interactions: **tips** rotate with today's tide/time/season and act as **gossip** that reveals
+"Seen" entries; **"Show me" trades** use field-guide/logbook records (Mastered entry, logged
+releases with photos, protected-species release) as proof and reward items (rigs, nipper pump,
+release weight, tag kit, Sea Country story cards); **quiz trades** draw on the worksheet quiz bank.
+Ambient life: pelicans at Belmore Basin cleaning tables, diving seabirds over schools.
+Dialogue lives in data (`src/content/npcs.js`), not code.
+
+## Owner additions (2026-11-01)
+- **Dichotomous key replaces the 3-card ID check.** First landing of a species shows "Unknown fish".
+  Player walks a 4–6 couplet key built from real, visible features (body flattened top-to-bottom?
+  tail forked? yellow fins? dark spots/bars? mouth size/position? teeth?) and can rotate/inspect the
+  3D fish while answering. Solving names the species permanently: later catches auto-label and the
+  field guide card unlocks. A wrong path names it wrongly; the guide later flags the mismatch
+  ("this doesn't match — re-key it"). One key covers all phase species; it grows as species are
+  added (generated from per-species feature data, unit-tested so every species reaches a unique leaf).
+- **Character creation.** Name, skin tone, hair style/colour, hat, shirt, sunnies, rod colour.
+  Needs a **third-person camera** (orbit behind the angler; first-person optional). Restore cosy
+  character models from `../deepswell/assets/models/characters_cosy.glb` / its Blender builder.
+- **Economy without illegal sales.** NSW recreational fishers may not sell their catch — taught
+  in-game by the bait-shop owner when you try. Coins come from: logbook/citizen-science records
+  (accurate measurement pays more), tag-and-release, fishing-club comps (weigh-ins and
+  catch-and-release), missions, litter. Spend at the **tackle shop**: rods/reels/line (bigger,
+  steadier catch zone; stronger line for bolt fish), rigs, bought bait (or collect bait free within
+  the bait rules), cosmetics. Later (phase 3): a **commercial licence** unlocks selling at the
+  Wollongong fishermen's co-op and the commercial chapter (quota, nets, bycatch).
+
 ## Gear
 Rigs: paternoster, running sinker, float (bobby cork), unweighted, soft-plastic lure, metal slug,
 squid jig, crab net. Baits: beach worm, nipper (yabby), prawn, pilchard, squid strip, bread/weed

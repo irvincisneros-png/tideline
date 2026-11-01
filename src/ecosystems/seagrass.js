@@ -1,4 +1,4 @@
-// Seagrass meadows & mangroves — Moreton Bay, Queensland. Shore (mangroves) toward +z.
+// Seagrass meadows & mangroves, used as Lake Illawarra (geometry and the species-card content are still the Moreton Bay set for now). Shore (mangroves) toward +z.
 import * as THREE from 'three';
 import { makeNoise, smoothstep, lerp, clamp } from '../core/noise.js';
 import { species as speciesInfo } from '../content/seagrass.js';
@@ -98,9 +98,9 @@ for (const [id, b] of Object.entries(B)) registerBehaviour(id, b);
 
 export const seagrass = {
   id: 'seagrass',
-  name: 'Seagrass & mangroves',
-  place: 'Estuary bank (Lake Illawarra later)',
-  blurb: 'Shallow, green water over seagrass meadows, with mangroves lining the bank. A fish nursery.',
+  name: 'Lake Illawarra',
+  place: 'Illawarra estuary, NSW',
+  blurb: 'Shallow sand flats, seagrass meadows, a tidal channel and mangroves along the bank. Rod and line only. A fish nursery.',
   terrainSize: 320, terrainSegments: 256, seabedKind: 'sand', ripple: 0.5, seed: 31, rocks: 0,
   heightAt, colorAt, reefiness,
   bounds: { xMin: -75, xMax: 75, zMin: -80, zMax: 60 },
@@ -113,12 +113,21 @@ export const seagrass = {
   },
   sound: { wash: 0.35, wind: 0.2, shrimp: 0.35, gulls: 0.3, mangroveBirds: 1, mangroveAt: [0, 66] },
   menuCam: { look: [0, 0.5, 40], r: 26, y: 5 },
-  // Placeholder bank for phase 0 (Lake Illawarra later): stand on the mud flat behind the mangroves and fish the shallows.
-  fishing: { spotAt: () => 'estuary' },
+  // Stand on the bank behind the mangroves and cast. The spot is read where the float lands (tx, tz): mangrove edge, channel, seagrass or sand flat.
+  // (The jetty spot in the catch tables has no geometry yet.)
+  fishing: {
+    spotAt: (x, z, tx = x, tz = z) => {
+      const h = heightAt(tx, tz);
+      if (tz > 44 || h > -0.55) return 'mangrove';
+      if (Math.exp(-Math.pow((tz + 25 + Math.sin(tx * 0.03) * 12) / 9, 2)) > 0.45) return 'channel';
+      if (meadow(tx, tz) && h < -0.6) return 'seagrass';
+      return 'flats';
+    },
+  },
   land: {
     spawn: { x: 0, z: 66, yaw: 0 },
     bounds: { xMin: -75, xMax: 75, zMin: 20, zMax: 110 },
-    intro: 'You\'re on the bank of a mangrove estuary. Press R for your rod and cast out over the seagrass flats.',
+    intro: 'Welcome to Lake Illawarra. Press R for your rod and T for your tackle box, then cast over the flats, seagrass and channel. Rod and line only here: no crab traps or nets near the entrance.',
     life: {}, zones: {},
   },
   island: null,

@@ -1,6 +1,7 @@
 // Local progress: field-guide journal and the catch log. No accounts, nothing leaves the device.
 const KEY = 'tideline.progress.v1';
-const blank = () => ({ journal: {}, catches: [] });
+// stock: stock health (0-100) per 'spot:species', seeded from NSW stock status when first needed. steward: litter pulled out of the water. gear: last rig and bait.
+const blank = () => ({ journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0 }, gear: null });
 
 export function loadProgress() {
   try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }

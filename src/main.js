@@ -1,4 +1,4 @@
-// TideLine — game orchestrator: title -> walk the shore -> rod fishing (cast, strike, fight, keep or release).
+// TideLine — game orchestrator: title -> walk the shore -> rod fishing (tackle box, cast, strike, catch bar, keep or release).
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -16,7 +16,8 @@ import { Particles } from './world/particles.js';
 import { World } from './world/world.js';
 import { Walker } from './land/walker.js';
 import { Fishing } from './fishing/fishing.js';
-import { judge, RULES } from './fishing/catches.js';
+import { judge, RULES, SPECIES_BY_ID, adjustStock } from './fishing/catches.js';
+import { DayConditions, RIGS, BAITS, tackleBoxHTML } from './fishing/gear.js';
 import { snapshot } from './ui/snapshot.js';
 import { Panels, esc } from './ui/panels.js';
 import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
@@ -53,6 +54,11 @@ class Game {
     this.walker = new Walker(this.camera, this.input, this.settings);
     if (!this.camera.parent) this.scene.add(this.camera); // the rod and the held fish are children of the camera
     this.fishing = new Fishing(this);
+    // The day: tide, time, season and swell cycle with in-game time (?season=winter&time=dusk&tide=low&swell=1.5 for testing).
+    this.cond = new DayConditions({ season: params.get('season') ?? undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
+    this.gear = { rig: 'runningsinker', bait: 'prawn', ...this.progress.gear };
+    if (!RIGS[this.gear.rig]) this.gear.rig = 'runningsinker';
+    if (!RIGS[this.gear.rig].lure && !BAITS[this.gear.bait]) this.gear.bait = 'prawn';
     this.mode = 'loading';
     this.eco = ecoById(params.get('eco')) ?? ECOSYSTEMS[0];
     this.frame = 0; this.time = 0;
@@ -191,10 +197,12 @@ class Game {
   // ------------------------------------------------------------------ keys
   bindKeys() {
     addEventListener('keydown', e => {
+      if (e.code === 'KeyT' && this.tackleOpen && this.panels.isOpen) { this.panels.close(); return; }
       if (this.panels.isOpen || this.mode !== 'land') return;
       const c = e.code;
       if (c === 'KeyP') this.pauseMenu();
       if (c === 'KeyR' && this.eco.fishing) this.toggleRod();
+      if (c === 'KeyT' && this.eco.fishing) this.tackleBox();
       if (c === 'KeyJ') this.panels.journal(this.eco, ECOSYSTEMS, this.progress);
     });
   }
@@ -244,7 +252,7 @@ class Game {
     if (!spawn) spawn = new THREE.Vector3(L.spawn.x, this.world.groundAt(L.spawn.x, L.spawn.z), L.spawn.z);
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw);
     this.input.wantLock = true;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Space', 'jump'], ['R', 'rod'], ['Click', 'info'], ['J', 'field guide'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['Click', 'info'], ['J', 'field guide'], ['P', 'pause']]);
     this.toast(L.intro);
     if (!this.panels.isOpen) this.lockSoon();
   }
@@ -264,6 +272,8 @@ class Game {
       else if (e === 'splash') this.audio.play('smallSplash');
     }
     this.world.waveMesh.update(null, this.time);
+    if (!paused) this.cond.update(dt);
+    if (this.frame % 6 === 0) this.updateChip();
     w.noJump = this.fishing.active;
     if (this.fishing.active) { if (!paused) this.fishing.update(dt, this.time, this.input, this.world, this.camera.position.clone()); }
     else $('#prompt').innerHTML = '';
@@ -276,30 +286,79 @@ class Game {
   }
 
   // ------------------------------------------------------------------ fishing
-  /** Which catch table applies where the player stands (keys of SPOTS in fishing/catches.js). */
-  fishingSpot() { return this.eco.fishing?.spotAt?.(this.walker.pos.x, this.walker.pos.z) ?? 'beach'; }
+  /** Which catch table applies (keys of SPOTS in fishing/catches.js): where the float landed (tx, tz), else where the player stands. */
+  fishingSpot(target) {
+    const p = this.walker.pos, t = target ?? p;
+    return this.eco.fishing?.spotAt?.(p.x, p.z, t.x, t.z) ?? 'beach';
+  }
   toggleRod() { this.fishing.toggle(this.fishingSpot()); }
+  /** The tackle and conditions the bite model uses (catches.js pickCatch). */
+  biteContext() {
+    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`]);
+  }
+  /** Small HUD chip: tide, time, season, swell, and the rig and bait in the tackle box. */
+  updateChip() {
+    const chip = $('#cond-chip');
+    if (!chip) return;
+    const r = RIGS[this.gear.rig], b = RIGS[this.gear.rig].lure ? '' : ` + ${BAITS[this.gear.bait]?.name ?? 'no bait'}`;
+    const html = `<b>${this.cond.chip()}</b><span>Tackle: ${r.name}${b}</span>`;
+    if (chip.dataset.v !== html) { chip.dataset.v = html; chip.innerHTML = html; }
+  }
+  /** T: open the tackle box (rig and bait). Not while a fish is on. */
+  tackleBox() {
+    if (!this.fishing.canChangeGear) { this.toast('Land or lose this fish first, then change your tackle.', 'warn'); return; }
+    const render = () => {
+      this.panels.body.innerHTML = tackleBoxHTML(this.gear);
+      for (const b of this.panels.body.querySelectorAll('.tb-rig')) b.onclick = () => {
+        this.gear.rig = b.dataset.rig;
+        if (RIGS[this.gear.rig].lure) this.gear.bait = 'none';
+        else if (!BAITS[this.gear.bait]) this.gear.bait = this.lastBait ?? 'prawn';
+        this.saveGear(); render(); this.panels.body.querySelector(`.tb-rig[data-rig="${this.gear.rig}"]`)?.focus({ preventScroll: true });
+      };
+      for (const b of this.panels.body.querySelectorAll('.tb-bait')) b.onclick = () => { this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
+      this.panels.body.querySelector('#tb-done').onclick = () => this.panels.close();
+    };
+    this.tackleOpen = true;
+    this.panels.open(tackleBoxHTML(this.gear), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
+    render();
+  }
+  saveGear() { this.progress.gear = { ...this.gear }; this.persist(); }
+  /** The catch bar's zone touched a piece of litter. */
+  onLitter(kind) {
+    const st = this.progress.steward ??= { points: 0, litter: 0 };
+    st.points++; st.litter++; this.persist();
+    this.audio.play('correct');
+    this.toast(kind === 'line'
+      ? `Tangled line collected! Lost fishing line traps and drowns birds, turtles and fish. Steward points: ${st.points}.`
+      : `Plastic bag collected! Turtles mistake bags for jellyfish and eat them. Steward points: ${st.points}.`, 'good');
+  }
   /** A fish is in your hands: decide to keep or release it (NSW rules). */
   onFishLanded(c, spot, done) {
-    const sp = this.catchCard(c.id)?.sp;
-    const name = sp ? sp.common : c.id, rule = RULES[c.id];
+    const info = SPECIES_BY_ID[c.id], sp = this.catchCard(c.id)?.sp;
+    const name = info?.name ?? sp?.common ?? c.id, sci = info?.sci ?? sp?.sci, status = info?.statusNote ?? sp?.status, rule = RULES[c.id];
     const today = new Date().toDateString();
     this.progress.catches ??= [];
-    const keptToday = this.progress.catches.filter(x => x.id === c.id && x.kept && new Date(x.time).toDateString() === today).length;
-    const verdict = judge(c.id, c.length, keptToday);
+    const kept = this.progress.catches.filter(x => x.id === c.id && x.kept);
+    const keptToday = kept.filter(x => new Date(x.time).toDateString() === today).length;
+    // Possession stand-in until the esky is emptied at the café (phase 1b): fish of this species kept in the last 3 days.
+    const inPossession = kept.filter(x => Date.now() - x.time < 3 * 864e5).length;
+    const verdict = judge(c.id, c.length, keptToday, inPossession);
     // Log the species in the field guide with a picture of the fish in your hands (grabbed after the next render).
     this.pendingCatch = c;
     const decide = keep => {
       const correct = keep ? verdict.legal : true;
-      this.progress.catches.push({ eco: this.eco.id, id: c.id, length: c.length, kept: keep, correct, time: Date.now(), spot });
+      const ctx = c.ctx ?? {};
+      this.progress.catches.push({ eco: this.eco.id, id: c.id, length: c.length, kept: keep, correct, time: Date.now(), spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait });
+      // Stock health: good practice nudges it up, taking fish (illegal ones most of all) pulls it down.
+      adjustStock(this.progress, spot, c.id, keep ? (verdict.legal ? -1 : -4) : 1);
       this.persist();
       if (keep && !verdict.legal) { this.toast(`⚠ That fish had to go back: ${verdict.reason}`, 'bad'); this.audio.play('wrong'); }
       else if (keep) { this.toast(`You kept a ${c.length} cm ${name}. Kept today: ${keptToday + 1}${rule?.bag ? ` of ${rule.bag}` : ''}.`, 'good'); this.audio.play('correct'); }
-      else { this.toast(verdict.legal ? `Released a legal ${name} — catch and release is always allowed.` : `Correct — released. ${verdict.reason}`, 'good'); this.audio.play('correct'); }
+      else { this.toast(verdict.legal ? `Released a legal ${name}. Catch and release is always allowed.` : `Correct — released. ${verdict.reason}`, 'good'); this.audio.play('correct'); }
       this.panels.close();
     };
     this.panels.open(`<h2>${esc(name)} — ${c.length} cm</h2>
-      ${sp ? `<p><i>${esc(sp.sci)}</i> · ${esc(sp.status)}</p>` : ''}
+      ${sci ? `<p><i>${esc(sci)}</i> · ${esc(status ?? '')}</p>` : ''}
       <p><b>Rule:</b> ${esc(rule?.note ?? 'No specific limit in this game.')}</p>
       <p><b>Kept today:</b> ${keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}</p>
       <p style="color:var(--muted)">Decide: may you keep this fish? (Releasing a legal fish is always allowed.)</p>
@@ -314,9 +373,10 @@ class Game {
   }
   /** Field-guide entry for a landed fish: first catch adds it, a longer one replaces the picture. */
   storeCatch(c, img) {
-    const card = this.catchCard(c.id);
-    if (!card) return;
-    const { sp } = card, key = `${card.eco.id}:${sp.id}`, prev = this.progress.journal[key];
+    const card = this.catchCard(c.id), info = SPECIES_BY_ID[c.id];
+    if (!card && !info) return;
+    const sp = card?.sp ?? { id: c.id, common: info.name, sci: info.sci };
+    const key = `${card?.eco.id ?? this.eco.id}:${sp.id}`, prev = this.progress.journal[key];
     const entry = prev ?? { time: Date.now() };
     if (!prev || c.length > (prev.best ?? 0)) { entry.best = c.length; if (img) entry.photo = img; entry.time = Date.now(); }
     this.progress.journal[key] = entry;
@@ -326,7 +386,7 @@ class Game {
   }
   persist() { if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
   exportCSV() {
-    const csv = progressCSV(this.progress, (e, id) => ecoById(e)?.speciesInfo.find(s => s.id === id));
+    const csv = progressCSV(this.progress, (e, id) => ecoById(e)?.speciesInfo.find(s => s.id === id) ?? (SPECIES_BY_ID[id] && { common: SPECIES_BY_ID[id].name, sci: SPECIES_BY_ID[id].sci }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'tideline-field-data.csv'; a.click();

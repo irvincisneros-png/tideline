@@ -129,10 +129,10 @@ export class Panels {
     this.open(`<h2>How to play</h2>
       <div class="help-grid">
         <div><h3>🚶 Walking</h3><p>Mouse to look · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump.<br>Click an animal for its card. Wading stops at chest depth.</p></div>
-        <div><h3>🎣 Fishing</h3><p><kbd>R</kbd> rod out (or away) · hold <kbd>Space</kbd> to wind up, release to cast · <kbd>Space</kbd> to strike when the float dips · hold <kbd>Space</kbd> to reel while the fish rests, let go while it runs.<br>Watch the tension: too much and the line snaps.</p></div>
+        <div><h3>🎣 Fishing</h3><p><kbd>T</kbd> tackle box: pick a rig and bait · <kbd>R</kbd> rod out (or away) · hold <kbd>Space</kbd> to wind up, release to cast · <kbd>Space</kbd> to strike when the float dips.<br>Then the <b>catch bar</b>: hold <kbd>Space</kbd> to lift the green zone, let go to let it fall. Keep the fish inside it to fill the meter. Pick up floating litter with the zone for steward points. Reef fish bolt for the reef line at the bottom!</p></div>
         <div><h3>📏 Keep or release?</h3><p>Every fish you land is judged against NSW size and bag limits. Decide whether you may keep it. Releasing a legal fish is always allowed.</p></div>
         <div><h3>📗 Field guide</h3><p><kbd>J</kbd> opens your field guide: every species you have caught, with its card. <kbd>P</kbd> pauses.</p></div>
-        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to look, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike, hold to reel. 🎣 rod · 📗 field guide · ⏸ pause.</p></div>` : ''}
+        ${document.body.classList.contains('touch') ? `<div><h3>📱 Touch controls</h3><p>Left joystick to walk (push to the edge to run), drag anywhere to look, tap an animal for its card. CAST is the big button: hold to wind up, release to cast, tap to strike. In the catch bar, hold the big button (or press and hold the bar) to lift the zone. 🎣 rod · 🧰 tackle box · 📗 field guide · ⏸ pause.</p></div>` : ''}
       </div>`);
   }
 }

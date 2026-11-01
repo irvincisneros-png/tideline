@@ -31,6 +31,6 @@ test('catches: every spot table only names species with rules, and judge() appli
   assert.equal(judge('tailor', 35, 10).legal, false);  // bag limit reached
   assert.equal(judge('tailor', 35, 0).legal, true);
   assert.equal(judge('bluegroper', 60, 0).legal, false); // protected
-  const c = pickCatch('estuary', () => 0.5);
+  const c = pickCatch('flats', () => 0.5);
   assert.ok(RULES[c.id] && c.length > 0);
 });

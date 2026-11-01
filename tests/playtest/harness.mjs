@@ -46,7 +46,7 @@ export async function launch({ url = process.env.URL ?? 'http://localhost:8451/'
           prompt: document.querySelector('#prompt')?.textContent,
           toasts: [...document.querySelectorAll('.toast')].map(t => t.textContent),
           walker: { pos: w.pos.toArray().map(v => +v.toFixed(1)), yaw: +w.yaw.toFixed(2), waterDepth: +w.waterDepth.toFixed(2) },
-          fishing: { state: f.state, spot: f.spot, tension: +f.tension.toFixed(2), dist: +f.dist.toFixed(1), running: f.fight?.running },
+          fishing: { state: f.state, spot: f.spot, dist: +f.dist.toFixed(1), bar: f.bar.active ? { meter: +f.bar.meter.toFixed(2), fish: f.bar.fy, zone: f.bar.zy, zv: f.bar.zv, profile: f.bar.profile } : null },
           journal: Object.keys(g.progress.journal),
         };
       });
@@ -60,6 +60,6 @@ export async function launch({ url = process.env.URL ?? 'http://localhost:8451/'
   return api;
 }
 function keyName(code) {
-  const map = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyQ: 'q', KeyE: 'e', KeyF: 'f', KeyJ: 'j', KeyR: 'r', KeyP: 'p', KeyC: 'c', Space: ' ', ShiftLeft: 'Shift', Escape: 'Escape' };
+  const map = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyQ: 'q', KeyE: 'e', KeyF: 'f', KeyJ: 'j', KeyR: 'r', KeyT: 't', KeyP: 'p', KeyC: 'c', Space: ' ', ShiftLeft: 'Shift', Escape: 'Escape' };
   return map[code] ?? code;
 }
