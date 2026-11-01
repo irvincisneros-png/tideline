@@ -212,16 +212,15 @@ export function patchUnderwater(material, opts = {}) {
     if (opts.cutaway) fHead += 'uniform vec3 uPlayer;\n';
     shader.fragmentShader = fHead + shader.fragmentShader;
     if (opts.cutaway) {
-      // Cut a stippled see-through hole where a canopy, roof or tall prop would hide the angler from the high camera.
+      // Cut a clean see-through hole where a canopy, roof or tall prop would hide the angler from the high camera. A smooth round hole with a hard edge,
+      // not a stipple: the ink-outline pass reads depth jumps as silhouettes, so a dithered or noisy edge turned into a cloud of black speckles.
       shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         if (uPlayer.y > -900.0 && vWPos.y > uPlayer.y + 1.5) {
           vec3 P = uPlayer + vec3(0.0, 0.9, 0.0), ro = cameraPosition, rd = normalize(P - ro);
           vec3 q = vWPos - ro; float tt = dot(q, rd);
           if (tt > 0.0 && tt < distance(P, ro) - 0.4) {
             float dl = length(q - rd * tt);
-            float keep = smoothstep(1.5, 3.0, dl);
-            float nz = fract(sin(dot(floor(gl_FragCoord.xy * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
-            if (nz > keep) discard;
+            if (dl < 2.3) discard;
           }
         }`);
     }

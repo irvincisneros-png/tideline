@@ -35,6 +35,11 @@ import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
 import { NPCManager } from './npc/manager.js';
 import { rigUnlocked, baitUnlocked, lockHint } from './npc/inventory.js';
 import { openQuestLog } from './ui/questLog.js';
+import { openShop, showRecaptureLetter } from './ui/shop.js';
+import { gearStats, baitCount, useBait, collect } from './economy/store.js';
+import { lureMod } from './economy/effects.js';
+import { ensureEcon, recaptureLetter } from './economy/coins.js';
+import { COIN, COLLECT } from './content/shop.js';
 
 const $ = s => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -80,6 +85,7 @@ class Game {
     this.gear = { rig: 'runningsinker', bait: 'prawn', ...this.progress.gear };
     if (!RIGS[this.gear.rig] || !rigUnlocked(this.progress, this.gear.rig)) this.gear.rig = 'runningsinker';   // a rig you have not earned yet is not in your box
     if (!RIGS[this.gear.rig].lure && (!BAITS[this.gear.bait] || !baitUnlocked(this.progress, this.gear.bait))) this.gear.bait = 'prawn';
+    ensureEcon(this.progress);
     this.mode = 'loading';
     this.eco = ecoById(params.get('eco')) ?? ECOSYSTEMS[0];
     this.frame = 0; this.time = 0;
@@ -327,6 +333,9 @@ class Game {
     this.outing.start();
     this.updateStats();
     this.toast(L.intro);
+    // A tag recapture letter, now and then, from a fish you tagged on an earlier day.
+    const letter = recaptureLetter(this.progress);
+    if (letter) { this.persist(); this.updateStats(); setTimeout(() => { if (this.mode === 'land' && !this.panels.isOpen && !this.dialogue.isOpen) showRecaptureLetter(this, letter); }, 2500); }
   }
   /** A ray from the camera through a screen point (CSS pixels). */
   mouseRay(x, y) {
@@ -397,8 +406,33 @@ class Game {
   toggleRod() { this.fishing.toggle(this.fishingSpot()); }
   /** The tackle and conditions the bite model uses (catches.js pickCatch). */
   biteContext() {
-    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`]);
+    const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink';
+    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time) });
   }
+  /** What your rod, line and tools do (economy/store.js): the catch bar and the bite model read these, nothing is hard-coded in fishing.js. */
+  gearStats() { return gearStats(this.progress); }
+  /** A fish takes a bait: one is used up. Returns how many are left (lures use none). */
+  useBait() {
+    if (RIGS[this.gear.rig].lure) return Infinity;
+    const id = this.gear.bait, n = useBait(this.progress, id);
+    if (n <= 0) {
+      const next = Object.keys(BAITS).find(b => baitUnlocked(this.progress, b) && baitCount(this.progress, b) > 0);
+      if (next) { this.gear.bait = this.lastBait = next; this.toast(`That was your last ${BAITS[id].name.toLowerCase()}. Switched to ${BAITS[next].name.toLowerCase()}. Buy more at Mitra's shop, or collect your own.`, 'warn'); }
+      else this.toast(`That was your last ${BAITS[id].name.toLowerCase()}. Buy bait at Mitra's shop or collect your own (tackle box, T), or switch to a lure.`, 'warn');
+      this.saveGear();
+    } else this.persist();
+    this.updateChip();
+    return n;
+  }
+  /** Can you cast with the bait in your box? (A rig with bait and none left stays on the bank.) */
+  baitReady() { return RIGS[this.gear.rig].lure || baitCount(this.progress, this.gear.bait) > 0; }
+  /** Credits just paid: save, refresh the HUD chip and give it a little pulse. The payment itself is in economy/coins.js (only listed sources can pay). */
+  earned(amount) {
+    this.persist(); this.updateStats();
+    if (amount > 0) { const el = $('#stat-chip'); el?.classList.remove('pulse'); void el?.offsetWidth; el?.classList.add('pulse'); this.audio.play('newSpecies'); }
+  }
+  /** The tackle shop (Mitra's bait hut, or her talk menu). Resolves when the panel closes. */
+  openShop(opts = {}) { return new Promise(res => openShop(this, { ...opts, onClose: res })); }
   /** Small HUD chip: tide, time, season, swell, and the rig and bait in the tackle box. */
   updateChip() {
     const chip = $('#cond-chip');
@@ -411,7 +445,7 @@ class Game {
   tackleBox() {
     if (!this.fishing.canChangeGear) { this.toast('Land or lose this fish first, then change your tackle.', 'warn'); return; }
     const render = () => {
-      this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress);
+      this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond);
       const lockedMsg = (kind, id, name) => { this.panels.body.querySelector(kind === 'rig' ? '#tb-desc' : '#tb-note').innerHTML = `🔒 <b>${esc(name)}</b> is locked. ${esc(lockHint(this.progress, kind, id))}.`; };
       for (const b of this.panels.body.querySelectorAll('.tb-lurecol')) b.onclick = () => { this.progress.inventory.lure = b.dataset.lure; this.persist(); render(); };
       for (const b of this.panels.body.querySelectorAll('.tb-rig')) b.onclick = () => {
@@ -421,11 +455,19 @@ class Game {
         else if (!BAITS[this.gear.bait]) this.gear.bait = this.lastBait ?? 'prawn';
         this.saveGear(); render(); this.panels.body.querySelector(`.tb-rig[data-rig="${this.gear.rig}"]`)?.focus({ preventScroll: true });
       };
-      for (const b of this.panels.body.querySelectorAll('.tb-bait:not(.tb-lurecol)')) b.onclick = () => { if (!baitUnlocked(this.progress, b.dataset.bait)) { lockedMsg('bait', b.dataset.bait, BAITS[b.dataset.bait].name); return; } this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
+      for (const b of this.panels.body.querySelectorAll('[data-collect]')) b.onclick = () => {
+        const id = b.dataset.collect, r = collect(this.progress, id, this.eco.id);
+        if (r.ok) { this.persist(); this.toast(`Collected ${r.added} ${BAITS[id].name.toLowerCase()}${r.limit ? ` (${r.got} of ${r.limit} today)` : ''}.`, 'good'); }
+        render(); this.panels.body.querySelector(`[data-collect="${id}"]`)?.focus({ preventScroll: true });
+      };
+      for (const b of this.panels.body.querySelectorAll('.tb-bait:not(.tb-lurecol)')) b.onclick = () => {
+        if (!baitUnlocked(this.progress, b.dataset.bait)) { lockedMsg('bait', b.dataset.bait, BAITS[b.dataset.bait].name); return; }
+        if (baitCount(this.progress, b.dataset.bait) <= 0) { this.panels.body.querySelector('#tb-note').innerHTML = `You have no ${esc(BAITS[b.dataset.bait].name.toLowerCase())} left. ${COLLECT[b.dataset.bait] ? 'Collect some below (free, inside the daily limit)' : 'Buy more at Mitra\'s shop'}.`; return; }
+        this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
       this.panels.body.querySelector('#tb-done').onclick = () => this.panels.close();
     };
     this.tackleOpen = true;
-    this.panels.open(tackleBoxHTML(this.gear, this.progress), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
+    this.panels.open(tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
     render();
   }
   saveGear() { this.progress.gear = { ...this.gear }; this.persist(); }
@@ -435,8 +477,8 @@ class Game {
     st.points++; st.litter++; this.persist();
     this.audio.play('correct');
     this.toast(kind === 'line'
-      ? `Tangled line collected! Lost fishing line traps and drowns birds, turtles and fish. Steward points: ${st.points}.`
-      : `Plastic bag collected! Turtles mistake bags for jellyfish and eat them. Steward points: ${st.points}.`, 'good');
+      ? `Tangled line collected! Lost fishing line traps and drowns birds, turtles and fish. Steward points: ${st.points}. Fatima's clean-up tally pays credits for litter.`
+      : `Plastic bag collected! Turtles mistake bags for jellyfish and eat them. Steward points: ${st.points}. Fatima's clean-up tally pays credits for litter.`, 'good');
   }
   /** A fish is in your hands: identify it (key), measure it (brag mat), decide keep or release, write it to the logbook (ui/catchFlow.js). */
   onFishLanded(c, spot, done) {
@@ -447,7 +489,7 @@ class Game {
     const p = this.progress, esky = p.esky ?? [], bad = esky.filter(x => !x.legal).length, st = G.stewardRating(p);
     const el = $('#stat-chip');
     if (!el) return;
-    const html = `<b>🧊 Esky ${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''}</b><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span>`;
+    const html = `<b>🧊 Esky ${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''} <span class="coin" title="${COIN.name}">${COIN.icon} ${p.coins ?? 0}</span></b><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span>`;
     if (el.dataset.v !== html) { el.dataset.v = html; el.innerHTML = html; el.classList.toggle('has-bad', bad > 0); }
   }
   persist() { if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }

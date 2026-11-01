@@ -230,7 +230,7 @@ await page.click('#sum-title'); await t.wait(1200);
 await t.shot('20-title');
 check(await ev(() => /Fish Guide \d+%/.test(document.querySelector('#progress-sum').textContent)), 'the title screen shows overall completion');
 const saved = await ev(() => JSON.parse(localStorage.getItem('tideline.progress.v1')));
-check(saved.v === 2 && saved.catches.length === 4 && saved.guide.e.tailor.mastered, 'progress saved (schema v2: guide, catches, steward)');
+check(saved.v === 3 && saved.catches.length === 4 && saved.guide.e.tailor.mastered, 'progress saved (schema v3: guide, catches, steward, credits, shop)');
 
 const errs = t.errors.filter(e => !/favicon/.test(e));
 check(errs.length === 0, `no console errors${errs.length ? ': ' + errs.slice(0, 3).map(s => s.slice(0, 200)).join(' || ') : ''}`);

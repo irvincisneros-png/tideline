@@ -2,6 +2,10 @@
 // and DayConditions (tide, time of day, season, swell) which cycle with in-game time.
 import { TIDES } from './catches.js';
 import { rigUnlocked, baitUnlocked, lockHint, hasItem, LURE_COLOURS } from '../npc/inventory.js';
+import { clarityOf, CLARITY_LABEL, LURE_FX, lureMod } from '../economy/effects.js';
+import { baitCount, gearStats } from '../economy/store.js';
+import { COLLECT } from '../content/shop.js';
+import { canCollect } from '../economy/store.js';
 
 const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -74,24 +78,36 @@ const DIAGRAMS = {
 };
 export const rigDiagram = id => `<svg viewBox="0 0 150 130" class="tb-svg" role="img" aria-label="${esc(RIGS[id].name)} diagram">${DIAGRAMS[id]().join('')}</svg>`;
 
-/** Tackle-box panel body. gear = { rig, bait }; p = the saved progress (its inventory decides which rigs and baits are unlocked; without it all are). */
-export function tackleBoxHTML(gear, p = null) {
+/**
+ * Tackle-box panel body. gear = { rig, bait }; p = the saved progress (its inventory decides which rigs and baits are unlocked, its shop which bait you have left; without it all are);
+ * site = the site id (where you can collect bait); cond = DayConditions (the water clarity for the lure colours).
+ */
+export function tackleBoxHTML(gear, p = null, site = null, cond = null) {
   const lure = RIGS[gear.rig].lure;
   const rigOpen = id => !p || rigUnlocked(p, id), baitOpen = id => !p || baitUnlocked(p, id);
   const owns = id => !!p && hasItem(p, id);
+  const left = id => (p ? baitCount(p, id) : 99);
   const kit = [['tool-tagkit', '🏷 Tag kit'], ['tool-releaseweight', '⚖ Release weight'], ['bait-nipper', '🪈 Nipper pump']].filter(([id]) => owns(id)).map(([, n]) => n);
+  const gs = p ? gearStats(p) : null;
+  const colour = p ? p.inventory.lure ?? 'pink' : 'pink', clarity = cond?.clarity ?? 'clear', time = cond?.time ?? 'day';
+  const collectable = p && site ? Object.keys(COLLECT).filter(id => baitOpen(id) || COLLECT[id].sites.includes(site)) : [];
   return `<div class="tb">
     <h2>Tackle box</h2>
     <p class="tb-sub">Pick the rig and bait for your next cast. Fish are fussy: the best tackle for one fish can be the wrong choice for another. ${p ? 'Some tackle is locked until you earn it from the people on the coast.' : ''}</p>
+    ${gs ? `<p class="tb-gear"><span>🎣 ${esc(gs.rodName)}</span><span>🧵 ${esc(gs.lineName)}</span><small>Change rods and line at Mitra's shop.</small></p>` : ''}
     <h3>Rig</h3>
     <div class="tb-rigs">${RIG_ORDER.map(id => { const open = rigOpen(id); return `<button class="tb-rig ${gear.rig === id ? 'sel' : ''} ${open ? '' : 'locked'}" data-rig="${id}" ${open ? '' : 'aria-disabled="true"'} title="${esc(open ? RIGS[id].blurb : `Locked. ${lockHint(p, 'rig', id)}`)}" aria-pressed="${gear.rig === id}">
       ${rigDiagram(id)}<b>${esc(RIGS[id].name)}</b>${open ? '' : `<span class="tb-lock">🔒 ${esc(lockHint(p, 'rig', id) || 'Locked')}</span>`}</button>`; }).join('')}</div>
     <p class="tb-desc" id="tb-desc"><b>${esc(RIGS[gear.rig].name)}:</b> ${esc(RIGS[gear.rig].blurb)}</p>
     <h3>Bait ${lure ? '<span class="tb-lure">lures need no bait</span>' : ''}</h3>
-    <div class="tb-baits ${lure ? 'off' : ''}">${BAIT_ORDER.map(id => { const open = baitOpen(id); return `<button class="tb-bait ${!lure && gear.bait === id ? 'sel' : ''} ${open ? '' : 'locked'}" data-bait="${id}" ${lure ? 'disabled' : ''} ${open ? '' : 'aria-disabled="true"'} aria-pressed="${!lure && gear.bait === id}" title="${esc(open ? BAITS[id].note : `Locked. ${lockHint(p, 'bait', id)}`)}">
-      <i style="background:${BAITS[id].color}"></i>${esc(BAITS[id].name)}${open ? '' : `<span class="tb-lock">🔒 ${esc(lockHint(p, 'bait', id) || 'Locked')}</span>`}</button>`; }).join('')}</div>
+    <div class="tb-baits ${lure ? 'off' : ''}">${BAIT_ORDER.map(id => { const open = baitOpen(id), n = left(id), out = open && n <= 0; return `<button class="tb-bait ${!lure && gear.bait === id ? 'sel' : ''} ${open && !out ? '' : 'locked'}" data-bait="${id}" ${lure ? 'disabled' : ''} ${open && !out ? '' : 'aria-disabled="true"'} aria-pressed="${!lure && gear.bait === id}" title="${esc(open ? BAITS[id].note : `Locked. ${lockHint(p, 'bait', id)}`)}">
+      <i style="background:${BAITS[id].color}"></i>${esc(BAITS[id].name)}${open ? `<span class="tb-n ${out ? 'out' : ''}">${out ? 'none left' : '×' + n}</span>` : `<span class="tb-lock">🔒 ${esc(lockHint(p, 'bait', id) || 'Locked')}</span>`}</button>`; }).join('')}</div>
     <p class="tb-note" id="tb-note">${lure ? 'Lures are cast and worked back. Pick a bait rig to use bait again.' : esc(BAITS[gear.bait]?.note ?? '')}</p>
-    ${lure && owns('tool-lurecolours') ? `<h3>Lure colour</h3><div class="tb-baits" id="tb-lures">${LURE_COLOURS.map(c => `<button class="tb-bait tb-lurecol ${(p.inventory.lure ?? 'pink') === c.id ? 'sel' : ''}" data-lure="${c.id}" aria-pressed="${(p.inventory.lure ?? 'pink') === c.id}"><i style="background:${c.css}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
+    ${collectable.length ? `<h3>Collect your own bait <span class="tb-lure">free, inside the daily limit</span></h3>
+      <div class="tb-collect">${collectable.map(id => { const c = canCollect(p, id, site), d = COLLECT[id]; return `<div class="tb-col ${c.ok ? '' : 'no'}"><div><b>${esc(BAITS[id].name)}</b><small>${esc(d.rule)} ${c.ok ? '' : esc(c.reason)}</small></div>
+        <button class="btn small" data-collect="${id}" ${c.ok ? '' : 'disabled'}>Collect ${d.per}${d.limit ? ` <em>${c.got}/${d.limit} today</em>` : ''}</button></div>`; }).join('')}</div>` : ''}
+    ${lure && owns('tool-lurecolours') ? `<h3>Lure colour</h3><div class="tb-baits" id="tb-lures">${LURE_COLOURS.map(c => `<button class="tb-bait tb-lurecol ${colour === c.id ? 'sel' : ''}" data-lure="${c.id}" aria-pressed="${colour === c.id}"><i style="background:${c.css}"></i>${esc(c.name)}</button>`).join('')}</div>
+      <p class="tb-note">${esc(LURE_FX[colour]?.hint ?? '')} In ${esc(CLARITY_LABEL[clarity])} at ${esc(time)} it changes the bite by ${(() => { const m = Math.round((lureMod(colour, clarity, time) - 1) * 100); return `${m >= 0 ? '+' : '−'}${Math.abs(m)}%`; })()}.</p>` : ''}
     ${kit.length ? `<p class="tb-note">In your kit: ${kit.join(' · ')}</p>` : ''}
     <p class="tb-actions"><button class="btn primary" id="tb-done">Done <kbd>T</kbd></button></p>
   </div>`;
@@ -128,7 +144,9 @@ export class DayConditions {
   get time() { const h = this.hour; return h >= 5 && h < 8 ? 'dawn' : h >= 8 && h < 17 ? 'day' : h >= 17 && h < 20 ? 'dusk' : 'night'; }
   get swell() { return Math.max(0.2, this.swellBase + 0.2 * Math.sin(this.minutes / 47)); }
   get clock() { const h = Math.floor(this.hour), m = Math.floor(this.minutes % 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
-  /** The bite-model context for the tackle the player has chosen. */
-  context(gear, stock) { return { rig: gear.rig, bait: gear.bait, tide: this.tide, time: this.time, season: this.season, stock }; }
+  /** Water clarity today (clear / stained / murky), from the swell: it decides which lure colour works (economy/effects.js). */
+  get clarity() { return clarityOf(this.swell); }
+  /** The bite-model context for the tackle the player has chosen. `extra` adds the gear modifiers (shy, lureMod). */
+  context(gear, stock, extra = {}) { return { rig: gear.rig, bait: gear.bait, tide: this.tide, time: this.time, season: this.season, stock, clarity: this.clarity, ...extra }; }
   chip() { return `${TIDE_LABEL[this.tide]} · ${this.clock} ${this.time} · ${this.season} · swell ${this.swell.toFixed(1)} m`; }
 }

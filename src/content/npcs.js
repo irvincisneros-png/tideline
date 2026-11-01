@@ -18,6 +18,8 @@
 // Line conditions: { tide: [...], time: [...], season: [...] } narrow when a tip or gossip line is told (src/npc/lines.js). A gossip line has
 // `species` (a species id): telling it marks that fish Seen in the Fish Guide (guide.markSeen(id, 'gossip')) and it must say where and when.
 
+import { COIN, RATES } from './shop.js';
+
 export const RANGER_NOTE = 'Sea Country dialogue: worksheet-sourced only. Needs review by the school AEO / local AECG before classroom release.';
 
 export const NPCS = {
@@ -48,9 +50,11 @@ export const NPCS = {
         'So when adults pay, they are paying for the fishing you do. Not a bad deal.',
       ] },
       { q: "Can I sell what I catch?", a: [
-        "No. In NSW recreational fishers cannot sell their catch. Not to me, not to a café, not to your neighbour. It is for your own feed.",
+        "No. In NSW recreational fishers cannot sell their catch. Not to me, not to a café, not to your neighbour. It is for your own feed. That is why a fish never has a price on it in this game.",
         'People who sell fish hold a commercial licence, with quotas and rules about nets and bycatch. That is a whole other job.',
-        'You earn from fishing in other ways: accurate logbook records, tagging, clubs and clean-ups. Ask around the coast.',
+        `So how do you earn ${COIN.name}? Like a citizen scientist. A complete logbook record pays ${RATES.recordBase}: name the fish, measure it within 1 cm and make the right keep-or-release call. There is a bonus for the first record of a species (${RATES.firstSpecies}) and for a new spot, tide and time (${RATES.newCombo}), but only ${RATES.speciesDailyCap} records of one species count each day.`,
+        `Tag a legal-size fish with Dr Priya's kit and release it quickly: ${RATES.tagPay}. Enter Bev's club comp at Bellambi, pull litter for Fatima's clean-up tally (${RATES.litterPiece} a piece), or do jobs for the people on the coast.`,
+        'Then spend them in my shop: better rods, line, bait, gear that helps the fish, and a bit of style. Want a look?',
       ] },
       { q: 'Any sustainable swaps?', a: [
         'Always. Mulloway are only recovering in NSW after being depleted. Chase tailor or Australian salmon instead, or a dusky flathead here in the lake. All three stocks are sustainable.',
@@ -388,8 +392,8 @@ export const NPCS = {
     greet: ['Hello, {name}! Ready for a comp?', 'Hi {name}! Keep an eye on the board.', "{name}! Come to be a member?"],
     topics: [
       { q: 'What comps are coming up?', a: [
-        'We are planning a few. A Saturday beach comp for the biggest legal salmon, a catch-and-release comp where accurate measuring wins, and a night squid comp at the lake.',
-        'The comps themselves open next season. Build up your Fish Guide in the meantime, because comp entries ask for species you have identified.',
+        'There is a comp on the board every day. Some days it is the most species released, some days the longest legal dusky flathead, some days the most accurate measures. Ask me for "Today\'s club comp", enter for free, and I settle the board when you head home.',
+        `Prizes are ${RATES.compPrizes[0]}, ${RATES.compPrizes[1]} and ${RATES.compPrizes[2]} ${COIN.short} for the top three and ${RATES.compPrizes[3]} for everyone else who scores. Build up your Fish Guide too, because comps need species you have identified.`,
       ] },
       { q: 'How does a catch-and-release comp work?', a: [
         'You measure the fish accurately on the mat, photograph it, release it quickly with wet hands, and log the length. The judges check your logbook. The longest accurate fish wins.',

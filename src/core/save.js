@@ -12,15 +12,43 @@ const KEY = 'tideline.progress.v1';
 //   npc (phase 3): { day, met: { npcId: t }, accepted: { tradeId: t }, done: { tradeId: t }, quizFail: { tradeId: day }, rot: { key: n } } — the people's conversations and requests.
 //   steward.safety (phase 3): marks for staying on the rock platform in a big swell after the lifeguard's warning.
 //   journal: the old field guide (kept for the animal cards).  gear: last rig and bait.
-const blank = () => ({ v: 2, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} } });
+//   v3 (phase 4, the economy; migrated from v2, which keeps all its progress):
+//   coins: Club credits in hand (earned only from records, tags, comps, missions and litter: economy/coins.js; there is no way to sell a fish).
+//   econ: the earning counters (economy/coins.js ensureEcon).   shop: { owned, equip: { rod, line }, worn: { hat, shirt, rodcol }, bait: { baitId: n } } (economy/store.js).
+//   An older save gets RATES.migrationGrant credits and the starting bait stock; its logbook seeds the "first record" and "new combination" bonuses so nothing is paid twice.
+import { RATES, START_BAIT_STOCK } from '../content/shop.js';
+export const SAVE_VERSION = 3;
+const blankEcon = () => ({ day: 1, speciesToday: {}, tagsToday: 0, litterToday: 0, litterPaid: 0, first: {}, combos: {}, collected: {}, comp: null, compDone: null, tags: [], lastLetterDay: 0, earned: 0, log: [] });
+const blankShop = () => ({ owned: {}, equip: { rod: 'rod-1', line: 'line-std' }, worn: {}, bait: { ...START_BAIT_STOCK } });
+const blank = () => ({ v: SAVE_VERSION, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} }, coins: RATES.startGrant, econ: blankEcon(), shop: blankShop() });
+
+/** Bring any saved progress (v1, v2 or v3, or nothing) up to the current version. Pure: no storage. */
+export function migrateProgress(saved) {
+  saved = saved && typeof saved === 'object' ? saved : {};
+  const fresh = !saved || Object.keys(saved).length === 0, b = blank(), p = { ...b, ...saved };
+  p.steward = { ...b.steward, ...(saved.steward ?? {}) };
+  p.econ = { ...b.econ, ...(saved.econ ?? {}) };
+  p.shop = { ...b.shop, ...(saved.shop ?? {}) };
+  p.shop.equip = { ...b.shop.equip, ...(saved.shop?.equip ?? {}) };
+  p.shop.owned ??= {}; p.shop.worn ??= {}; p.shop.bait ??= { ...START_BAIT_STOCK };
+  if (!fresh && (saved.v ?? 1) < 3) {
+    // v2 -> v3: keep everything, add a small credit grant and the starting bait, and mark what the logbook already covers so it does not pay again.
+    p.coins = Math.max(Number.isFinite(saved.coins) ? saved.coins : 0, RATES.migrationGrant);
+    p.shop.bait = { ...START_BAIT_STOCK, ...(saved.shop?.bait ?? {}) };
+    for (const c of saved.catches ?? []) {
+      if (c.id && !p.econ.first[c.id]) p.econ.first[c.id] = c.time ?? 1;
+      if (c.id) p.econ.combos[`${c.id}|${c.spot}|${c.tide}|${c.daytime}`] = c.time ?? 1;
+    }
+    p.migratedFrom = saved.v ?? 1;
+  }
+  if (!Number.isFinite(p.coins)) p.coins = 0;
+  p.v = SAVE_VERSION;
+  return p;
+}
 
 export function loadProgress() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || '{}'), p = { ...blank(), ...saved };
-    p.steward = { ...blank().steward, ...(saved.steward ?? {}) };
-    p.v = 2;
-    return p;
-  } catch { return blank(); }
+  try { return migrateProgress(JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch { return blank(); }
 }
 export function saveProgress(p) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); return true; }

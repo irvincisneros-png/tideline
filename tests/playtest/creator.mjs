@@ -78,7 +78,7 @@ for (const [tag, width, height] of VIEWS) {
   const toHex = c => ((c >> 16 & 255) ** 2.2 / 255 ** 2.2 > 0 ? 0 : 0);
   const srgb = lin => { const f = x => Math.round((x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055) * 255); return (f((lin >> 16 & 255) / 255) << 16) | 0; };
   void toHex; void srgb;
-  check(['curly', 'straw', 'round', 'flowers'].every(k => MESHES[k].every(n => st.visible.includes(n))) && !st.visible.includes('ang_hairCurlyTop_hair'), `${tag}: the chosen meshes are in the world (the top curls hide under the hat): ${st.visible.join(', ')}`);
+  check(['straw', 'round', 'flowers'].every(k => MESHES[k].every(n => st.visible.includes(n))) && MESHES.curly.every(n => !st.visible.includes(n)), `${tag}: the chosen meshes are in the world (curly hair is hidden under the hat so it cannot poke through the crown): ${st.visible.join(', ')}`);
   check(await page.evaluate(() => { const a = window.__game.angler, c = new window.__game.angler.mats.skin.color.constructor(); const eq = (m, hex) => c.set(hex).getHex() === m.color.getHex(); const L = a.look; return eq(a.mats.skin, L.skin) && eq(a.mats.hair, L.hair) && eq(a.mats.hat, L.hat) && eq(a.mats.shirt, L.shirt) && eq(a.mats.shorts, L.shorts) && eq({ color: a.rodMat.color }, L.rod); }), `${tag}: every colour slot carries the chosen colour, including the rod`);
   await t.page.keyboard.press('KeyR'); await t.wait(700);
   await page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });

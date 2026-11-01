@@ -5,8 +5,10 @@ import { ITEMS, CARDS } from '../content/items.js';
 import { NPCS } from '../content/npcs.js';
 import { ensureInventory, ownedItems, rewardName } from '../npc/inventory.js';
 import { esc } from './panels.js';
+import { missionCoins } from '../economy/coins.js';
+import { COIN } from '../content/shop.js';
 
-const reward = id => esc(rewardName(id));
+const reward = (id, t) => esc(rewardName(id)) + (t ? ` + ${COIN.icon} ${missionCoins(t)} credits` : '');
 
 function card(e, kind) {
   const def = NPCS[e.npc], t = e.trade, pr = e.progress;
@@ -19,7 +21,7 @@ function card(e, kind) {
     <div class="q-head"><b>${esc(t.title)}</b><span class="q-state">${state}</span></div>
     <div class="q-who">${esc(def.name)} · ${esc(def.where)}</div>
     <div class="q-what">${what}</div>${bar}
-    <div class="q-rew">Reward: ${reward(t.reward)}</div>
+    <div class="q-rew">Reward: ${reward(t.reward, t)}</div>
     ${kind === 'ready' ? `<div class="q-hint">Talk to ${esc(def.name)} (<kbd>E</kbd>) and choose Jobs and trades.</div>` : ''}
   </li>`;
 }
@@ -40,7 +42,7 @@ export function openQuestLog(game) {
       ${gear.length || hats.length ? `<ul class="kit">${gear.map(id => `<li><b>${esc(ITEMS[id].name)}</b><span>${esc(ITEMS[id].blurb)}</span></li>`).join('')}
         ${hats.map(id => `<li class="hat"><b>${esc(ITEMS[id].name)}</b><span>${esc(ITEMS[id].blurb)}</span><button class="btn small" data-hat="${id}">${inv.worn === id ? 'Take off' : 'Wear it'}</button></li>`).join('')}</ul>` : '<p class="muted">Empty so far. You start with the paternoster, running sinker and unweighted rigs, and prawn and beach worm bait.</p>'}
       ${(Object.keys(inv.cards).length) ? `<p class="muted">${Object.keys(inv.cards).length} Sea Country card${Object.keys(inv.cards).length > 1 ? 's' : ''} in the Fish Guide (<kbd>J</kbd>), Sea Country tab.</p>` : ''}
-      ${q.done.length ? `<h3>Completed (${q.done.length})</h3><ul class="quests done">${q.done.map(e => `<li class="quest done"><div class="q-head"><b>${esc(e.trade.title)}</b><span class="q-state">✔ ${esc(NPCS[e.npc].name)}</span></div><div class="q-rew">${reward(e.trade.reward)}</div></li>`).join('')}</ul>` : ''}
+      ${q.done.length ? `<h3>Completed (${q.done.length})</h3><ul class="quests done">${q.done.map(e => `<li class="quest done"><div class="q-head"><b>${esc(e.trade.title)}</b><span class="q-state">✔ ${esc(NPCS[e.npc].name)}</span></div><div class="q-rew">${reward(e.trade.reward, e.trade)}</div></li>`).join('')}</ul>` : ''}
       <p><button class="btn primary" id="q-done">Done</button></p>
     </div>`;
     panels.body.querySelector('#q-done').onclick = () => panels.close();

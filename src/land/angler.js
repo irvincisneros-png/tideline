@@ -22,7 +22,8 @@ export const OPTION_MESHES = {
     fishing: ['ang_torso_pocket_shirt'],
   },
 };
-export const HIDE_UNDER_HAT = new Set(['ang_hairBunKnot_hair', 'ang_hairCurlyTop_hair']);
+// Hair that would poke through a hat crown or brim: short, buzz, curly and bun hair are hidden under any hat (the hat covers the head). Long and ponytail hair hang below the hat, so they stay.
+export const HIDE_UNDER_HAT = new Set(['ang_hairShort_hair', 'ang_hairBuzz_hair', 'ang_hairCurly_hair', 'ang_hairCurlyTop_hair', 'ang_hairBun_hair', 'ang_hairBunKnot_hair']);
 const BASE_PARTS = {
   ang_hips_shorts: 'hips', ang_torso_shirt: 'torso', ang_torso_skin: 'torso', ang_head_skin: 'head', ang_head_face: 'head',
   ang_armL_shirt: 'armL', ang_armL_skin: 'armL', ang_armR_shirt: 'armR', ang_armR_skin: 'armR', ang_foreL_skin: 'elbowL', ang_foreR_skin: 'elbowR',

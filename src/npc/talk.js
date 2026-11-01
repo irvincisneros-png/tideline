@@ -12,6 +12,9 @@ import { tradeStatus, progressOf, accept, complete, failQuiz, ensureNpc } from '
 import { grant, rewardName } from './inventory.js';
 import { nameOf } from '../core/anglerData.js';
 import { esc } from '../ui/panels.js';
+import { payMission, missionCoins, enterComp, compStanding, payLitter, litterUnpaid, today as econToday, compOfDay, RIVALS } from '../economy/coins.js';
+import { RATES, COIN } from '../content/shop.js';
+import { addBait } from '../economy/store.js';
 
 const shuffle = (a, rnd = Math.random) => { const o = a.map((v, i) => ({ v, i })); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
 
@@ -60,6 +63,9 @@ export class Talk {
       const st = def.trades.map(t => tradeStatus(p, t)), flag = st.some(s => s === 'ready') ? ' (ready ✓)' : st.some(s => s === 'new') ? ' (new)' : '';
       out.push({ id: 'trades', label: `Jobs and trades${flag}` });
     }
+    if (npc.id === 'mitra') out.push({ id: 'shop', label: 'Shop' });
+    if (npc.id === 'bev') out.push({ id: 'comp', label: "Today's club comp" });
+    if (npc.id === 'fatima') out.push({ id: 'tally', label: 'Clean-up tally' });
     if (npc.id === 'mitra' && (p.esky?.length ?? 0) > 0) out.push({ id: 'sell', label: 'Sell my fish' });
     out.push({ id: 'bye', label: 'Bye' });
     return out;
@@ -76,11 +82,53 @@ export class Talk {
       if (topic.grants) this.grantReward(topic.grants);
     }
   }
-  /** Mitra: the lesson she gives when you try to sell your catch. */
+  /** Mitra: the lesson she gives when you try to sell your catch (the law, and how you really earn credits), then the offer of the shop. */
   async sell(npc, who) {
-    const t = npc.def.topics.find(x => x.q.startsWith('Can I sell'));
-    await this.game.dialogue.say({ who, text: this.fmt('Sell it? Ah, {name}, I wish I could buy it, but I cannot.') });
-    await this.game.dialogue.sequence(who, t.a.map(l => this.fmt(l)), 'Right, thanks');
+    const dlg = this.game.dialogue, t = npc.def.topics.find(x => x.q.startsWith('Can I sell'));
+    await dlg.say({ who, text: this.fmt('Sell it? Ah, {name}, I wish I could buy it, but I cannot.') });
+    await dlg.sequence(who, t.a.slice(0, -1).map(l => this.fmt(l)), 'Right');
+    const i = await dlg.say({ who, text: this.fmt(t.a.at(-1)), choices: ['Show me the shop', 'Maybe later'], cancel: 1 });
+    if (i === 0) await this.shop(npc, who);
+  }
+  /** Mitra's tackle shop (also reachable from the "Shop" option): the dialogue steps aside while the shop panel is open. */
+  async shop(npc, who) {
+    const g = this.game;
+    await g.dialogue.say({ who, text: this.fmt(`Come in, {name}. You have <b>${COIN.icon} ${this.p.coins ?? 0} ${COIN.name}</b>. Take your time.`), button: 'Have a look' });
+    g.dialogue.hide();
+    await g.openShop({ from: 'mitra' });
+  }
+  /** Bev: today's comp. Entry is free; the result is settled when you head home and pays by place. */
+  async comp(npc, who) {
+    const g = this.game, p = this.p, dlg = g.dialogue, day = p.npc.day, c = compOfDay(day), e = econToday(p);
+    const prizes = RATES.compPrizes;
+    if (e.compDone?.day === day) {
+      const d = e.compDone;
+      await dlg.say({ who, text: this.fmt(`You already fished today's comp, {name}: <b>${esc(d.title)}</b>. You came ${ordinal(d.place)} with ${d.score} ${esc(d.unit)}${d.prize ? ` and won ${d.prize} credits` : ''}. A new comp starts tomorrow.`), button: 'Thanks' });
+      return;
+    }
+    const st = compStanding(p);
+    const info = `Today's comp: <b>${esc(c.title)}</b>.<br>${esc(c.blurb)}<br><small class="dlg-note">Prizes: 1st ${prizes[0]}, 2nd ${prizes[1]}, 3rd ${prizes[2]}, everyone else who competes ${prizes[3]} (if you score). The board is settled when you head home. Rivals today: ${RIVALS.map((n, i) => `${n} ${st.rivals[i]}`).join(', ')} ${esc(c.unit)}.</small>`;
+    if (st.entered) {
+      await dlg.say({ who, text: this.fmt(`${info}<br><br>You are in, {name}! Your score so far: <b>${st.score} ${esc(c.unit)}</b>, which would put you ${ordinal(st.place)} right now${st.prize ? ` (${st.prize} credits)` : ''}.`), button: 'Back to it' });
+      return;
+    }
+    const i = await dlg.say({ who, text: this.fmt(info), choices: ['Enter the comp (free)', 'Not today'], cancel: 1 });
+    if (i === 0) {
+      enterComp(p); g.persist();
+      g.toast(`🏆 Entered: ${c.title}. Your catches from now count. Head home to settle the board.`, 'good');
+      await dlg.say({ who, text: this.fmt('You are on the board, {name}! Fish clean and measure carefully. Head home when you are done and I will settle the board.'), button: 'Let us go' });
+    }
+  }
+  /** Fatima: pays credits for the pieces of litter you have pulled out of the water (the green zone catches it on the catch bar). */
+  async tally(npc, who) {
+    const g = this.game, p = this.p, dlg = g.dialogue, total = p.steward?.litter ?? 0;
+    if (!total) { await dlg.say({ who, text: this.fmt(`Nothing on your tally yet, {name}. Next time a fish is on, steer the green zone over any tangled line or plastic bag that drifts down the bar. I pay ${RATES.litterPiece} credits a piece, up to ${RATES.litterDailyCap} pieces a day.`), button: 'Will do' }); return; }
+    const r = payLitter(p);
+    if (r.pieces) {
+      g.persist(); g.earned(r.amount);
+      g.toast(`🪙 +${r.amount} credits: ${r.pieces} piece${r.pieces > 1 ? 's' : ''} of litter`, 'good');
+      await dlg.say({ who, text: this.fmt(`Let me tick those off... <b>${r.pieces} piece${r.pieces > 1 ? 's' : ''}</b> of litter. That is <b>${r.amount} credits</b>. Thank you, {name}: every piece out of the water is one less thing for a turtle or a bird to swallow.${r.unpaid ? ` I can only pay ${RATES.litterDailyCap} a day, so ${r.unpaid} more will keep until tomorrow.` : ''}`), button: 'My pleasure' });
+    } else await dlg.say({ who, text: this.fmt(r.capped ? `That is my ${RATES.litterDailyCap} pieces for today, {name}. Come back tomorrow for the rest.` : `Everything on your tally is already paid, {name}. Bring me more!`), button: 'Okay' });
   }
 
   // ------------------------------------------------------------------ tips and gossip
@@ -159,14 +207,16 @@ export class Talk {
   async reward(npc, who, trade) {
     const g = this.game, p = this.p;
     complete(p, trade.id);
+    const coins = payMission(p, trade);   // modest credits on top of the item
+    if (ITEMS[trade.reward]?.unlocks?.bait) addBait(p, ITEMS[trade.reward].unlocks.bait, 10);   // a bait reward comes with a starter tub
     const isNew = grant(p, trade.reward), name = rewardName(trade.reward), item = ITEMS[trade.reward], card = CARDS[trade.reward];
-    g.persist(); g.audio.play('newSpecies');
-    g.toast(`🎁 ${name}`, 'good');
+    g.persist(); g.audio.play('newSpecies'); g.earned(coins);
+    g.toast(`🎁 ${name} and 🪙 ${coins} credits`, 'good');
     let extra = '';
     if (item?.unlocks?.rig || item?.unlocks?.bait) extra = ` Unlocked in your tackle box (<kbd>T</kbd>).`;
     else if (item?.kind === 'hat') extra = ` Wear it from your quest log (<kbd>Q</kbd>).`;
     else if (card) extra = ' Read it in the Fish Guide (<kbd>J</kbd>), Sea Country tab.';
-    await g.dialogue.say({ who, text: g.hint(this.fmt(trade.done) + `<br><br><b>You received: ${esc(name)}.</b>${extra}`), button: 'Thank you!' });
+    await g.dialogue.say({ who, text: g.hint(this.fmt(trade.done) + `<br><br><b>You received: ${esc(name)}</b> and <b>${coins} credits</b>.${extra}`), button: 'Thank you!' });
     return isNew;
   }
   /** A topic that hands over a Sea Country card. */
@@ -175,3 +225,5 @@ export class Talk {
     if (grant(this.p, id)) { g.persist(); g.audio.play('newSpecies'); g.toast(`📗 New Sea Country card: ${CARDS[id].title}. Read it in the Fish Guide (J).`, 'good'); }
   }
 }
+
+const ordinal = n => ['', '1st', '2nd', '3rd'][n] ?? `${n}th`;

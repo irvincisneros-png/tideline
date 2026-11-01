@@ -7,6 +7,8 @@ import { PORTRAITS } from './dialogue.js';
 import { WHY } from './catchFlow.js';
 import { esc } from './panels.js';
 import { nameOf } from '../core/anglerData.js';
+import { settleComp } from '../economy/coins.js';
+import { COIN } from '../content/shop.js';
 
 export const OFFICER_CHANCE = 1 / 3;
 
@@ -51,6 +53,9 @@ export class Outing {
       // Home: legal fish go to the fridge, illegal ones were taken (or never checked); the esky is empty again.
       o.home = (p.esky ?? []).filter(x => x.legal || o.officer.result === 'none').length;
       p.esky = [];
+      // Bev's club comp: score it, place you against the rivals and pay the prize (before the in-game day moves on).
+      const comp = settleComp(p);
+      if (comp) { o.comp = comp; o.credits = (o.credits ?? 0) + comp.prize; g.earned(comp.prize); }
       o.t1 = Date.now(); o.bay1 = G.bayHealth(p); o.st1 = G.stewardRating(p).value;
       g.npcs?.bumpDay();   // heading home ends the in-game day: failed quizzes can be tried again next outing
       g.persist(); g.updateStats();
@@ -118,6 +123,8 @@ export class Outing {
         <div><span>Steward rating</span><b class="stars">${G.starsText(o.st1)} <em>${o.st1.toFixed(1)}</em> <i class="${dSt >= 0 ? 'up' : 'down'}">${sgn(dSt)}</i></b></div>
         <div><span>Bay Health</span><b>${o.bay0.toFixed(2)}% → ${o.bay1.toFixed(2)}% <i class="${dBay >= 0 ? 'up' : 'down'}">${sgn(dBay, 2)}</i></b></div>
         <div><span>Fisheries Officer</span><b>${esc(offTxt)}</b></div>
+        <div><span>${COIN.name} earned</span><b>${COIN.icon} +${o.credits ?? 0} <i class="up">${p.coins} in hand</i></b></div>
+        ${o.comp ? `<div><span>Club comp</span><b>${esc(o.comp.title)}: ${o.comp.score} ${esc(o.comp.unit)}, ${['', '1st', '2nd', '3rd'][o.comp.place] ?? o.comp.place + 'th'}${o.comp.prize ? ` (+${o.comp.prize})` : ' (no score, no prize)'}</b></div>` : ''}
       </div>
       ${o.gains.length ? `<h3>Fish Guide</h3><ul class="gains">${o.gains.map(x => `<li>${esc(SPECIES_BY_ID[x.id].name)}: <b>${G.TIER_LABEL[x.tier]}</b></li>`).join('')}</ul>` : ''}
       ${changes.length ? `<h3>Stock health changes</h3><p class="muted">${changes.slice(0, 6).map(c => `${esc(SPECIES_BY_ID[c.id]?.name ?? c.id)} (${esc((SPOT_INFO[c.spot]?.label ?? c.spot).replace('Lake Illawarra ', 'Lake '))}) ${Math.round(c.was)} → ${Math.round(c.now)}`).join(' · ')}</p>` : ''}

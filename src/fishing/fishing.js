@@ -97,6 +97,7 @@ export class Fishing {
         this.castTarget(this.power);
         const depth = surf(this.target.x, this.target.z) - world.groundAt(this.target.x, this.target.z);
         if (depth < 0.4) { this.state = 'ready'; g.toast('That cast would land on dry ground — face the water and cast again.', 'warn'); }
+        else if (!g.baitReady()) { this.state = 'ready'; g.toast('No bait left in your box. Buy some at Mitra\'s shop, collect your own, or switch to a lure (tackle box, T).', 'warn'); }
         else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); g.audio.play('click'); }
       }
     } else if (this.state === 'flying') {
@@ -118,7 +119,7 @@ export class Fishing {
       prompt = 'Waiting for a bite… (Space reels in to cast again)';
       this.dist = this.float.position.distanceTo(eye);
       if (hit) this.state = 'ready', this.float.visible = false;
-      if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = pickCatch(this.spot, this.ctx); g.audio.play('warn'); }
+      if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = pickCatch(this.spot, this.ctx); g.audio.play('warn'); g.useBait(); }   // the fish takes the bait: one bait is used
     } else if (this.state === 'bite') {
       this.biteT -= dt;
       this.float.position.y = surf(this.float.position.x, this.float.position.z) - 0.08 - Math.abs(Math.sin(t * 18)) * 0.06; // the float dips
@@ -178,10 +179,12 @@ export class Fishing {
   }
 
   startFight() {
-    const c = this.catch, F = FIGHT[c.id] ?? { profile: 'twitch', power: 0.5 };
+    const c = this.catch, F = FIGHT[c.id] ?? { profile: 'twitch', power: 0.5 }, gs = this.game.gearStats();
     this.state = 'fight'; this.fightT = 0; this.dist0 = Math.max(6, this.dist); this.sag = 0.2;
     this.bar.start({
       profile: F.profile, power: F.power, gear: c.gear, size: c.length,
+      rod: gs.rod, line: gs.line,   // your rod and reel/line (economy/store.js): zone size, how fast the fish tires you out, how well the line holds a bolting fish
+      onSave: () => this.game.toast('Strong line held! You turned it just before the reef.', 'good'),
       onLitter: kind => this.game.onLitter(kind),
       onEnd: r => {
         if (r.won) this.land();

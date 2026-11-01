@@ -4,6 +4,7 @@
 // https://www.dpi.nsw.gov.au/fishing/recreational/fishing-rules-and-regs before using the numbers in class.
 import './fishLooks.js';
 import { SPECIES, SPECIES_BY_ID, SPOT_INFO, STOCK_SEED } from './species.js';
+import { SHY_SPECIES } from '../content/shop.js';
 
 export { SPECIES, SPECIES_BY_ID, SPOT_INFO };
 
@@ -29,7 +30,7 @@ export const MISMATCH_BAIT = 0.2;
 const COND_HIT = 1.4, COND_MISS = 0.7;
 
 /** Default gear/conditions (used by tests and anything that calls pickCatch without a context). */
-export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, time: null, season: null, stock: null };
+export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, time: null, season: null, stock: null, shy: 1, lureMod: 1 };
 
 export const stockKey = (spot, id) => `${spot}:${id}`;
 /** Stock health of a species at a spot (0-100): the saved value, else seeded from its NSW stock status. */
@@ -48,7 +49,11 @@ const cond = (list, value) => (!list?.length || !value ? 1 : list.includes(value
 export const rigMatch = (sp, rig) => sp.rig[rig] ?? (rig === 'squidjig' ? 0.02 : MISMATCH_RIG); // a squid jig is hopeless for fish
 export const baitMatch = (sp, rig, bait) => (LURE_RIGS.has(rig) ? 1 : !bait || bait === 'none' ? 0.1 : sp.bait[bait] ?? MISMATCH_BAIT);
 
-/** Every species at this spot with its bite weight: base × rig match × bait match × tide/time/season match × stock health / 100. */
+/**
+ * Every species at this spot with its bite weight: base × rig match × bait match × tide/time/season match × stock health / 100, then two small
+ * gear modifiers (ctx from main.js biteContext): ctx.shy (your line: light line > 1 gives shy fish such as bream and luderick more bites, thick line < 1 fewer)
+ * and ctx.lureMod (a lure's colour for today's water clarity and time of day, economy/effects.js; lure rigs only).
+ */
 export function biteWeights(spot, ctx = DEFAULT_CTX) {
   const out = [];
   for (const sp of SPECIES) {
@@ -57,7 +62,8 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const rigM = rigMatch(sp, ctx.rig), baitM = baitMatch(sp, ctx.rig, ctx.bait);
     const condM = cond(sp.tide, ctx.tide) * cond(sp.time, ctx.time) * cond(sp.season, ctx.season);
     const stock = stockOf(ctx.stock, spot, sp.id);
-    out.push({ sp, base, rigM, baitM, condM, stock, w: base * rigM * baitM * condM * (stock / 100), ideal: base * condM * (stock / 100) });
+    const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1);
+    out.push({ sp, base, rigM, baitM, condM, stock, gearM, w: base * rigM * baitM * condM * (stock / 100) * gearM, ideal: base * condM * (stock / 100) });
   }
   return out;
 }

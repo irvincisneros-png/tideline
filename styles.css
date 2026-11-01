@@ -558,3 +558,72 @@ body.npc-near .t-talk { display: flex !important; background: rgba(95, 207, 122,
 .npc-bubble::after { content: ''; position: absolute; left: 50%; bottom: -11px; width: 14px; height: 14px; background: var(--cream); border-right: 3px solid var(--teal-ink); border-bottom: 3px solid var(--teal-ink); transform: translateX(-50%) rotate(45deg); }
 @media (max-width: 560px) { .npc-tag b { font-size: 13px; } .npc-tag small { display: none; } .npc-bubble { max-width: 180px; font-size: 12.5px; } }
 body.creator-open #npc-labels { display: none; }
+
+/* Phase 4: credits in the HUD, the tackle shop, payout cards, release survival, the tackle box's bait counts and the recapture letter */
+.cond-chip.stat-chip b .coin { color: #c2570a; font-size: 13px; margin-left: 4px; white-space: nowrap; }
+.cond-chip.stat-chip.pulse { animation: chipPulse 0.9s ease-out; }
+@keyframes chipPulse { 0% { transform: scale(1); background: var(--cream); } 25% { transform: scale(1.1); background: #fff1b0; } 100% { transform: scale(1); background: var(--cream); } }
+@media (prefers-reduced-motion: reduce) { .cond-chip.stat-chip.pulse { animation: none; } }
+.tb-gear { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 6px 0 0; }
+.tb-gear span { background: var(--turq-pale); border: 2px solid var(--teal-ink); border-radius: 99px; padding: 2px 12px; font-size: 13px; font-weight: 800; }
+.tb-gear small { color: var(--muted); font-weight: 700; }
+.tb-n { margin-left: 6px; font-size: 12px; font-weight: 800; color: var(--teal-deep); background: #fff; border: 2px solid var(--teal-ink); border-radius: 99px; padding: 0 7px; }
+.tb-n.out { color: #c2570a; border-color: #c2570a; }
+.tb-collect { display: grid; gap: 8px; }
+.tb-col { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 6px 12px; }
+.tb-col.no { opacity: 0.75; }
+.tb-col b { font-family: var(--font-display); display: block; } .tb-col small { display: block; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.3; }
+.tb-col .btn { min-height: 44px; white-space: nowrap; } .tb-col .btn em { font-style: normal; font-size: 11.5px; opacity: 0.85; }
+.tb-col .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.shop-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-right: 44px; }
+.shop-head h2 { padding-right: 0; margin: 0; }
+.shop-coins { display: inline-flex; align-items: baseline; gap: 6px; background: #fff1b0; border: 3px solid var(--teal-ink); border-radius: 99px; padding: 3px 16px; font-weight: 800; box-shadow: 0 3px 0 rgba(31, 95, 107, 0.4); }
+.shop-coins b { font-family: var(--font-display); font-size: 22px; color: #c2570a; } .shop-coins span { font-size: 12px; color: var(--muted); }
+.shop-tip { margin: 10px 0 0; background: var(--turq-pale); border: 3px solid var(--teal-ink); border-left-width: 10px; border-radius: 16px; padding: 8px 14px; font-size: 14px; line-height: 1.45; }
+.shop-tip .link, .shop .link { background: none; border: 0; padding: 0; color: #c2570a; font: inherit; font-weight: 800; text-decoration: underline; cursor: pointer; }
+.shop-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.shop-tabs button { min-height: 44px; padding: 6px 14px; }
+.shop-sub { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; font-weight: 700; line-height: 1.4; }
+.shop-msg { min-height: 1.5em; margin: 6px 0 4px; font-weight: 800; color: #c2570a; font-size: 14px; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.shop-card { display: flex; flex-direction: column; gap: 6px; background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 18px; padding: 10px 14px 12px; box-shadow: 0 4px 0 rgba(31, 95, 107, 0.35); }
+.shop-card header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.shop-card h3 { margin: 0; font-family: var(--font-display); font-size: 17px; color: var(--teal-deep); text-transform: none; letter-spacing: 0; }
+.shop-card .pip { font-size: 11px; font-weight: 800; color: var(--teal-deep); background: var(--turq-pale); border: 2px solid var(--teal-ink); border-radius: 99px; padding: 0 8px; white-space: nowrap; }
+.shop-card .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.shop-card .chip { font-size: 11.5px; font-weight: 800; color: var(--leaf-deep); background: var(--leaf-pale); border: 2px solid var(--leaf-deep); border-radius: 99px; padding: 0 8px; }
+.shop-card p { margin: 0; font-size: 13.5px; line-height: 1.4; }
+.shop-card .why { color: var(--muted); font-weight: 700; } .shop-card .why b { color: #c2570a; }
+.shop-card .have { font-weight: 800; }
+.shop-card .lock { color: #c2570a; font-weight: 700; font-size: 13px; }
+.shop-card footer { margin-top: auto; padding-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-card .price { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: #c2570a; }
+.shop-card .btn { min-height: 46px; min-width: 104px; }
+.shop-card .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+.shop-card .btn.on { background: var(--leaf-pale); border-color: var(--leaf-deep); color: var(--leaf-deep); }
+.shop-card.equipped { background: var(--leaf-pale); border-color: var(--leaf-deep); }
+.shop-card.locked { border-style: dashed; background: var(--cream2); }
+.shop-foot { margin: 14px 0 0; }
+.earn-law { background: var(--tomato-pale); border: 3px solid var(--tomato); border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45; margin-top: 8px; }
+.earn-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.earn-list li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 12px; }
+.earn-list .ico { font-size: 26px; text-align: center; } .earn-list em { font-style: normal; font-weight: 800; color: #c2570a; margin-left: 6px; }
+.earn-list p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.4; }
+.earn-foot { color: var(--muted); font-size: 13px; font-weight: 700; margin: 10px 0 0; }
+
+.pay { margin: 12px 0 0; background: #fff1b0; border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 14px; }
+.pay.none { background: var(--cream3); }
+.pay-head b { font-family: var(--font-display); font-size: 18px; color: #c2570a; } .pay-head small { display: block; color: var(--muted); font-size: 12px; font-weight: 700; margin-top: 2px; }
+.pay ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13.5px; }
+.pay li em { font-style: normal; font-weight: 800; color: var(--leaf-deep); margin-left: 6px; } .pay li.why { color: var(--muted); font-weight: 700; }
+.surv { margin: 12px 0 0; background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 14px; }
+.surv-top small { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
+.surv-bar { height: 16px; border: 3px solid var(--teal-ink); border-radius: 99px; background: #f3e3b8; overflow: hidden; margin: 6px 0; }
+.surv-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(180deg, #8ae29a, #4fbf7a); } .surv-bar i.mid { background: linear-gradient(180deg, #ffd27a, var(--sun)); } .surv-bar i.lo { background: linear-gradient(180deg, #ffb07a, var(--coral)); }
+.surv-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13.5px; } .surv-parts li.yes { color: var(--leaf-deep); } .surv-parts li.no { color: #b83a22; } .surv-parts em { font-style: normal; font-weight: 800; }
+.surv-bay { margin: 6px 0 0; font-size: 13.5px; }
+.letter { background: #fffdf3; }
+.letter h2 { font-family: var(--font-display); } .letter p { line-height: 1.5; }
+.letter-why { background: var(--turq-pale); border: 3px solid var(--teal-ink); border-left-width: 10px; border-radius: 16px; padding: 8px 14px; margin: 10px 0; } .letter-why ul { margin: 4px 0 0 18px; padding: 0; }
+@media (max-width: 560px) { .shop-coins b { font-size: 19px; } .shop-card .btn { min-width: 92px; } .tb-col { flex-wrap: wrap; } .tb-col .btn { flex: 1 1 100%; } }

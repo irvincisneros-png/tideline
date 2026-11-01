@@ -24,6 +24,7 @@ export const TUNING = {
   litterFirst: [3, 6], // seconds until the first litter, then
   litterEvery: [7, 12],
   litterSpeed: [0.15, 0.21],
+  zoneCap: 0.6,        // the zone never grows past this fraction of the track, however good the rod
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -34,6 +35,19 @@ const LITTER = {
   line: { label: 'Tangled line', svg: `<svg viewBox="0 0 30 30" width="26" height="26" aria-hidden="true"><path d="M4 22 C2 8 18 2 22 10 C26 18 8 20 10 10 C12 4 24 8 26 20" fill="none" stroke="#6a7a84" stroke-width="2.4" stroke-linecap="round"/><path d="M4 22 l-2 5 M26 20 l2 -3" stroke="#1f5f6b" stroke-width="2" stroke-linecap="round"/></svg>` },
   bag: { label: 'Plastic bag', svg: `<svg viewBox="0 0 30 30" width="26" height="26" aria-hidden="true"><path d="M9 6 C9 1 21 1 21 6" fill="none" stroke="#1f5f6b" stroke-width="2" stroke-linecap="round"/><path d="M7 7 H23 L26 25 C20 28 10 28 4 25 Z" fill="#f4f8fa" fill-opacity="0.92" stroke="#1f5f6b" stroke-width="2" stroke-linejoin="round"/><path d="M11 12 q3 6 0 10" fill="none" stroke="#9ab" stroke-width="1.4"/></svg>` },
 };
+
+/**
+ * Everything the gear changes about a fight, in one pure function (the unit tests call it). opts: gear 0..1 (rig x bait match), power 0..1, size (cm),
+ * rod = { zoneMul, drainMul, speedMul } and line = { save, turnMul } from economy/store.js gearStats (a better rod widens the zone or slows the fish;
+ * stronger line saves a bolting fish from a break-off and turns it sooner; light line does the opposite).
+ */
+export function barParams(opts = {}) {
+  const q = Math.sqrt(clamp(opts.gear ?? 0.5, 0, 1)), power = clamp(opts.power ?? 0.5, 0, 1), rod = opts.rod ?? {}, line = opts.line ?? {};
+  const zoneH = Math.min(TUNING.zoneCap, (TUNING.zoneMin + (TUNING.zoneMax - TUNING.zoneMin) * q) * (1.1 - 0.2 * power) * (rod.zoneMul ?? 1));
+  const k = (0.8 + 0.5 * power * (0.9 + 0.2 * clamp((opts.size ?? 40) / 50, 0.6, 1.4))) * (rod.speedMul ?? 1);
+  const turnMul = line.turnMul ?? 1;
+  return { q, zoneH, jitter: (1 - q) * TUNING.jitterMax, k, drainMul: rod.drainMul ?? 1, save: clamp(line.save ?? 0, 0, 0.95), turnTime: TUNING.turnTime * turnMul, jetMul: 1 + (turnMul - 1) * 0.8 };
+}
 
 /** Fish movement per behaviour profile. Each has init(s, bar) and step(s, dt, bar) which sets s.tgt and s.speed (track heights / s). */
 const PROFILES = {
@@ -75,7 +89,7 @@ const PROFILES = {
         const inZone = bar.inZone;
         s.tgt = inZone ? bar.fy + 0.1 : -0.2; s.speed = (inZone ? 0.12 : 0.55 * bar.k) * (0.25 + 0.75 * s.ramp);
         if (inZone) s.held += dt;
-        if (s.held >= TUNING.turnTime) { s.mode = 'swim'; s.t = rand(2.2, 3.6); s.tgt = rand(0.5, 0.75); s.speed = 0.7; s.wander = 1; bar.warn = false; }
+        if (s.held >= bar.turnTime) { s.mode = 'swim'; s.t = rand(2.2, 3.6); s.tgt = rand(0.5, 0.75); s.speed = 0.7; s.wander = 1; bar.warn = false; }
       }
     },
   },
@@ -99,7 +113,7 @@ const PROFILES = {
         if (s.t <= 0) { s.mode = 'squeeze'; s.t = 0.4; bar.squeeze = true; }
       } else if (s.mode === 'squeeze') {
         s.speed = 0;
-        if (s.t <= 0) { s.mode = 'jet'; s.t = 0.3; bar.squeeze = false; const away = bar.fy >= bar.zy ? 1 : -1; s.tgt = clamp(bar.fy + away * rand(0.3, 0.45) * bar.k, 0.08, 0.92); s.speed = 2.4; }
+        if (s.t <= 0) { s.mode = 'jet'; s.t = 0.3; bar.squeeze = false; const away = bar.fy >= bar.zy ? 1 : -1; s.tgt = clamp(bar.fy + away * rand(0.3, 0.45) * bar.k * bar.jetMul, 0.08, 0.92); s.speed = 2.4; }
       } else if (s.t <= 0) { s.mode = 'drift'; s.t = rand(2, 3.4); s.base = bar.fy; s.phase = 0; }
     },
   },
@@ -135,11 +149,9 @@ export class CatchBar {
   start(opts) {
     const profile = PROFILES[opts.profile] ? opts.profile : 'twitch';
     this.profile = profile; this.power = clamp(opts.power ?? 0.5, 0, 1); this.onEnd = opts.onEnd; this.onLitter = opts.onLitter;
-    const q = Math.sqrt(clamp(opts.gear ?? 0.5, 0, 1));
-    this.q = q;
-    this.zoneH = (TUNING.zoneMin + (TUNING.zoneMax - TUNING.zoneMin) * q) * (1.1 - 0.2 * this.power);
-    this.jitter = (1 - q) * TUNING.jitterMax;
-    this.k = 0.8 + 0.5 * this.power * (0.9 + 0.2 * clamp((opts.size ?? 40) / 50, 0.6, 1.4)); // fish speed scale
+    const bp = this.params = barParams(opts);
+    this.q = bp.q; this.zoneH = bp.zoneH; this.jitter = bp.jitter; this.k = bp.k;   // fish speed scale
+    this.drainMul = bp.drainMul; this.save = bp.save; this.turnTime = bp.turnTime; this.jetMul = bp.jetMul; this.saves = 0; this.onSave = opts.onSave;
     this.zy = 0.5; this.zv = 0; this.jt = 0.2;
     this.fy = 0.5; this.fv = 0; this.meter = TUNING.startMeter; this.time = 0;
     this.warn = false; this.squeeze = false; this.inZone = true; this.activity = 0; this.litter = null;
@@ -182,7 +194,7 @@ export class CatchBar {
     this.inZone = Math.abs(this.fy - this.zy) <= h + 0.01;
     // ---- catch meter
     if (this.inZone) this.meter += T.gain * (0.85 + 0.3 * this.q) * dt;
-    else this.meter -= (T.drainBase + T.drainPower * this.power) * dt;
+    else this.meter -= (T.drainBase + T.drainPower * this.power) * dt * this.drainMul;
     this.meter = Math.min(1, this.meter);
     // ---- litter drifts down through the bar; the zone collects it
     this.updateLitter(dt, h);
@@ -190,7 +202,11 @@ export class CatchBar {
     this.el.classList.toggle('warn', this.warn);
     this.render();
     // ---- end conditions
-    if (this.profile === 'bolt' && s.mode === 'dive' && this.fy <= T.structure) return this.finish({ won: false, reason: 'snag' });
+    if (this.profile === 'bolt' && s.mode === 'dive' && this.fy <= T.structure) {
+      // Strong line can hold and turn a bolting fish just before the reef (a break-off saved); light line never does.
+      if (Math.random() < this.save) { this.saves++; this.fy = 0.3; s.mode = 'swim'; s.t = rand(2.2, 3.6); s.tgt = rand(0.5, 0.75); s.speed = 0.7; s.wander = 1; this.warn = false; this.onSave?.(); }
+      else return this.finish({ won: false, reason: 'snag' });
+    }
     if (this.meter >= 1) return this.finish({ won: true });
     if (this.meter <= 0) return this.finish({ won: false, reason: 'empty' });
   }
