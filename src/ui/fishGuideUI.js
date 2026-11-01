@@ -50,10 +50,10 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
       <p class="tagline">Gotta catch 'em all… and release the small.</p>
       <div class="g-stats">
         <div class="g-stat"><b>Guide complete</b><div class="meter"><i style="width:${comp}%"></i></div><span>${comp}%</span></div>
-        <div class="g-stat"><b>Bay Health</b><div class="meter bay ${bay < 45 ? 'low' : ''}"><i style="width:${bay}%"></i></div><span>${pct(bay)} · ${G.bayLabel(bay)}</span></div>
+        <div class="g-stat"><b>Bay Health</b><div class="meter bay ${bay < 45 ? 'low' : ''}"><i style="width:${bay}%"></i></div><span>${G.bayText(bay)} · ${G.bayLabel(bay)}</span></div>
         <div class="g-stat"><b>Steward rating</b><span class="stars big">${G.starsText(st.value)}</span><span>${st.value.toFixed(1)} of 5</span></div>
       </div>
-      ${(() => { const e = endingStatus(p), done = ensureEnding(p).awards; return `<p class="end-line">${done ? '🏆 You have had your awards night. ' : '🏆 Awards night: '}Mastered <b>${e.mastered}/${e.total}</b> · Bay Health <b>${Math.round(e.bay)}%</b> (needs ${e.bayNeed}%) · Caught <b>${e.caught}/${e.total}</b></p>`; })()}
+      ${(() => { const e = endingStatus(p), done = ensureEnding(p).awards; return `<p class="end-line">${done ? '🏆 You have had your awards night. ' : '🏆 Awards night: '}Mastered <b>${e.mastered}/${e.total}</b> · Bay Health <b>${G.bayText(e.bay)}</b> (needs ${e.bayNeed.toFixed(1)}%: fish stocks ${G.bayText(e.bayStock)} + Steward bonus ${e.bayBonus >= 0 ? '+' : '−'}${Math.abs(e.bayBonus).toFixed(1)}) · Caught <b>${e.caught}/${e.total}</b></p>`; })()}
       <div class="tabs" role="tablist">
         <button data-reg="all" class="${reg === 'all' ? 'on' : ''}">All ${doneAll}/${total}</button>
         ${counts.map(c => `<button data-reg="${c.key}" class="${reg === c.key ? 'on' : ''}">${esc(c.label)} ${c.done}/${c.total}</button>`).join('')}

@@ -50,10 +50,13 @@ test('ending: awards night needs 100% Mastered AND Bay Health at the threshold',
   E.markCeremony(q, 'awards'); assert.equal(E.pendingCeremony(q), null, 'awards night covers the smaller milestone too');
   assert.ok(q.ending.awards > 0 && q.ending.milestone > 0);
 });
-test('ending: the co-op licence is offered after the awards ending (and not by the milestone alone)', () => {
-  const p = fresh(); caught(p); E.markCeremony(p, 'milestone');
-  assert.equal(coopEligible(p), false, 'caught is not identified');
-  E.markCeremony(p, 'awards'); assert.equal(coopEligible(p), true);
+test('ending: the co-op licence is offered only after a real ceremony (the milestone celebration or awards night), not by catching or identifying alone', () => {
+  const p = fresh(); caught(p);
+  assert.equal(coopEligible(p), false, 'caught every fish but the celebration has not been held');
+  for (const s of SPECIES) p.guide.e[s.id].ident = true;
+  assert.equal(coopEligible(p), false, 'identified every fish: still no');
+  E.markCeremony(p, 'milestone'); assert.equal(coopEligible(p), true, 'the celebration opens it');
+  const q = fresh(); E.markCeremony(q, 'awards'); assert.equal(coopEligible(q), true);
 });
 
 // ---------------------------------------------------------------- the speeches

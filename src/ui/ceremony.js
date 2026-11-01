@@ -107,6 +107,8 @@ export async function runCeremony(game, kind = 'awards', opts = {}) {
   const g = game, p = g.progress, awards = kind === 'awards' ? AWARDS : MILESTONE;
   if (g.ceremonyRunning) return 'busy';
   g.ceremonyRunning = true;
+  // opts.preview (?ceremony=): a look at the ceremony for teachers and tests. Nothing is saved for the whole page visit: the ceremony is not recorded, the day does not move on, nothing is persisted.
+  if (opts.preview) g.noSave = true;
   try {
     g.fishing.stop(); g.panels.close(true); g.dialogue.hide();
     $('#menu').classList.remove('show'); $('#hud').classList.add('hidden'); document.body.classList.remove('land-mode');
@@ -139,8 +141,8 @@ export async function runCeremony(game, kind = 'awards', opts = {}) {
     for (let i = 0; i < awards.length; i++) await speak(awards[i], i);
     g.dialogue.hide();
     g.cer.want.set(S.x, ph + 1.5, S.z + 1.4);
-    markCeremony(p, kind); g.persist();
-    const choice = await endCard(g, kind, s);
+    if (!opts.preview) { markCeremony(p, kind); g.persist(); }
+    const choice = await endCard(g, kind, s, !!opts.preview);
     // clean up the set
     mb.classList.remove('show'); $('#cer-banner')?.classList.remove('show');
     stage.dispose(); g.npcs.dispose(); g.cer = null;
@@ -148,7 +150,7 @@ export async function runCeremony(game, kind = 'awards', opts = {}) {
     else {
       // Keep fishing: the next morning on the beach (the ceremony night passes).
       g.cond.minutes = (day + 1) * 1440 + START_HOUR * 60;
-      g.npcs.load(g.eco); g.npcs.bumpDay();
+      g.npcs.load(g.eco); if (!opts.preview) g.npcs.bumpDay();
       g.startLand(null);   // (an outing already in progress carries on; the head-home summary clears it)
     }
     return choice;
@@ -157,13 +159,14 @@ export async function runCeremony(game, kind = 'awards', opts = {}) {
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /** The end card: the tagline, your numbers, what is left to do, then Keep fishing / Credits / Title. */
-function endCard(g, kind, s) {
-  const p = g.progress, st = endingStatus(p), steps = nextSteps(s, BAY_THRESHOLD), offer = coopEligible(p);
+function endCard(g, kind, s, preview = false) {
+  const p = g.progress, st = endingStatus(p), steps = nextSteps(s, BAY_THRESHOLD), offer = !preview && coopEligible(p);
   return new Promise(resolve => {
     const done = v => { g.panels.close(true); resolve(v); };
     const html = `<div class="flow endcard ${kind}">
       <h2>${kind === 'awards' ? '🏆 Awards night' : '🎉 Every fish caught!'}</h2>
       <p class="tagline">${esc(TAGLINE)}</p>
+      ${preview ? '<p class="muted"><b>Preview only.</b> Nothing from this ceremony is saved. Reload the page to leave the preview.</p>' : ''}
       <p class="sub">${esc(s.name)}${kind === 'awards' ? ', Steward of the Illawarra coast' : ''}</p>
       <div class="sum-grid">
         <div class="sum-card"><b>${s.mastered}/${s.total}</b><span>Mastered</span></div>

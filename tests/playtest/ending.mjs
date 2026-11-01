@@ -76,7 +76,7 @@ for (let i = 0; i < 10; i++) {
 const joined = awardTexts.join(' | ');
 check(/Kai/.test(joined), 'the awards use the player\'s name');
 check(awardTexts.length === 10 && awardTexts.filter(x => /\d/.test(x)).length >= 8, 'the awards quote numbers from the player\'s own record');
-check(/14 pieces/.test(joined) && /9 tagged/.test(joined) && /Bay Health is at 88%/.test(joined), 'litter (14), tags (9) and Bay Health (88%) are the scripted numbers');
+check(/14 pieces/.test(joined) && /9 tagged/.test(joined) && /Bay Health is at 8\d%|Bay Health is at 9\d%/.test(joined), 'litter (14), tags (9) and Bay Health (the scripted 88% stocks plus the Steward bonus) are the scripted numbers');
 check(await waitFor('.endcard', 6000), 'the end card appears');
 const end = await text('.endcard');
 check(/Gotta catch ’em all… and release the small\./.test(end), 'the end card has the tagline');

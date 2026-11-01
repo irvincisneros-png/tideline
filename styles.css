@@ -646,7 +646,7 @@ body.creator-open #npc-labels { display: none; }
 @media (prefers-reduced-motion: reduce) { #ink-splash.show { animation-duration: 1.2s; } }
 
 /* ---- phase 6: the offshore reef (fish finder, boat trip, anchor) and the river */
-.sonar { position: absolute; left: 14px; bottom: 14px; width: 330px; z-index: 6; background: var(--cream); border: 4px solid var(--teal-ink); border-radius: 18px; box-shadow: var(--shadow); padding: 8px 10px 8px; color: var(--teal-ink); pointer-events: auto; }
+.sonar { position: fixed; left: 14px; bottom: 14px; width: 330px; z-index: 13; background: var(--cream); border: 4px solid var(--teal-ink); border-radius: 18px; box-shadow: var(--shadow); padding: 8px 10px 8px; color: var(--teal-ink); pointer-events: auto; }
 .sonar-head, .sonar-foot { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; }
 .sonar-head b { font-family: var(--font-display); font-size: 14px; } .sn-depth { margin-left: auto; font-family: var(--font-display); font-size: 17px; color: var(--accent2); }
 .sonar canvas { display: block; width: 100%; height: auto; border-radius: 10px; border: 3px solid var(--teal-deep); background: #082a45; margin: 6px 0; image-rendering: pixelated; }
@@ -665,7 +665,15 @@ body.creator-open #npc-labels { display: none; }
 .trip-cap { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); max-width: 86vw; background: var(--cream); color: var(--teal-ink); border: 4px solid var(--teal-ink); border-radius: 18px; padding: 8px 18px; font-family: var(--font-display); font-size: clamp(14px, 2vw, 20px); text-align: center; box-shadow: var(--shadow); }
 #trip-skip { position: absolute; right: 16px; top: 16px; background: var(--cream); }
 @media (max-width: 700px) { .sonar { left: 8px; bottom: 8px; top: auto; width: 200px; padding: 5px 6px; border-width: 3px; } .sonar-head b { font-size: 12px; } .sn-depth { font-size: 14px; } .sonar canvas { margin: 3px 0; } .sonar-foot { font-size: 10.5px; } .sonar-foot .btn { font-size: 11px; padding: 1px 6px; } .sonar-foot kbd { display: none; } }
-body.touch .sonar { left: 10px; bottom: auto; top: 118px; width: 210px; }
+body.touch .sonar { left: auto; right: calc(12px + env(safe-area-inset-right)); bottom: auto; top: calc(60px + env(safe-area-inset-top)); width: 164px; padding: 4px 6px; border-width: 3px; border-radius: 14px; }   /* top right, between the top buttons and the thumb pad: clear of the joystick */
+body.touch .sonar-head { white-space: nowrap; gap: 4px; } body.touch .sonar-head b { font-size: 11px; } body.touch .sn-depth { font-size: 13px; }
+body.touch .sonar kbd { display: none; } body.touch .sonar canvas { margin: 3px 0; border-width: 2px; }
+body.touch .sonar .btn { padding: 2px 7px; font-size: 11px; min-height: 30px; min-width: 34px; line-height: 1; flex: none; }
+body.touch .sonar-foot span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.touch .sonar-foot { font-size: 10.5px; white-space: nowrap; }
+body:not([data-mode="land"]) .sonar { display: none; }
+.t-anchor { display: none !important; }
+#touch[data-mode="land"][data-anchor="1"] .t-anchor { display: flex !important; }
 
 /* a warm sunrise / sunset wash over the whole picture (set each frame from the Environment's glow: ocean/daylight.js), cheap on every graphics tier */
 #fx-sunset { opacity: 0; mix-blend-mode: multiply; background: radial-gradient(ellipse at 50% 55%, rgb(255, 214, 160) 0%, rgb(255, 188, 128) 60%, rgb(236, 140, 112) 100%); }
@@ -775,3 +783,6 @@ body[data-mode="ceremony"] .npc-tag { padding: 1px 8px; } body[data-mode="ceremo
 @media (max-width: 560px) { .endcard .sum-card b { font-size: 24px; } .endcard .sum-card { padding: 8px 6px; } .endcard h2 { font-size: 26px; } }
 .coop-tabs button { white-space: nowrap; }
 @media (max-aspect-ratio: 4/5) { body[data-mode="ceremony"] .npc-tag { display: none; } }
+
+/* first-run premise card (ui/firstRun.js) */
+.fr-dots { display: flex; gap: 6px; margin-top: 8px; } .fr-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(31, 95, 107, 0.25); border: 2px solid var(--teal-ink); } .fr-dots i.on { background: var(--turq2); }

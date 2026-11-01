@@ -12,6 +12,9 @@ import { Props } from './props.js';
 
 const SHARED_MODELS = 'assets/models/tideline_cosy.glb'; // the angler, trees, jetty, boats and huts shared by every site
 
+/** Names in the shared set that the people need whatever the graphics style: the character rig, the rod and the carried props. */
+const GAMEPLAY_PARTS = /^(ang_|rod_|bucket$|esky$)/;
+
 const tick = () => new Promise(r => setTimeout(r, 0));
 
 export class World {
@@ -41,13 +44,18 @@ export class World {
     // Stylised look: hand-shaped Blender models replace some procedural corals, rocks and fish (if the site has a set).
     let art = null;
     this.models = new Map();
-    if (globalUniforms.uStyle.value > 0.5) {
+    const stylised = globalUniforms.uStyle.value > 0.5;
+    // The people (the angler, Mitra, Nell and everyone else) are gameplay, so their parts load in EVERY graphics style. Only the decorative sets (hand-shaped trees, huts, corals)
+    // are for the stylised look. If the .glb cannot be fetched the people are still built, from simple fallback shapes (land/angler.js), so the shop and Nell always exist.
+    let shared = null;
+    try { shared = await loadModelSet(SHARED_MODELS); } catch (e) { console.warn('Character model set failed to load; using simple fallback people.', e); }
+    if (stylised) {
       try {
         const own = eco.cosyModels ? await loadModelSet(eco.cosyModels.url) : new Map();
-        this.models = new Map([...own, ...await loadModelSet(SHARED_MODELS)]);
+        this.models = new Map([...own, ...(shared ?? [])]);
         art = { ...(eco.cosyModels ?? { coral: {} }), models: this.models };
-      } catch (e) { console.warn('Model set failed to load; using procedural models.', e); }
-    }
+      } catch (e) { console.warn('Model set failed to load; using procedural models.', e); this.models = new Map(shared ?? []); }
+    } else if (shared) this.models = new Map([...shared].filter(([k]) => GAMEPLAY_PARTS.test(k)));   // realistic style: the character parts and their hand props only
     this.reef = new Reef(this.scene, eco, this.terrain, this.quality, 11, art);
     await tick();
     progress(0.75, 'Painting fish and waking the reef…');

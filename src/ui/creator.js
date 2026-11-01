@@ -125,7 +125,7 @@ export class AnglerStage {
   }
   frame() {
     const now = performance.now(), dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.t += dt;
-    if (this.auto) this.yaw += dt * 0.45;
+    if (this.auto) this.yaw = 0.5 + Math.sin(this.t * 0.7) * 0.28;   // a gentle sway around a 3/4 front view: always facing the camera, never showing their back
     this.angler.root.rotation.y = this.yaw;
     this.angler.update(dt, this.t, { state: 'ready', phi: 1.4, reducedMotion: this.reducedMotion });
     this.waterTex.offset.set(this.t * 0.004, this.t * 0.006);

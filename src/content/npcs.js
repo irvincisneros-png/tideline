@@ -338,7 +338,7 @@ export const NPCS = {
     greet: ["G'day, {name}! Stay between the flags.", 'Hey {name}. What is the swell doing?', 'Morning, {name}!'],
     topics: [
       { q: 'Do I need a lifejacket on the rocks?', a: [
-        'Yes. Wollongong is a declared area under the Rock Fishing Safety Act 2016. Council opted in, and since November 2023 police can issue a penalty notice, about $100, if you rock fish without a lifejacket.',
+        'Yes. Wollongong is a declared area under the Rock Fishing Safety Act 2016. Council opted in, and since November 2023 police can issue a penalty notice, about $100 (check the current amount), if you rock fish without a lifejacket.',
         'Do the buckles up, snug. A good lift test: pull up on the shoulders and it should not rise above your ears.',
       ] },
       { q: 'How do I stay safe on the rock platform?', a: [
@@ -601,7 +601,7 @@ export const NPCS = {
         'Yes. Lake Illawarra has some commercial fishing in the estuary. That is a different job from ours, and it follows its own rules. Rod and line only for you around the lake entrance, remember.',
       ] },
       { q: 'Could I get a commercial licence one day?', a: [
-        'Ha! Maybe. The co-op licence is the last chapter. Come and see me once every kind of fish in your Fish Guide is Identified, or after awards night at the club. Then you can look at quotas, nets and bycatch from my side of the deck, and sell a commercial haul at the co-op.',
+        'Ha! Maybe. The co-op licence is the last chapter. Come and see me after the club celebration for catching every kind of fish, or after awards night. Then you can look at quotas, nets and bycatch from my side of the deck, and sell a commercial haul at the co-op.',
         'It is the only place anyone can sell fish in this game, and recreational fish never can. For now, keep catching, measuring, and releasing the small ones.',
       ], teaser: 'commercial' },
     ],

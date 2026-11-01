@@ -7,8 +7,9 @@
 import { SPECIES } from './species.js';
 import * as G from './guide.js';
 
-/** Bay Health (0-100) needed for awards night. A new save starts at about 70.2, so it takes real catch-and-release to get here. */
-export const BAY_THRESHOLD = 71;
+/** Bay Health (0-100) needed for awards night. A new save starts at about 70.4 (the native stocks, no Steward bonus yet). Good practice (releases handled well, tagging, litter,
+ *  legal keeps only) earns a Steward bonus of up to +5.4, so a player who masters every kind of fish the right way clears it without any grinding (tests/ending.test.mjs plays one through). */
+export const BAY_THRESHOLD = 73;
 
 export function ensureEnding(p) { p.ending ??= { milestone: null, awards: null }; p.ending.milestone ??= null; p.ending.awards ??= null; return p.ending; }
 
@@ -18,9 +19,9 @@ export const masteredAll = p => count(p, 'mastered') === SPECIES.length;
 
 /** Where the player stands on both endings. */
 export function endingStatus(p) {
-  const total = SPECIES.length, bay = G.bayHealth(p), caught = count(p, 'caught'), mastered = count(p, 'mastered');
+  const total = SPECIES.length, parts = G.bayParts(p), bay = parts.total, caught = count(p, 'caught'), mastered = count(p, 'mastered');
   const milestone = caught === total, bayOk = bay >= BAY_THRESHOLD;
-  return { total, caught, mastered, bay, bayNeed: BAY_THRESHOLD, bayOk, milestone, awards: mastered === total && bayOk,
+  return { total, caught, mastered, bay, bayStock: parts.stock, bayBonus: parts.bonus, bayNeed: BAY_THRESHOLD, bayOk, milestone, awards: mastered === total && bayOk,
     missing: SPECIES.filter(s => G.tierOf(p, s.id) !== 'mastered').map(s => s.id) };
 }
 /** Which ceremony is waiting to be shown (awards first), or null. Each one is offered once. */

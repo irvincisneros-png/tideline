@@ -19,46 +19,144 @@ const KEY = 'tideline.progress.v1';
 //   v4 (phase 7, the endings and the commercial post-game; migrated from v3, which keeps everything and only gains these two fields):
 //   ending: { milestone: t | null, awards: t | null } — the club ceremonies already shown (fishing/ending.js). A save that already meets a trigger shows its ceremony at the next head-home.
 //   coop: the co-op licence, co-op credits (a SEPARATE currency from Club credits), the hold, quota counters, boat upgrades and the chosen fishing method (economy/commercial.js ensureCoop).
+//   fridge (release fixes): fish taken home from the esky { id, label, length, legal, day, time }; they count toward possession for FRIDGE_DAYS simulated days (economy/possession.js). catches rows also gain `day` (the simulated day the fish was handled on).
 //   catches rows gain `flow` (low | normal | high) on the river, where there is no tide: the logbook column "tide or flow" reads r.tide ?? r.flow.
 import { RATES, START_BAIT_STOCK } from '../content/shop.js';
 export const SAVE_VERSION = 4;
 const blankEcon = () => ({ day: 1, speciesToday: {}, tagsToday: 0, litterToday: 0, litterPaid: 0, first: {}, combos: {}, collected: {}, comp: null, compDone: null, tags: [], lastLetterDay: 0, earned: 0, log: [] });
 const blankCoop = () => ({ licence: null, credits: 0, earned: 0, hold: [], landed: {}, yearStart: 1, haulsDay: { day: 0, n: 0 }, hauls: 0, upgrades: {}, method: null, labPassed: {}, log: [] });
 const blankShop = () => ({ owned: {}, equip: { rod: 'rod-1', line: 'line-std' }, worn: {}, bait: { ...START_BAIT_STOCK } });
-const blank = () => ({ v: SAVE_VERSION, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} }, coins: RATES.startGrant, econ: blankEcon(), shop: blankShop(), ending: { milestone: null, awards: null }, coop: blankCoop() });
+const blank = () => ({ v: SAVE_VERSION, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], fridge: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} }, coins: RATES.startGrant, econ: blankEcon(), shop: blankShop(), ending: { milestone: null, awards: null }, coop: blankCoop() });
 
-/** Bring any saved progress (v1 to v4, or nothing) up to the current version. Pure: no storage. */
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const isNum = v => typeof v === 'number' && Number.isFinite(v);
+/** A repair note: which field fell back to its blank value (progress.repaired, shown nowhere but kept for support and the tests). */
+const note = (notes, where) => { notes.push(where); };
+/** A plain object field: the saved one if it is an object, else the fallback. */
+const objOr = (v, fallback, notes, where) => { if (isObj(v)) return v; if (v !== undefined) note(notes, where); return fallback; };
+const arrOr = (v, notes, where) => { if (Array.isArray(v)) return v; if (v !== undefined) note(notes, where); return []; };
+/** An object whose values must all pass `ok`: bad entries are dropped one by one, the good ones stay. */
+const mapOf = (v, ok, notes, where) => {
+  if (!isObj(v)) { if (v !== undefined) note(notes, where); return {}; }
+  const out = {};
+  for (const [k, x] of Object.entries(v)) { if (ok(x)) out[k] = x; else note(notes, `${where}.${k}`); }
+  return out;
+};
+const any = () => true;
+
+/**
+ * Bring any saved progress (v1 to v4, or nothing) up to the current version. Pure: no storage.
+ * Every nested field is validated on its own with a fallback to its blank value, so one malformed field (an `econ.first: null`) costs only that field and never the whole save.
+ * The names of the fields that fell back are listed in `p.repaired`.
+ */
 export function migrateProgress(saved) {
-  saved = saved && typeof saved === 'object' ? saved : {};
-  const fresh = !saved || Object.keys(saved).length === 0, b = blank(), p = { ...b, ...saved };
-  p.steward = { ...b.steward, ...(saved.steward ?? {}) };
-  p.econ = { ...b.econ, ...(saved.econ ?? {}) };
-  p.shop = { ...b.shop, ...(saved.shop ?? {}) };
-  p.shop.equip = { ...b.shop.equip, ...(saved.shop?.equip ?? {}) };
-  p.shop.owned ??= {}; p.shop.worn ??= {}; p.shop.bait ??= { ...START_BAIT_STOCK };
-  p.ending = { ...b.ending, ...(saved.ending ?? {}) };
-  p.coop = { ...b.coop, ...(saved.coop ?? {}) };
-  p.coop.haulsDay = { ...b.coop.haulsDay, ...(saved.coop?.haulsDay ?? {}) };
-  for (const k of ['hold', 'log']) if (!Array.isArray(p.coop[k])) p.coop[k] = [];
-  for (const k of ['landed', 'upgrades', 'labPassed']) if (!p.coop[k] || typeof p.coop[k] !== 'object') p.coop[k] = {};
+  saved = isObj(saved) ? saved : {};
+  const notes = [], fresh = Object.keys(saved).length === 0, b = blank(), p = { ...b, ...saved };
+  const run = (where, fn) => { try { fn(); } catch { note(notes, where); } };
+  // --- the simple top-level fields
+  p.journal = objOr(saved.journal, b.journal, notes, 'journal');
+  p.catches = arrOr(saved.catches, notes, 'catches').filter(isObj);
+  p.stock = mapOf(saved.stock, isNum, notes, 'stock');
+  p.esky = arrOr(saved.esky, notes, 'esky').filter(isObj);
+  p.fridge = arrOr(saved.fridge, notes, 'fridge').filter(isObj);
+  p.tips = objOr(saved.tips, b.tips, notes, 'tips');
+  p.gear = isObj(saved.gear) ? saved.gear : null;
+  p.outing = isObj(saved.outing) ? saved.outing : null;
+  p.angler = isObj(saved.angler) ? saved.angler : null;
+  p.steward = { ...b.steward, ...objOr(saved.steward, {}, notes, 'steward') };
+  // --- the Fish Guide
+  run('guide', () => {
+    const g = objOr(saved.guide, null, notes, 'guide') ?? {};
+    p.guide = { ...b.guide, ...g, nextN: isNum(g.nextN) ? g.nextN : 1, e: mapOf(g.e, isObj, notes, 'guide.e') };
+  });
+  // --- the inventory and the people
+  run('inventory', () => {
+    const v = objOr(saved.inventory, {}, notes, 'inventory');
+    p.inventory = { ...b.inventory, ...v, have: mapOf(v.have, any, notes, 'inventory.have'), cards: mapOf(v.cards, any, notes, 'inventory.cards') };
+    if (typeof p.inventory.worn !== 'string') p.inventory.worn = null;
+    if (typeof p.inventory.lure !== 'string') p.inventory.lure = null;
+  });
+  run('npc', () => {
+    const v = objOr(saved.npc, {}, notes, 'npc');
+    p.npc = { ...b.npc, ...v, day: isNum(v.day) && v.day >= 1 ? v.day : 1 };
+    for (const k of ['met', 'accepted', 'done', 'quizFail', 'rot']) p.npc[k] = mapOf(v[k], any, notes, `npc.${k}`);
+    if (isObj(v.heard)) p.npc.heard = v.heard; else delete p.npc.heard;
+  });
+  // --- the economy
+  run('econ', () => {
+    const v = objOr(saved.econ, {}, notes, 'econ');
+    p.econ = { ...b.econ, ...v };
+    p.econ.day = isNum(v.day) && v.day >= 1 ? v.day : 1;
+    for (const k of ['tagsToday', 'litterToday', 'litterPaid', 'lastLetterDay', 'earned']) if (!isNum(p.econ[k])) { if (v[k] !== undefined) note(notes, `econ.${k}`); p.econ[k] = 0; }
+    p.econ.speciesToday = mapOf(v.speciesToday, isNum, notes, 'econ.speciesToday');
+    p.econ.first = mapOf(v.first, any, notes, 'econ.first');
+    p.econ.combos = mapOf(v.combos, any, notes, 'econ.combos');
+    p.econ.collected = mapOf(v.collected, isNum, notes, 'econ.collected');
+    p.econ.tags = arrOr(v.tags, notes, 'econ.tags').filter(isObj);
+    p.econ.log = arrOr(v.log, notes, 'econ.log').filter(isObj);
+    p.econ.comp = isObj(v.comp) ? v.comp : null; p.econ.compDone = isObj(v.compDone) ? v.compDone : null;
+  });
+  run('shop', () => {
+    const v = objOr(saved.shop, {}, notes, 'shop');
+    p.shop = { ...b.shop, ...v };
+    p.shop.equip = { ...b.shop.equip, ...mapOf(v.equip, x => typeof x === 'string', notes, 'shop.equip') };
+    p.shop.owned = mapOf(v.owned, any, notes, 'shop.owned'); p.shop.worn = mapOf(v.worn, any, notes, 'shop.worn');
+    p.shop.bait = isObj(v.bait) ? mapOf(v.bait, isNum, notes, 'shop.bait') : { ...START_BAIT_STOCK };
+  });
+  run('ending', () => {
+    const v = objOr(saved.ending, {}, notes, 'ending');
+    p.ending = { milestone: isNum(v.milestone) ? v.milestone : null, awards: isNum(v.awards) ? v.awards : null };
+  });
+  run('coop', () => {
+    const v = objOr(saved.coop, {}, notes, 'coop');
+    p.coop = { ...b.coop, ...v };
+    p.coop.haulsDay = { ...b.coop.haulsDay, ...objOr(v.haulsDay, {}, notes, 'coop.haulsDay') };
+    for (const k of ['hold', 'log']) p.coop[k] = arrOr(v[k], notes, `coop.${k}`).filter(isObj);
+    for (const k of ['landed', 'upgrades', 'labPassed']) p.coop[k] = mapOf(v[k], any, notes, `coop.${k}`);
+    p.coop.licence = isObj(v.licence) ? v.licence : null; p.coop.method = isObj(v.method) ? v.method : null;
+    if (!isNum(p.coop.credits)) p.coop.credits = 0; if (!isNum(p.coop.earned)) p.coop.earned = 0;
+  });
   if (!fresh && (saved.v ?? 1) < 3) {
     // v2 -> v3: keep everything, add a small credit grant and the starting bait, and mark what the logbook already covers so it does not pay again.
-    p.coins = Math.max(Number.isFinite(saved.coins) ? saved.coins : 0, RATES.migrationGrant);
-    p.shop.bait = { ...START_BAIT_STOCK, ...(saved.shop?.bait ?? {}) };
-    for (const c of saved.catches ?? []) {
-      if (c.id && !p.econ.first[c.id]) p.econ.first[c.id] = c.time ?? 1;
-      if (c.id) p.econ.combos[`${c.id}|${c.spot}|${c.tide ?? c.flow}|${c.daytime}`] = c.time ?? 1;
-    }
-    p.migratedFrom = saved.v ?? 1;
+    run('v3', () => {
+      p.coins = Math.max(Number.isFinite(saved.coins) ? saved.coins : 0, RATES.migrationGrant);
+      p.shop.bait = { ...START_BAIT_STOCK, ...(isObj(saved.shop?.bait) ? p.shop.bait : {}) };
+      for (const c of p.catches) {
+        if (c.id && !p.econ.first[c.id]) p.econ.first[c.id] = c.time ?? 1;
+        if (c.id) p.econ.combos[`${c.id}|${c.spot}|${c.tide ?? c.flow}|${c.daytime}`] = c.time ?? 1;
+      }
+      p.migratedFrom = saved.v ?? 1;
+    });
   }
-  if (!Number.isFinite(p.coins)) p.coins = 0;
+  if (!Number.isFinite(p.coins)) { if (saved.coins !== undefined) note(notes, 'coins'); p.coins = fresh ? RATES.startGrant : 0; }
+  if (notes.length) p.repaired = [...new Set([...(Array.isArray(saved.repaired) ? saved.repaired : []), ...notes])].slice(-40); else if (!Array.isArray(saved.repaired)) delete p.repaired;
   p.v = SAVE_VERSION;
   return p;
 }
 
+const BACKUPS = 3;
+/** Keep the raw text of a save we could not read under its own key (never the live one), so nothing is lost when the blank game later overwrites the live key. Keeps the newest few. */
+export function backupRaw(raw, reason = '', storage = globalThis.localStorage) {
+  try {
+    if (!raw || !storage) return null;
+    const key = `${KEY}.backup.${Date.now()}`;
+    storage.setItem(key, JSON.stringify({ at: Date.now(), reason: String(reason).slice(0, 200), raw }));
+    const old = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(k => k?.startsWith(`${KEY}.backup.`)).sort();
+    for (const k of old.slice(0, Math.max(0, old.length - BACKUPS))) storage.removeItem(k);
+    return key;
+  } catch { return null; }
+}
+
+/** Load the saved progress. If the save cannot be read or migrated, the original raw text is copied to a separate backup key BEFORE anything is written, then a blank game starts. */
 export function loadProgress() {
-  try { return migrateProgress(JSON.parse(localStorage.getItem(KEY) || '{}')); }
-  catch { return blank(); }
+  let raw = null;
+  try {
+    raw = localStorage.getItem(KEY);
+    return migrateProgress(JSON.parse(raw || '{}'));
+  } catch (e) {
+    if (raw) backupRaw(raw, e?.message ?? 'unreadable save');
+    return blank();
+  }
 }
 export function saveProgress(p) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); return true; }

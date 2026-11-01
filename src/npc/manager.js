@@ -11,6 +11,7 @@ import { Labels } from './labels.js';
 import { Talk } from './talk.js';
 import { portraitFor } from './portrait.js';
 import { questLog, ensureNpc, nextDay, tradeStatus } from './requests.js';
+import { pruneFridge } from '../economy/possession.js';
 import { sanitizeLook, nameOf } from '../core/anglerData.js';
 import { esc } from '../ui/panels.js';
 import { PORTRAITS } from '../ui/dialogue.js';
@@ -36,7 +37,7 @@ export class NPCManager {
   load(eco) {
     this.dispose();
     const g = this.game;
-    if (!g.world.models?.size) return;   // realistic style: no cosy rig, no people
+    // The people are gameplay (the shop, Nell, the quizzes), so they exist in every graphics style and even if the model file failed to load (land/angler.js builds fallback shapes).
     for (const [id, def] of Object.entries(NPCS)) {
       if (!def.sites[eco.id]) continue;
       const npc = new NPC(this, id, def, eco.id);
@@ -59,7 +60,6 @@ export class NPCManager {
   loadCast(eco, spots) {
     this.dispose();
     const g = this.game;
-    if (!g.world.models?.size) return false;
     this.ceremony = true;
     for (const [id, def] of Object.entries(NPCS)) {
       const at = spots[id]; if (!at) continue;
@@ -133,13 +133,13 @@ export class NPCManager {
     for (const npc of this.npcs) npc.setSlot(resolveSlot(slotAt(npc.def, this.siteId, time), places), snap);
   }
   /** The in-game day counter moves on at midnight and when you head home; failed quizzes can be retried on a new day. */
-  bumpDay() { nextDay(this.p); this.game.persist(); }
+  bumpDay() { nextDay(this.p); pruneFridge(this.p); this.game.persist(); }
 
   // ------------------------------------------------------------------ people
   /** The dialogue "who" for a person: name, role and their 3D portrait bust. */
   whoOf(id) {
     const def = NPCS[id], g = this.game;
-    return { name: def.name, role: def.role, portrait: PORTRAITS[id]?.portrait, portraitUrl: g.world?.models?.size ? portraitFor(id, g.world.models, sanitizeLook(def.look), { lo: g.settings.quality === 'low' }) : null };
+    return { name: def.name, role: def.role, portrait: PORTRAITS[id]?.portrait, portraitUrl: (() => { try { return portraitFor(id, g.world.models, sanitizeLook(def.look), { lo: g.settings.quality === 'low' }); } catch { return null; } })() };
   }
   nearestTo(pos, r, filter) {
     let best = null, bd = r;

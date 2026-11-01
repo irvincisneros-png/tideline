@@ -234,9 +234,10 @@ export function patchUnderwater(material, opts = {}) {
           vec3 q = vWPos - ro; float tt = dot(q, rd);
           if (tt > 0.0 && tt < distance(P, ro) - 0.4) {
             float dl = length(q - rd * tt);
-            if (dl < 2.3) discard;
+            if (dl < ${typeof opts.cutaway === 'number' ? opts.cutaway.toFixed(1) : '2.3'}) discard;
           }
-        }`);
+        }
+        if (distance(vWPos, cameraPosition) < 3.2) discard;   // foliage right up against the camera lens never fills the screen`);
     }
     if (opts.fish) {
       // Fins: bony rays from base to edge, thinning to a ragged, see-through margin (alpha-to-coverage with MSAA).
@@ -363,6 +364,6 @@ export function patchUnderwater(material, opts = {}) {
         #include <fog_fragment>
       #endif`);
   };
-  material.customProgramCacheKey = () => 'uw' + (opts.key ?? '') + (opts.vertical ? 'v' : '') + (opts.pulse ? 'p' : '') + (opts.detail ? 'd' + (opts.detailScale ?? '') : '') + (opts.swim ? 's' : '') + (opts.flap ? 'f' : '') + (opts.coral ? 'c' : '') + (opts.transl ? 't' + opts.transl : '') + (opts.fish ? 'F' : '') + (opts.cutaway ? 'k' : '') + (opts.sway ? 'w' + opts.sway : '') + (opts.swimLength ?? '') + (opts.waveK ?? '');
+  material.customProgramCacheKey = () => 'uw' + (opts.key ?? '') + (opts.vertical ? 'v' : '') + (opts.pulse ? 'p' : '') + (opts.detail ? 'd' + (opts.detailScale ?? '') : '') + (opts.swim ? 's' : '') + (opts.flap ? 'f' : '') + (opts.coral ? 'c' : '') + (opts.transl ? 't' + opts.transl : '') + (opts.fish ? 'F' : '') + (opts.cutaway ? 'k' + (typeof opts.cutaway === 'number' ? opts.cutaway : '') : '') + (opts.sway ? 'w' + opts.sway : '') + (opts.swimLength ?? '') + (opts.waveK ?? '');
   return material;
 }

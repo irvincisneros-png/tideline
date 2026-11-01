@@ -49,6 +49,31 @@ export function stockOf(stock, spot, id) {
   return v ?? STOCK_SEED[SPECIES_BY_ID[id]?.status ?? 'undefined'] ?? 60;
 }
 
+/** The seed value (from the NSW stock status) a stock recovers toward. */
+export const seedOf = (spot, id) => STOCK_SEED[SPECIES_BY_ID[id]?.status ?? 'undefined'] ?? 60;
+/** A depleted stock still has a few fish: even at 0 a species keeps this much of a bite weight, so it can always still be found and Mastered. */
+export const STOCK_FLOOR = 6;
+/** Left alone, a stock below its natural level recovers this many points per in-game day, up to the seed. Recovery takes time. */
+export const STOCK_RECOVERY = 2;
+/** What one handled fish does to the stock at its spot: a legal keep -1, an illegal keep -4, a release +1 (+ any release-weight bonus). A pest fish never moves a native stock. */
+export const stockDelta = (keep, legal, bonus = 0) => (keep ? (legal ? -1 : -4) : 1 + bonus);
+/** A day passes: every stock below its seed climbs back toward it. Returns how many stocks moved. */
+export function recoverStock(progress, days = 1) {
+  let n = 0;
+  for (const [k, v] of Object.entries(progress.stock ?? {})) {
+    const [spot, id] = k.split(':'), seed = seedOf(spot, id);
+    if (v < seed) { progress.stock[k] = Math.min(seed, v + STOCK_RECOVERY * days); n++; }
+  }
+  return n;
+}
+/** A plain-English note when a stock is low (shown on the verdict card), or ''. */
+export function stockNote(progress, spot, id) {
+  const v = stockOf(progress.stock, spot, id), seed = seedOf(spot, id);
+  if (v >= Math.min(25, seed)) return '';
+  const days = Math.ceil((seed - v) / STOCK_RECOVERY);
+  return `Stock health here is low (${Math.round(v)} out of 100). Left alone, a stock recovers slowly, about ${STOCK_RECOVERY} points a day in this game: it would take about ${days} days to get back to ${seed}. Recovery takes time, so keep releasing and give it a rest.`;
+}
+
 /** Nudge a stock-health value (kept in progress.stock, 0-100) up or down. */
 export function adjustStock(progress, spot, id, delta) {
   progress.stock ??= {};
@@ -87,7 +112,7 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const lampM = (1 + (sp.lamp ?? 0) * (ctx.lit ?? 0)) * archM;   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light
     const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1);
     const open = gateOpen(sp, ctx);
-    out.push({ sp, base, rigM, baitM, condM, stock, gearM, lampM, open, w: open ? base * rigM * baitM * condM * (stock / 100) * gearM * lampM : 0, ideal: !sp.gate?.time || !ctx.time || sp.gate.time.includes(ctx.time) ? base * condM * (stock / 100) * lampM : 0 });
+    out.push({ sp, base, rigM, baitM, condM, stock, gearM, lampM, open, w: open ? base * rigM * baitM * condM * (Math.max(stock, STOCK_FLOOR) / 100) * gearM * lampM : 0, ideal: !sp.gate?.time || !ctx.time || sp.gate.time.includes(ctx.time) ? base * condM * (Math.max(stock, STOCK_FLOOR) / 100) * lampM : 0 });
   }
   return out;
 }

@@ -76,17 +76,18 @@ test('nets lab: the goals can be met (handline; trawl with the right mesh, BRD a
 });
 
 // ---------------------------------------------------------------- the licence
-test('the co-op licence: offered after the awards ending or at 100% Identified, never before; the start-up advance is co-op credits, not Club credits', () => {
+test('the co-op licence: offered only after a real ceremony (the 100% Caught celebration or awards night), never by 100% Identified; the start-up advance is co-op credits, not Club credits', () => {
   const p = fresh();
   assert.equal(K.coopEligible(p), false); assert.equal(K.grantLicence(p).ok, false); assert.equal(K.hasLicence(p), false);
-  identifyAll(p); assert.equal(K.coopEligible(p), true, '100% Identified opens it');
+  identifyAll(p); assert.equal(K.coopEligible(p), false, '100% Identified does NOT open it'); assert.equal(K.grantLicence(p).ok, false);
+  const m = fresh(); m.ending.milestone = Date.now(); assert.equal(K.coopEligible(m), true, 'the 100% Caught celebration opens it');
   const q = fresh(); q.ending.awards = Date.now(); assert.equal(K.coopEligible(q), true, 'so does awards night');
   const clubBefore = q.coins, r = K.grantLicence(q);
   assert.ok(r.ok && K.hasLicence(q));
   assert.equal(q.coins, clubBefore, 'Club credits are untouched');
   assert.equal(q.coop.credits, K.START_ADVANCE);
   assert.equal(K.grantLicence(q).ok, false, 'signing twice does nothing');
-  assert.equal(K.coopProgress(p).identified, SPECIES.length);
+  assert.equal(K.coopProgress(p).eligible, false);
 });
 test('co-op credits are a separate currency: they can come only from a sale or an advance, and they cannot be spent as Club credits', () => {
   const p = licensed(), club = p.coins;
@@ -148,7 +149,7 @@ test('a haul needs a method, lands the target, costs fuel, and the hold sells fo
   assert.equal(p.coop.hold.length, 1); assert.equal(p.coop.hold[0].origin, 'commercial');
   const before = p.coop.credits, sold = K.sellHold(p);
   assert.ok(sold.ok && sold.revenue > 0); assert.equal(p.coop.credits, before + sold.revenue); assert.equal(p.coop.hold.length, 0);
-  assert.equal(p.coop.landed.snapper, r.landed, 'the quota counts what was sold');
+  assert.equal(p.coop.landed.snapper, r.landed, 'the quota was used up when the haul was landed, and selling does not count it again');
   assert.equal(p.coins, 20, 'Club credits never move');
 });
 test('quota: a sustainable stock gets a bigger quota than a recovering one, a depleted stock is closed, and the quota year resets', () => {
@@ -202,4 +203,35 @@ test('the content is sourced: no ITQ claims, no invented GoodFish ratings', () =
   assert.match(all, /goodfish\.org\.au/);
   assert.match(all, /Game numbers/, 'the invented numbers are labelled');
   for (const g of Object.values(GEARS)) assert.ok(g.src && g.how, g.id);
+});
+
+test('quota is reserved at landing, including fish still in the hold: haul, haul, haul, then sell cannot beat the quota', () => {
+  const p = licensed(); K.setMethod(p, { gear: 'handline', mesh: 60 }); K.addCommercial(p, 500, 'advance');
+  const quota = STATUS.recovering.quota, id = 'mulloway';
+  assert.equal(K.marketInfo(id).status, 'recovering');
+  // The reported sequence: three handline hauls of mulloway (about 8 each) with nothing sold in between, against a quota of 8.
+  const first = K.runHaul(p, id);
+  assert.ok(first.ok && first.landed > 0);
+  assert.equal(K.quotaLeft(p, id), quota - first.landed, 'the quota drops the moment the haul is landed, before anything is sold');
+  let landed = first.landed;
+  for (let i = 0; i < 2; i++) {
+    const r = K.runHaul(p, id);
+    if (r.ok) landed += r.landed; else assert.equal(r.reason, 'quota', 'the later hauls are stopped by the quota');
+  }
+  assert.ok(landed <= quota, `${landed} landed against a quota of ${quota}`);
+  assert.equal(p.coop.hold.reduce((s, l) => s + l.qty, 0), landed, 'every landed fish is in the hold');
+  const sold = K.sellHold(p), soldQty = sold.lines.reduce((s, l) => s + l.qty, 0);
+  assert.equal(soldQty, landed); assert.ok(soldQty <= quota, 'selling never pays for more than the quota');
+  assert.equal(p.coop.landed[id], landed, 'selling does not count the fish a second time');
+  assert.equal(K.quotaLeft(p, id), quota - landed);
+  // A bigger quota: hauls that go out together are cut to what is left, counting the fish already in the hold.
+  const q = licensed(); K.setMethod(q, { gear: 'handline', mesh: 60 }); K.addCommercial(q, 500, 'advance');
+  q.coop.landed.snapper = STATUS.sustainable.quota - 10;                     // 10 left in the year
+  const a = K.runHaul(q, 'snapper'), b = K.runHaul(q, 'snapper');
+  assert.ok(a.ok); assert.equal(a.landed, Math.min(a.qty, 10));
+  assert.ok(a.landed + (b.ok ? b.landed : 0) <= 10, 'the second haul only gets what the first left');
+  if (a.landed === 10) { assert.equal(b.ok, false); assert.equal(b.reason, 'quota'); }
+  // An older save with an uncounted lot in the hold still has it counted against the quota.
+  const old = licensed(); old.coop.hold.push({ origin: 'commercial', species: id, qty: 3, day: 1 });
+  assert.equal(K.quotaLeft(old, id), quota - 3);
 });

@@ -33,11 +33,12 @@ const day = p => ensureNpc(p).day;
 // ------------------------------------------------------------------ who may apply
 /** Every kind of fish is at least Identified in the Fish Guide. */
 export function allIdentified(p) { return SPECIES.every(s => G.atLeast(G.tierOf(p, s.id), 'identified')); }
-/** Nell offers the licence after the awards night, or once every species is Identified. */
-export function coopEligible(p) { return !!p.ending?.awards || allIdentified(p); }
+/** Nell offers the licence only after a REAL ceremony has been held: the club's celebration for catching every kind of fish (the 100% Caught milestone), or awards night.
+ *  (Awards night also records the milestone.) Being 100% Identified does not open it, and a ?ceremony= preview never records anything. */
+export function coopEligible(p) { return !!(p.ending?.awards || p.ending?.milestone); }
 export function coopProgress(p) {
-  const n = SPECIES.filter(s => G.atLeast(G.tierOf(p, s.id), 'identified')).length;
-  return { identified: n, total: SPECIES.length, awards: !!p.ending?.awards, eligible: coopEligible(p) };
+  const n = SPECIES.filter(s => G.atLeast(G.tierOf(p, s.id), 'caught')).length;
+  return { caught: n, total: SPECIES.length, milestone: !!p.ending?.milestone, awards: !!p.ending?.awards, eligible: coopEligible(p) };
 }
 /** Sign the licence (only if eligible). The co-op lends a small start-up advance of co-op credits. */
 export function grantLicence(p) {
@@ -172,10 +173,16 @@ export function quotaTick(p) {
   return c;
 }
 export function quotaDaysLeft(p) { const c = quotaTick(p); return Math.max(1, COOP.quotaDays - (day(p) - c.yearStart)); }
+/** Fish of this species already counted against the quota: everything LANDED this quota year (the quota is reserved when the haul is landed, not when it is sold), plus any
+ *  lot an older save has in the hold that was never counted. */
+export function quotaUsed(p, id) {
+  const c = quotaTick(p);
+  return (c.landed[id] ?? 0) + c.hold.filter(l => l.species === id && !l.counted).reduce((s, l) => s + l.qty, 0);
+}
 export function quotaLeft(p, id) {
-  const c = quotaTick(p), m = marketInfo(id);
+  const m = marketInfo(id);
   if (!m) return 0;
-  return Math.max(0, m.st.quota - (c.landed[id] ?? 0));
+  return Math.max(0, m.st.quota - quotaUsed(p, id));
 }
 /** Credits per fish: base × the status price × fresh (refrigeration). */
 export function priceOf(p, id) {
@@ -213,7 +220,10 @@ export function runHaul(p, speciesId) {
   const qty = Math.round(r.targetN * (c.upgrades.sonar ? UPGRADE_FX.sonar.target : 1)), left = quotaLeft(p, speciesId), land = Math.min(qty, left);
   spendCommercial(p, cost);
   c.haulsDay = { day: day(p), n: (c.haulsDay.day === day(p) ? c.haulsDay.n : 0) + 1 }; c.hauls++;
-  if (land > 0) c.hold.push({ origin: 'commercial', species: speciesId, qty: land, gear: c.method.gear, day: day(p), cost, bycatch: r.bycatchN, young: r.youngN, protectedN: r.protectedN });
+  if (land > 0) {
+    c.landed[speciesId] = (c.landed[speciesId] ?? 0) + land;   // the quota is used up the moment the fish are landed, whether or not they are sold yet
+    c.hold.push({ origin: 'commercial', species: speciesId, qty: land, gear: c.method.gear, day: day(p), cost, bycatch: r.bycatchN, young: r.youngN, protectedN: r.protectedN, counted: true });
+  }
   return { ok: true, haul: r, qty, landed: land, overQuota: qty - land, cost, speciesId, text: '' };
 }
 
@@ -225,7 +235,7 @@ export function canSell(p, lot) {
   if (!(lot.qty > 0)) return { ok: false, reason: 'empty', text: 'Nothing to sell.' };
   return { ok: true };
 }
-/** Sell everything in the hold at the co-op. Quota was checked when the fish were landed. Returns { ok, lines, revenue }. */
+/** Sell everything in the hold at the co-op. The quota was reserved when the fish were landed (a lot from an older save is counted now). Returns { ok, lines, revenue }. */
 export function sellHold(p) {
   const c = ensureCoop(p);
   if (!hasLicence(p)) return { ok: false, reason: 'licence', text: 'You need the co-op licence to sell fish.', lines: [], revenue: 0 };
@@ -235,7 +245,7 @@ export function sellHold(p) {
     const gate = canSell(p, lot);
     if (!gate.ok) continue;
     const unit = priceOf(p, lot.species), amt = Math.round(unit * lot.qty), m = marketInfo(lot.species);
-    revenue += amt; c.landed[lot.species] = (c.landed[lot.species] ?? 0) + lot.qty;
+    revenue += amt; if (!lot.counted) c.landed[lot.species] = (c.landed[lot.species] ?? 0) + lot.qty;
     lines.push({ species: lot.species, name: m.name, qty: lot.qty, unit, amount: amt, status: m.status });
   }
   c.hold = [];

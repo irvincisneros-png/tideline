@@ -132,14 +132,14 @@ export class Talk {
       if (i === 0) { dlg.hide(); this.mgr.ceremonyPending = kind; }
       return;
     }
-    await dlg.say({ who, text: this.fmt(`Awards night happens when you have <b>Mastered all ${st.total} kinds of fish</b> (you have ${st.mastered}) and the bay is healthy: <b>Bay Health ${st.bayNeed}% or more</b> (it is ${Math.round(st.bay)}% now). Keep catching, measuring and releasing the small ones.<br><small class="dlg-note">Catch every kind of fish (${st.caught} of ${st.total} so far) and the club will hold a smaller celebration first.</small>`), button: 'Got it' });
+    await dlg.say({ who, text: this.fmt(`Awards night happens when you have <b>Mastered all ${st.total} kinds of fish</b> (you have ${st.mastered}) and the bay is healthy: <b>Bay Health ${st.bayNeed.toFixed(1)}% or more</b> (it is ${G.bayText(st.bay)} now: fish stocks plus a Steward bonus). Release fish with wet hands, tag them, pull litter out of the water and keep only legal fish.<br><small class="dlg-note">Catch every kind of fish (${st.caught} of ${st.total} so far) and the club will hold a smaller celebration first.</small>`), button: 'Got it' });
   }
   /** Nell: the co-op licence (the commercial chapter) and the co-op panel. */
   async coop(npc, who) {
     const g = this.game, p = this.p, dlg = g.dialogue;
     if (!hasLicence(p)) {
       await dlg.sequence(who, [
-        this.fmt("{name}, you've caught them all, named them, and the bay is in good shape. You've earned a look at my side of the deck."),
+        this.fmt("{name}, you've caught every kind of fish in the guide and the club has celebrated it. You've earned a look at my side of the deck."),
         'A co-op licence is permission to fish commercially. With it you can use nets, lines and traps, land a haul at the co-op and sell it. That is the only place in this whole game where a fish can be sold. Recreational fish never can.',
         `The catch: quotas, closures, rules about nets and bycatch, and a stock status that decides what I can land. You also get ${START_ADVANCE} ${COOP.money.name} to start. They are for the co-op only, not for Mitra's shop.`,
       ], 'Go on');

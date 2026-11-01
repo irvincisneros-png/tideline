@@ -35,14 +35,14 @@ export function howItWorksHTML() {
 }
 
 export class SonarPanel {
-  /** opts: { onHelp, onAnchor }. Creates the panel inside #hud (hidden until show()). */
+  /** opts: { onHelp, onAnchor }. Creates the panel on the body (fixed, above the touch controls; hidden until show()). */
   constructor({ onHelp, onAnchor } = {}) {
     this.root = document.createElement('div'); this.root.id = 'sonar'; this.root.className = 'sonar hidden';
     this.root.innerHTML = `<div class="sonar-head"><b>🔊 Fish finder</b><span id="sn-depth" class="sn-depth">– m</span><button id="sn-help" class="btn small" aria-label="How a fish finder works">?</button></div>
       <canvas id="sn-cv" width="300" height="140" aria-label="Fish finder screen"></canvas>
       <div class="sonar-foot"><span id="sn-bottom" class="sn-bottom">–</span><span id="sn-marks" class="sn-marks"></span></div>
       <div class="sonar-foot"><span id="sn-boat" class="sn-boat">Drifting</span><button id="sn-anchor" class="btn small" aria-pressed="false" aria-label="Anchor or lift the anchor (B)">⚓ Anchor <kbd>B</kbd></button></div>`;
-    (document.getElementById('hud') ?? document.body).appendChild(this.root);
+    document.body.appendChild(this.root);   // on the body, above the touch look surface (#touch), so Anchor and ? can be tapped
     this.cv = this.root.querySelector('#sn-cv'); this.g = this.cv.getContext('2d'); this.W = this.cv.width; this.H = this.cv.height;
     this.root.querySelector('#sn-help').onclick = () => onHelp?.();
     this.root.querySelector('#sn-anchor').onclick = () => onAnchor?.();

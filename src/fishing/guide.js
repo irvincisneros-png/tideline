@@ -133,12 +133,40 @@ export function completion(p) {
   return Math.round(sum / SPECIES.length * 100);
 }
 
-/** Bay Health (0-100): the mean stock health over every species at every spot where it lives. */
-export function bayHealth(p) {
+/** Stock health (0-100) of the NATIVE fish: the mean over every native species at every spot where it lives. Pest fish (carp) are not part of the bay's health. */
+export function stockHealth(p) {
   let sum = 0, n = 0;
-  for (const s of SPECIES) for (const spot of Object.keys(s.spots)) { sum += stockOf(p.stock, spot, s.id); n++; }
+  for (const s of SPECIES) { if (s.rules.pest) continue; for (const spot of Object.keys(s.spots)) { sum += stockOf(p.stock, spot, s.id); n++; } }
   return n ? sum / n : 0;
 }
+/**
+ * The Steward bonus on Bay Health, in points: the health of a bay is the fish AND the care taken of the water they live in. Good practice adds to it, poaching takes away.
+ *   +0.03 for each fish released well (wet hands, 10 s or less out of the water; the bonus stops at 2.4, 80 fish)
+ *   +0.20 for each fish tagged and released (stops at 2.0, 10 tags)     +0.10 for each piece of litter pulled out (stops at 1.0, 10 pieces)
+ *   +0.05 for each pest fish taken out of the river (stops at 0.5)       -0.25 for each fish kept that was not legal to keep (stops at -4)
+ * A pest fish put back changes nothing (it is not a native fish, and it is not best practice). A legal keep is neutral here: it already lowers that fish's stock.
+ */
+export const BAY_BONUS = { release: 0.03, releaseMax: 2.4, tag: 0.2, tagMax: 2, litter: 0.1, litterMax: 1, pest: 0.05, pestMax: 0.5, illegal: 0.25, illegalMax: 4 };
+export function stewardBonus(p) {
+  const rows = p.catches ?? [], B = BAY_BONUS, native = rows.filter(c => !c.pest);
+  const goodReleases = native.filter(c => c.kept === false && c.wet === true && (c.air ?? 99) <= 10).length;
+  const tags = p.econ?.tags?.length ?? 0, litter = p.steward?.litter ?? 0, pests = p.pest?.removed ?? 0;
+  const illegal = native.filter(c => c.kept === true && c.legal === false).length;
+  const parts = {
+    release: Math.min(B.releaseMax, goodReleases * B.release), tag: Math.min(B.tagMax, tags * B.tag), litter: Math.min(B.litterMax, litter * B.litter),
+    pest: Math.min(B.pestMax, pests * B.pest), illegal: -Math.min(B.illegalMax, illegal * B.illegal),
+  };
+  return { ...parts, total: Object.values(parts).reduce((a, b) => a + b, 0), goodReleases, tags, litter, pests, illegal };
+}
+/** Bay Health in parts: { stock (native mean), bonus (Steward bonus), total (0-100) }. */
+export function bayParts(p) {
+  const stock = stockHealth(p), b = stewardBonus(p);
+  return { stock, bonus: b.total, total: Math.max(0, Math.min(100, stock + b.total)), detail: b };
+}
+/** Bay Health (0-100): the native stocks plus the Steward bonus. */
+export const bayHealth = p => bayParts(p).total;
+/** Show a Bay Health figure to one decimal place, rounded DOWN, so it can never read "73.0%" while it is still short of 73. */
+export const bayText = v => `${(Math.floor(v * 10 + 1e-9) / 10).toFixed(1)}%`;
 export const bayLabel = v => (v >= 75 ? 'Thriving' : v >= 60 ? 'Healthy' : v >= 45 ? 'Under pressure' : 'Struggling');
 
 /**

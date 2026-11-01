@@ -182,7 +182,7 @@ function signFace(pr, text, x, y, z, w, h, px, ink = '#1f5f6b', paperC = '#fff3d
 /** The hand-placed trees: river she-oaks and leaning water gums, drawn as a few instanced meshes sharing the painted leaf atlas (a lit, alpha-cut material like the scatter). */
 function plantTrees(world, list) {
   const pr = world.props, T = world.terrain;
-  const mat = patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, map: RT.riverAtlas(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide }), { cutaway: true, coral: false, sway: 0.03, detail: false });
+  const mat = patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, map: RT.riverAtlas(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide }), { cutaway: 3.4, coral: false, sway: 0.03, detail: false });
   SP.mats.push(mat);
   const geos = { oak: [101, 102, 103].map(sd => RT.sheOak(sd)), gum: [201, 202, 203].map(sd => RT.waterGum(sd, 3.0)) }, groups = new Map();
   for (const t of list) { const k = `${t.kind}${t.v % 3}`; (groups.get(k) ?? groups.set(k, []).get(k)).push(t); }

@@ -46,6 +46,7 @@ import { openCoop } from './ui/coop.js';
 import { runCeremony, updateCeremony } from './ui/ceremony.js';
 import { openCredits } from './ui/credits.js';
 import { pendingCeremony } from './fishing/ending.js';
+import { firstRunDue, runFirstRun } from './ui/firstRun.js';
 
 const $ = s => document.querySelector(s);
 /** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
@@ -170,8 +171,8 @@ class Game {
     this.clock = new THREE.Clock();
     this.enterMenu();
     // ?play skips the title (tests, teacher links) and the creator too (add ?creator to see it).
-    if (params.has('ceremony')) runCeremony(this, params.get('ceremony') === 'milestone' ? 'milestone' : 'awards');   // ?ceremony=awards|milestone: the club ceremony straight away (teachers, tests)
-    else if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); }
+    if (params.has('ceremony')) runCeremony(this, params.get('ceremony') === 'milestone' ? 'milestone' : 'awards', { preview: true });   // ?ceremony=awards|milestone: the club ceremony straight away (teachers, tests)
+    else if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => { this.startLand(null); this.firstRun(); } }); else { this.startLand(null); this.firstRun(); } }
     this.renderer.setAnimationLoop(() => this.loop());
   }
 
@@ -205,11 +206,13 @@ class Game {
   }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
   beginPlay() {
-    const go = () => { if (!this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); };
+    const go = () => { if (!this.progress.angler) this.creator.open({ first: true, onDone: () => { this.startLand(null); this.firstRun(); } }); else { this.startLand(null); this.firstRun(); } };
     // A site you reach by boat (the offshore reef) starts with the safety beat (lifejacket, trip log) and the run out of the harbour; a ?play deep link skips it.
     if (this.eco.travel && !params.has('play')) runBoatTrip(this).then(trip => { if (trip) { this.pendingTrip = trip; go(); } });
     else go();
   }
+  /** The short skippable premise card for a brand-new player (ui/firstRun.js): once, never on a save with catches; a ?play link only with ?firstrun=1. */
+  firstRun() { if (firstRunDue(this.progress, params)) runFirstRun(this); }
   /** Done in the character creator: save { name, ...look } and dress the angler in the world. */
   applyAngler(a) {
     this.progress.angler = a;
@@ -284,7 +287,7 @@ class Game {
     $('#btn-new').classList.toggle('hidden', !has);
     $('#btn-awards').classList.toggle('hidden', !pend);
     $('#btn-awards').textContent = pend === 'milestone' ? '🎉 Club celebration' : '🏆 Awards night';
-    $('#progress-sum').textContent = `Fish Guide ${G.completion(p)}% · Steward ${st.value.toFixed(1)}★ · Bay Health ${Math.round(bay)}%`;
+    $('#progress-sum').textContent = `Fish Guide ${G.completion(p)}% · Steward ${st.value.toFixed(1)}★ · Bay Health ${G.bayText(bay)}`;
   }
   /** The Illawarra Fish Guide (J). opts: { focus: species id, back: callback (shows a Back button and locks the panel), region }. */
   openGuide(opts = {}) { openGuide(this, opts); }
@@ -591,7 +594,7 @@ class Game {
     const html = `<b>🧊 Esky ${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''} <span class="coin" title="${COIN.name}">${COIN.icon} ${p.coins ?? 0}</span></b><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span>`;
     if (el.dataset.v !== html) { el.dataset.v = html; el.innerHTML = html; el.classList.toggle('has-bad', bad > 0); }
   }
-  persist() { if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
+  persist() { if (this.noSave) return; if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
   download(name, text) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));

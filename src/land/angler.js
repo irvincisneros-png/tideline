@@ -31,6 +31,42 @@ const BASE_PARTS = {
 };
 const jointOf = name => BASE_PARTS[name] ?? (name.startsWith('ang_armL') ? 'armL' : name.startsWith('ang_armR') ? 'armR' : name.startsWith('ang_torso') ? 'torso' : 'head');
 const ROD_LEN = 2.25;
+
+// ---- Fallback people. If tideline_cosy.glb cannot be loaded the people (Mitra, Nell, the officer, you) are still built from these simple shapes, so the shop, the quests
+// and the co-op always exist. Same joints as the Blender parts; coordinates are in the joint's own frame (standing pose, y up, +z forward).
+const merged = list => {
+  const pos = [], nor = [], idx = [];
+  for (const g of list) {
+    const base = pos.length / 3, p = g.attributes.position, n = g.attributes.normal;
+    for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); }
+    const ix = g.index; for (let i = 0; i < ix.count; i++) idx.push(base + ix.getX(i));
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setIndex(idx);
+  return out;
+};
+const tint = (g, rgb = [1, 1, 1]) => { const n = g.attributes.position.count, c = new Float32Array(n * 3); for (let i = 0; i < n; i++) c.set(rgb, i * 3); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g; };
+const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+const tube = (r, h, y, x = 0, z = 0) => new THREE.CylinderGeometry(r, r * 0.9, h, 10).translate(x, y, z);
+const ball = (r, x = 0, y = 0, z = 0) => new THREE.SphereGeometry(r, 12, 9).translate(x, y, z);
+const FALLBACK = {
+  ang_hips_shorts: () => box(0.34, 0.22, 0.2, 0, -0.02, 0), ang_torso_shirt: () => box(0.34, 0.4, 0.2, 0, 0.22, 0), ang_torso_skin: () => box(0.1, 0.08, 0.1, 0, 0.46, 0),
+  ang_head_skin: () => ball(0.17, 0, 0.14, 0), ang_head_face: () => merged([ball(0.02, -0.06, 0.17, 0.155), ball(0.02, 0.06, 0.17, 0.155)]),
+  ang_armL_shirt: () => tube(0.06, 0.28, -0.14), ang_armR_shirt: () => tube(0.06, 0.28, -0.14), ang_armL_skin: () => ball(0.05, 0, -0.27, 0), ang_armR_skin: () => ball(0.05, 0, -0.27, 0),
+  ang_foreL_skin: () => tube(0.045, 0.28, -0.14), ang_foreR_skin: () => tube(0.045, 0.28, -0.14),
+  ang_thighL_shorts: () => tube(0.08, 0.24, -0.12), ang_thighR_shorts: () => tube(0.08, 0.24, -0.12), ang_thighL_skin: () => ball(0.001), ang_thighR_skin: () => ball(0.001),
+  ang_shinL_skin: () => tube(0.055, 0.2, -0.1), ang_shinR_skin: () => tube(0.055, 0.2, -0.1),
+  ang_footL_shoe: () => box(0.1, 0.07, 0.2, 0, -0.02, 0.05), ang_footR_shoe: () => box(0.1, 0.07, 0.2, 0, -0.02, 0.05),
+};
+let warned = false;
+/** A stand-in geometry for a named part (hair and hats get a generic cap / brim), or null. White vertex colours so the slot colours show. */
+function fallbackGeo(name) {
+  const f = FALLBACK[name] ?? (name.endsWith('_hair') ? () => new THREE.SphereGeometry(0.185, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55).translate(0, 0.16, -0.01)
+    : name.endsWith('_hat') ? () => merged([new THREE.CylinderGeometry(0.2, 0.2, 0.03, 14).translate(0, 0.24, 0), new THREE.CylinderGeometry(0.15, 0.17, 0.12, 12).translate(0, 0.3, 0)]) : null);
+  if (!f) return null;
+  const g = f();
+  return tint(g, name.endsWith('_shoe') ? [0.22, 0.2, 0.2] : name === 'ang_head_face' ? [0.12, 0.1, 0.1] : [1, 1, 1]);
+}
 /** The stripe / petal colour that reads against a shirt colour: cream on dark shirts, deep teal on light ones. */
 export function trimFor(shirt) { const c = new THREE.Color(shirt), l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return l > 0.5 ? 0x1f5f6b : 0xfff3dc; }
 
@@ -75,8 +111,8 @@ export class Angler {
   }
   /** A mesh for a named Blender part on its joint (the low-poly _lo version on the low tier when there is one). */
   makePart(name, jointName = jointOf(name)) {
-    const geo = (this.lo && this.models.get(name + '_lo')) || this.models.get(name);
-    if (!geo) { console.warn('Angler part missing:', name); return null; }
+    const geo = (this.lo && this.models.get(name + '_lo')) || this.models.get(name) || fallbackGeo(name);
+    if (!geo) { if (!warned) { warned = true; console.warn('Angler part missing (no model and no fallback):', name); } return null; }
     const slot = name.split('_').pop();
     const m = new THREE.Mesh(geo, SLOTS.includes(slot) ? this.mats[slot] : this.fixed);
     m.name = name; m.userData.noOutline = true; m.castShadow = this.shadowOn; m.receiveShadow = this.shadowOn;

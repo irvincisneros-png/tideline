@@ -3,10 +3,10 @@
 // Data only. Australian English. IUCN statuses checked October 2026.
 // Notes for teachers:
 //  - Eastern blue groper: IUCN Near Threatened. It is the NSW state fish emblem. Spearfishing and commercial
-//    fishing for it are banned in NSW, and line fishing has been prohibited since March 2024 (extended for three
-//    years from 1 March 2025). Check current NSW DPI rules before quoting dates.
+//    fishing for it are banned in NSW, and line fishing is prohibited (extended for three years from 1 March 2025,
+//    DPIRD). Check current NSW DPIRD rules before quoting dates.
 //  - Weedy (common) seadragon: reassessed by the IUCN as Vulnerable (assessed 2024, published 2025); it was
-//    previously Least Concern. All seadragons, seahorses and pipefish are protected in NSW waters.
+//    previously Least Concern. (No DPIRD/worksheet row in our dataset covers seadragon rules, so the game gives advice only, not law.)
 //  - Grey nurse shark: Critically Endangered globally (IUCN) and the east coast population is listed as
 //    Critically Endangered under the EPBC Act.
 //  - Blacklip abalone: IUCN Vulnerable (2021 assessment).
@@ -32,7 +32,7 @@ export const species = [
       'Juveniles shelter in estuary seagrass beds before moving to the reef'
     ],
     didYouKnow: 'The eastern blue groper is the official fish emblem of New South Wales – and most gropers start life as brown or green females before some turn into blue males.',
-    fieldNotes: 'Blue gropers are wrasses and protogynous hermaphrodites: every fish starts life as a female, and some change into males once they reach about 60 cm. Thick lips and strong peg-like teeth, plus a second set of grinding teeth in the throat, let them crush shells and spiny urchins. After heavy spearfishing in the 1960s, NSW banned spearing them in 1969, and they are now so used to divers that they often swim right up to have a look.',
+    fieldNotes: 'Blue gropers are wrasses and protogynous hermaphrodites: every fish starts life as a female, and some change into males once they reach about 60 cm. Thick lips and strong peg-like teeth, plus a second set of grinding teeth in the throat, let them crush shells and spiny urchins. After heavy spearfishing in the 1960s, spearing them was later stopped, and they are now so used to divers that they often swim right up to have a look.',
     spot: 'Look for a big, curious blue or brown fish with thick lips that swims over and follows you around the reef – watch it crunch an urchin or crab.',
     threats: 'Historically overfished by spearfishers; slow growth and late sex change make it vulnerable to fishing pressure and warming seas.',
     sources: [
@@ -212,7 +212,7 @@ export const species = [
     trophic: 'Secondary consumer',
     size: 'Up to 40 cm',
     depth: '3–30 m',
-    status: 'Not Evaluated (protected in NSW – must not be taken)',
+    status: 'Not Evaluated',
     statusCode: 'NE',
     role: 'A shy cave-dwelling predator that ambushes small fish and crustaceans in ledges and crevices.',
     interactions: [
@@ -220,12 +220,11 @@ export const species = [
       'Shares caves and ledges with rock lobsters and Port Jackson sharks',
       'Hides deep in crevices from larger predators'
     ],
-    didYouKnow: 'The eastern blue devil is found only along the coast of eastern Australia, and it is a protected species in NSW – it cannot be caught or collected.',
-    fieldNotes: 'Its deep blue body with white bands and yellow-orange tail and fins make it one of the most colourful fish on NSW reefs. It is territorial and stays in or near the same cave or ledge for long periods. Its beauty once made it a target for aquarium collectors, which is one reason it was protected.',
+    didYouKnow: 'The eastern blue devil is found only along the coast of eastern Australia, and it is a shy reef fish that stays near one cave. Please leave it be: look, but do not touch.',
+    fieldNotes: 'Its deep blue body with white bands and yellow-orange tail and fins make it one of the most colourful fish on NSW reefs. It is territorial and stays in or near the same cave or ledge for long periods. Its bright colours make it attractive to aquarium collectors, so the kind thing is to leave it in its cave.',
     spot: 'Peer into dark ledges for a shy, bright blue fish with white bands – it slips back into the crevice if you get too close.',
-    threats: 'Illegal collection for aquariums and disturbance of cave habitat.',
+    threats: 'Collection for aquariums and disturbance of cave habitat.',
     sources: [
-      'NSW DPI – Threatened and protected species: Eastern Blue Devil',
       'FishBase – Paraplesiops bleekeri',
       'Australian Museum – Eastern Blue Devilfish'
     ]
@@ -239,7 +238,7 @@ export const species = [
     trophic: 'Secondary consumer',
     size: 'Up to 46 cm',
     depth: '0–50 m',
-    status: 'Vulnerable (IUCN 2025); protected in NSW',
+    status: 'Vulnerable (IUCN 2025)',
     statusCode: 'VU',
     role: 'A small, slow predator that sucks up tiny crustaceans such as mysid shrimps among the kelp and weed.',
     interactions: [
@@ -250,7 +249,7 @@ export const species = [
     didYouKnow: 'Like seahorses, it is the male seadragon that carries the eggs – stuck to a brood patch under his tail – until they hatch.',
     fieldNotes: 'Seadragons are found only in southern Australian waters. The female lays up to about 250 eggs onto the underside of the male\'s tail, where they develop for around a month before hatching. In 2025 the IUCN changed its status from Least Concern to Vulnerable because of declines linked to warming seas and loss of kelp and weed habitat.',
     spot: 'Search slowly through the kelp and weed for what looks like a drifting piece of seaweed – then notice it has an eye and a long snout.',
-    threats: 'Loss of kelp and seagrass habitat, marine heatwaves, storms that wash animals ashore, and illegal collection.',
+    threats: 'Loss of kelp and seagrass habitat, marine heatwaves, storms that wash animals ashore, and collection. Please leave seadragons be: look, but do not touch.',
     sources: [
       'IUCN Red List – Phyllopteryx taeniolatus (Vulnerable)',
       'FishBase – Phyllopteryx taeniolatus',
@@ -275,7 +274,7 @@ export const species = [
       'Accidentally hooked by fishers (bycatch) – a major threat'
     ],
     didYouKnow: 'Grey nurse sharks gulp air at the surface and hold it in their stomach so they can hover almost motionless in the water.',
-    fieldNotes: 'Despite its ragged, protruding teeth, the grey nurse shark is docile and not considered dangerous to divers. Breeding is extremely slow: inside each of the mother\'s two uteruses the first embryo to develop eats its siblings, so only two pups are born, usually every two years. The east coast population fell by more than 90% after spearfishing and fishing in the mid-1900s, and key aggregation sites in NSW are now protected as critical habitat.',
+    fieldNotes: 'Despite its ragged, protruding teeth, the grey nurse shark is docile and not considered dangerous to divers. Breeding is extremely slow: inside each of the mother\'s two uteruses the first embryo to develop eats its siblings, so only two pups are born, usually every two years. The east coast population fell by more than 90% after spearfishing and fishing in the mid-1900s, and it is now rare. If you ever hook one, release it carefully and leave it be.',
     spot: 'Look in the rocky gutters for a big, bronze-grey shark with ragged teeth slowly patrolling and hovering almost still.',
     threats: 'Accidental hooking by line fishing, shark-control nets and very slow breeding.',
     sources: [
@@ -437,7 +436,7 @@ export const species = [
       'Eaten by octopuses, rock lobsters and stingrays'
     ],
     didYouKnow: 'The row of holes in an abalone shell lets water flow out after it has passed over the gills – old holes close over as new ones form.',
-    fieldNotes: 'An abalone clamps onto rock with a huge muscular foot so strong that it is very hard to prise off. It is a snail (gastropod) with a single, ear-shaped shell lined with shiny mother-of-pearl. Abalone are one of Australia\'s most valuable seafoods, so fishing is tightly controlled with quotas and size limits.',
+    fieldNotes: 'An abalone clamps onto rock with a huge muscular foot so strong that it is very hard to prise off. It is a snail (gastropod) with a single, ear-shaped shell lined with shiny mother-of-pearl. Abalone are one of Australia\'s most valuable seafoods, so fishing for them is carefully managed. Check DPIRD before you ever collect one.',
     spot: 'Look closely at the rock surface for an oval, ear-shaped shell clinging tight, its black-edged foot frill showing around the rim.',
     threats: 'Overfishing and poaching, disease, marine heatwaves and loss of kelp to urchin barrens.',
     sources: [
@@ -464,7 +463,7 @@ export const species = [
       'Eaten by octopuses, wobbegongs and blue gropers'
     ],
     didYouKnow: 'The eastern rock lobster may be the longest lobster in the world, and its larvae drift in the open ocean for many months before settling on a reef.',
-    fieldNotes: 'It has no big claws – instead it defends itself with long, spiny antennae and can make a loud rasping sound by rubbing them. Adults hide in crevices by day and come out at night to feed. In NSW, rock lobsters are managed with size limits and catch quotas.',
+    fieldNotes: 'It has no big claws – instead it defends itself with long, spiny antennae and can make a loud rasping sound by rubbing them. Adults hide in crevices by day and come out at night to feed. In NSW, rock lobsters are managed with size limits (check DPIRD for the current rules).',
     spot: 'Look into crevices for a pair of long, spiny antennae poking out – the lobster is hiding behind them.',
     threats: 'Fishing pressure; managed fishery in NSW.',
     sources: [

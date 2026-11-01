@@ -3,7 +3,8 @@
 // hands-on step (wet hands, hold to unhook, 10 s air time). Everything is written to the logbook, the Fish Guide and the esky.
 //   new CatchFlow(game).run(landed, spot, done)      landed = { id, length, gear, ctx }
 import { SPECIES_BY_ID, SPOT_INFO } from '../fishing/species.js';
-import { judge, RULES, adjustStock, bagGroupIds } from '../fishing/catches.js';
+import { judge, RULES, adjustStock, stockDelta, stockNote } from '../fishing/catches.js';
+import { keptToday as keptTodayCount, keptOverToday, inPossession as possessionCount, dayOf } from '../economy/possession.js';
 import * as G from '../fishing/guide.js';
 import { esc } from './panels.js';
 import { mountKey } from './keyUI.js';
@@ -201,23 +202,22 @@ export class CatchFlow {
   }
   commit(keep) {
     const g = this.game, p = this.p, id = this.id, c = this.c, rule = RULES[id];
-    const today = new Date().toDateString();
-    const group = bagGroupIds(id), kept = (p.catches ?? []).filter(x => group.includes(x.id) && x.kept);   // squid and cuttlefish share one bag of 20
-    this.keptToday = kept.filter(x => new Date(x.time).toDateString() === today).length;
-    const inPossession = kept.filter(x => Date.now() - x.time < 3 * 864e5).length;
-    const cx = c.ctx ?? {}, over = rule?.maxOver ? kept.filter(x => new Date(x.time).toDateString() === today && x.length > rule.maxOver.cm).length : 0;
+    // ONE simulated day (economy/possession.js): the bag and the "only one over 35 cm" count are for the current in-game day; possession is the esky plus the fridge at home.
+    this.keptToday = keptTodayCount(p, id);   // squid and cuttlefish share one bag of 20
+    const inPoss = possessionCount(p, id);
+    const cx = c.ctx ?? {}, over = rule?.maxOver ? keptOverToday(p, id, rule.maxOver.cm) : 0;
     this.jctx = { month: cx.month, season: cx.season, keptOver: over };   // the closed season and the "only one over 35 cm" rule need the date and what you have kept
-    this.verdict = judge(id, c.length, this.keptToday, inPossession, this.jctx);
+    this.verdict = judge(id, c.length, this.keptToday, inPoss, this.jctx);
     const v = this.verdict, legal = v.legal;
     this.keep = keep; this.correct = keep ? legal : !rule?.pest;   // returning a pest fish is allowed but is not best practice (a small Steward cost)
     const kind = v.kind, why = WHY[kind] ?? WHY.ok;
-    const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPossession, this.jctx).legal !== legal;
+    const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPoss, this.jctx).legal !== legal;
     const pest = !!rule?.pest;
     const pv = pest ? pestVerdict(keep) : null;
     const head = pest
       ? { cls: pv.cls, t: pv.title, d: pv.text }
       : keep
-      ? (legal ? { cls: 'good', t: '✔ A legal keep', d: 'It goes in the esky.' } : { cls: 'bad', t: '✖ That fish is not legal to keep', d: 'It goes in the esky marked ILLEGAL. The right call was to release it. A Fisheries Officer who checks your esky would fine you.' })
+      ? (legal ? { cls: 'good', t: '✔ A legal keep', d: 'It goes in the esky.' } : { cls: 'bad', t: '✖ That fish is not legal to keep', d: 'It goes in the esky marked ILLEGAL. The right call was to release it. A Fisheries Officer who checks your esky would take it and mark it against your Steward rating.' })
       : (legal ? { cls: 'good', t: '✔ Released: always allowed', d: 'Catch and release is always allowed. You could also have kept this one. (A legal fish released is neutral: Mastery needs a legal keep, or a correct release of a fish you couldn\'t keep.)' } : { cls: 'good', t: '✔ Right call: it had to go back', d: 'It was not legal to keep.' });
     g.audio.play(head.cls === 'good' ? 'correct' : 'wrong');
     if (keep) this.record({});   // a kept fish is written down now (a release is written after the quick-release step)
@@ -230,6 +230,7 @@ export class CatchFlow {
       <div class="rule-card why"><b>Why the rule exists</b>${esc(why)}</div>
       ${flipped ? `<div class="rule-card"><b>Measuring matters</b>Your reading of ${this.measured} cm would have given a different answer from its true ${c.length} cm. One cm under is still undersize.</div>` : ''}
       ${pest ? `<p class="muted">Pest fish taken out of the river so far: ${p.pest?.removed ?? 0}.</p>` : `<p class="muted">Kept today ${rule?.bagLabel ? `(${esc(rule.bagLabel)})` : 'of this species'}: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>`}
+      ${pest ? '' : (n => n ? `<p class="muted">${esc(n)}</p>` : '')(stockNote(p, this.spot, id))}
       ${keep ? this.payHTML() : ''}
       <p><button class="btn primary" id="v-next">${keep ? 'Continue' : pest ? 'Put it back' : 'Release it now'}</button></p>
     </div>`);
@@ -319,12 +320,12 @@ export class CatchFlow {
     p.catches ??= [];
     const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net, depth: ctx.depth });
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
+      time: Date.now(), day: dayOf(p), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
     p.catches.push(row);
-    adjustStock(p, this.spot, id, keep ? (v.legal ? -1 : -4) : 1 + (surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay
+    if (!this.sp.rules.pest) adjustStock(p, this.spot, id, stockDelta(keep, v.legal, surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay. A pest fish never moves a native stock: taking one out is rewarded in the Steward bonus (guide.js), putting it back changes nothing
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));
     if (this.sp.rules.pest) recordPest(p, keep);                                                                        // a pest fish goes in the bin, not the esky
-    else if (keep) (p.esky ??= []).push({ id, label, length: c.length, legal: v.legal, kind: v.kind, reason: v.reason, time: row.time });
+    else if (keep) (p.esky ??= []).push({ id, label, length: c.length, legal: v.legal, kind: v.kind, reason: v.reason, time: row.time, day: row.day });
     // Credits: a complete accurate record, and a tag-and-release. Never for the fish itself: a kept fish pays the same as a released one.
     const rec = payRecord(p, row, identified), tag = payTag(p, row), total = rec.amount + tag.amount;
     this.result = { rec, tag, surv, total };

@@ -145,7 +145,7 @@ export const SPECIES = [
     status: 'undefined', statusNote: 'Not assessed in the national stock report. NSW state fish emblem.',
     idFeature: 'Big blue males, brown or reddish females, with thick lips.',
     fact: 'Line fishing for blue groper is banned in NSW. Cultural fishing rules are separate: do not mix them up.',
-    swap: { id: 'luderick', reason: 'Blue groper, wobbegong and black rockcod on rock ledges are protected or release-only. Luderick or rock blackfish on a float rig from the same rocks are legal and sustainable.' },
+    swap: { id: 'luderick', reason: 'Blue groper and wobbegong on rock ledges are release-only, and it is kind to leave any black rockcod you meet be. Luderick or rock blackfish on a float rig from the same rocks are legal and sustainable.' },
     src: { rules: 'DPIRD', status: 'dataset: not assessed [unverified]', id: 'dataset A3 [unverified]', fact: 'DPIRD', swap: 'dataset B1 [DPIRD]', biology: 'unverified' },
   },
   {

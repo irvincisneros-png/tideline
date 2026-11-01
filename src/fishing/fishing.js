@@ -62,8 +62,18 @@ export class Fishing {
     this.bar.stop(); this.angler?.setBend(0);
     this.state = 'off'; this.landT = 0; this.line.visible = false; this.float.visible = false; this.ripple.visible = false; this.aim.visible = false; this.aimLine.visible = false; this.bang.visible = false;
     this.game.walker.frozen = false;
-    this.angler?.hold(null); this.held = null;
+    this.angler?.hold(null); this.disposeHeld();
     $('#prompt').innerHTML = '';
+  }
+
+  /** Free the GPU resources of the fish held up for the camera: its geometry, its painted skin texture and its material are made fresh for every landing, so they must be disposed when it is put away. */
+  disposeHeld() {
+    const h = this.held; this.held = null;
+    h?.traverse(o => {
+      if (!o.isMesh) return;
+      o.geometry?.dispose();
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) { m?.map?.dispose(); m?.dispose(); }
+    });
   }
 
   /** Where a cast of this power lands, along the way the angler faces. */
@@ -127,10 +137,10 @@ export class Fishing {
       this.float.position.y = surf(this.float.position.x, this.float.position.z) - 0.08 - Math.abs(Math.sin(t * 18)) * 0.06; // the float dips
       prompt = 'BITE! Press <kbd>Space</kbd> to strike!';
       if (hit) { this.startFight(); }
-      else if (this.biteT <= 0) { this.state = 'wait'; this.waitT = waitFor(this.spot, this.ctx) * 0.6; g.toast('Too slow — the fish took the bait and let go. Strike as soon as the float dips.', 'warn'); }
+      else if (this.biteT <= 0) { this.missStrike(); }
     } else if (this.state === 'landed') {
       if (this.landT > 0 && (this.landT -= dt) <= 0) {
-        g.onFishLanded(this.landed, this.spot, () => { g.angler.hold(null); this.held = null; g.walker.frozen = false; this.state = this.state === 'off' ? 'off' : 'ready'; });
+        g.onFishLanded(this.landed, this.spot, () => { g.angler.hold(null); this.disposeHeld(); g.walker.frozen = false; this.state = this.state === 'off' ? 'off' : 'ready'; });
       }
     } else if (this.state === 'fight') {
       // The catch bar runs the fight; the line, float and rod follow what the fish does.
@@ -178,6 +188,13 @@ export class Fishing {
       p.setXYZ(i * 2, cur.x - side.x, cur.y - side.y, cur.z - side.z); p.setXYZ(i * 2 + 1, cur.x + side.x, cur.y + side.y, cur.z + side.z);
     }
     p.needsUpdate = true;
+  }
+
+  /** A missed strike: the fish took the bait and let go, so the bait is gone. The line comes in and you must bait up (checked again at the cast) and cast again; it never goes back to waiting with the old bait and old tackle context. */
+  missStrike() {
+    const g = this.game;
+    this.state = 'ready'; this.float.visible = false; this.catch = null; this.ctx = null;
+    g.toast(g.baitReady() ? 'Too slow — the fish took the bait and let go. Strike as soon as the float dips. Your bait is gone: hold Space to cast again.' : 'Too slow — the fish took the bait and let go, and that was your last bait. Buy or collect more (tackle box, T), or switch to a lure.', 'warn');
   }
 
   startFight() {

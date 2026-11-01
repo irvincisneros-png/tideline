@@ -7,7 +7,7 @@
 //   progress.npc = { day, met: {npcId: t}, accepted: {tradeId: t}, done: {tradeId: t}, quizFail: {tradeId: day}, rot: {key: n}, heard: {key: n} }
 import { SPECIES, SPECIES_BY_ID } from '../fishing/species.js';
 import * as G from '../fishing/guide.js';
-import { RULES } from '../fishing/catches.js';
+import { RULES, recoverStock } from '../fishing/catches.js';
 import { NPCS } from '../content/npcs.js';
 
 export const ensureNpc = p => {
@@ -87,4 +87,4 @@ export function accept(p, tradeId, now = Date.now()) { ensureNpc(p).accepted[tra
 export function complete(p, tradeId, now = Date.now()) { ensureNpc(p).done[tradeId] = now; }
 export function failQuiz(p, tradeId) { const n = ensureNpc(p); n.quizFail[tradeId] = n.day; }
 /** A new in-game day: failed quizzes can be tried again. */
-export function nextDay(p) { ensureNpc(p).day++; return p.npc.day; }
+export function nextDay(p) { ensureNpc(p).day++; recoverStock(p, 1); return p.npc.day; }   // a day passes: depleted stocks climb back a little

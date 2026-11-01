@@ -9,6 +9,7 @@ import { esc } from './panels.js';
 import { nameOf } from '../core/anglerData.js';
 import { settleComp } from '../economy/coins.js';
 import { COIN } from '../content/shop.js';
+import { stowEsky, dayUsed, fridgeNow } from '../economy/possession.js';
 
 export const OFFICER_CHANCE = 1 / 3;
 
@@ -34,7 +35,7 @@ export class Outing {
     const esky = this.p.esky ?? [], bad = esky.filter(x => !x.legal).length;
     g.panels.open(`<h2>Head home?</h2>
       <p>That ends today's outing. ${esky.length ? `You have <b>${esky.length}</b> fish in the esky${bad ? `, <b>${bad} marked ILLEGAL</b>` : ''}.` : 'Your esky is empty: all catch and release.'}</p>
-      <p class="muted">Sometimes a Fisheries Officer checks your esky on the way home.</p>
+      <p class="muted">Sometimes a Fisheries Officer checks your esky on the way home. Fish you take home go in the fridge and still count toward your possession limit (${fridgeNow(this.p).length} in the fridge now).</p>
       <p><button class="btn primary" id="home-go">Head home</button> <button class="btn" id="home-stay">Keep fishing</button></p>`);
     g.panels.body.querySelector('#home-go').onclick = () => { g.panels.close(true); this.finish(); };
     g.panels.body.querySelector('#home-stay').onclick = () => g.panels.close();
@@ -45,19 +46,19 @@ export class Outing {
     if (this.busy) return; this.busy = true;
     try {
       g.fishing.stop();
+      const dayWasUsed = dayUsed(p);   // did today's bag, bait or credit limits get used? (heading home with nothing done does not start a new day)
       const o = p.outing ?? this.start();
       const force = new URLSearchParams(location.search).get('officer');
       const check = force === '1' || (force !== '0' && Math.random() < OFFICER_CHANCE);
       if (check) o.officer = await this.officer();
       else o.officer = { result: 'none' };
-      // Home: legal fish go to the fridge, illegal ones were taken (or never checked); the esky is empty again.
-      o.home = (p.esky ?? []).filter(x => x.legal || o.officer.result === 'none').length;
-      p.esky = [];
+      // Home: legal fish go to the fridge at home (they still count toward the possession limit), illegal ones were taken (or never checked); the esky is empty again.
+      o.home = stowEsky(p, o.officer.result).length;
       // Bev's club comp: score it, place you against the rivals and pay the prize (before the in-game day moves on).
       const comp = settleComp(p);
       if (comp) { o.comp = comp; o.credits = (o.credits ?? 0) + comp.prize; g.earned(comp.prize); }
       o.t1 = Date.now(); o.bay1 = G.bayHealth(p); o.st1 = G.stewardRating(p).value;
-      g.npcs?.bumpDay();   // heading home ends the in-game day: failed quizzes can be tried again next outing
+      if (dayWasUsed) g.npcs?.bumpDay();   // heading home after a day's fishing ends the in-game day: the bag, bait and credit limits reset together, failed quizzes can be tried again
       g.persist(); g.updateStats();
       this.summary(o);
     } finally { this.busy = false; }
@@ -83,7 +84,7 @@ export class Outing {
       if (bad.length) {
         st.checks++; st.fines += bad.length;
         const lost = Math.max(0, before - G.stewardRating(p).value);
-        await dlg.say({ who, text: `That is a fine for ${bad.length === 1 ? 'that fish' : `those ${bad.length} fish`}. I will take ${bad.length === 1 ? 'it' : 'them'} and it costs you Steward stars (${lost > 0 ? `down ${lost.toFixed(1)}` : 'noted'}). Check the limits before you keep one: <b>FishSmart</b> is a free app with them all.`, button: 'Sorry, officer' });
+        await dlg.say({ who, text: `That is not a legal keep for ${bad.length === 1 ? 'that fish' : `those ${bad.length} fish`}. I will take ${bad.length === 1 ? 'it' : 'them'} and it costs you Steward stars (${lost > 0 ? `down ${lost.toFixed(1)}` : 'noted'}). Check the limits before you keep one: <b>FishSmart</b> is a free app with them all.`, button: 'Sorry, officer' });
         g.audio.play('wrong');
         result = { result: 'fine', lost, illegal: bad.length };
       } else {
@@ -109,7 +110,7 @@ export class Outing {
       if (Math.round(v) !== Math.round(was)) { const [spot, id] = k.split(':'); changes.push({ spot, id, was, now: v }); }
     }
     const off = o.officer ?? { result: 'none' };
-    const offTxt = off.result === 'none' ? 'No check this time' : off.result === 'clean' ? 'Check passed: clean esky' : `Fined for ${off.illegal} illegal fish (−${off.lost.toFixed(1)} stars)`;
+    const offTxt = off.result === 'none' ? 'No check this time' : off.result === 'clean' ? 'Check passed: clean esky' : `${off.illegal} fish not legal to keep (−${off.lost.toFixed(1)} stars)`;
     g.panels.open(`<div class="flow summary">
       <h2>Outing summary</h2>
       <p class="sub">${esc(g.eco.name)} · ${Math.max(1, Math.round((o.t1 - o.t0) / 60000))} min</p>
@@ -129,7 +130,7 @@ export class Outing {
         ${o.comp ? `<div><span>Club comp</span><b>${esc(o.comp.title)}: ${o.comp.score} ${esc(o.comp.unit)}, ${['', '1st', '2nd', '3rd'][o.comp.place] ?? o.comp.place + 'th'}${o.comp.prize ? ` (+${o.comp.prize})` : ' (no score, no prize)'}</b></div>` : ''}
       </div>
       ${o.gains.length ? `<h3>Fish Guide</h3><ul class="gains">${o.gains.map(x => `<li>${esc(SPECIES_BY_ID[x.id].name)}: <b>${G.TIER_LABEL[x.tier]}</b></li>`).join('')}</ul>` : ''}
-      ${changes.length ? `<h3>Stock health changes</h3><p class="muted">${changes.slice(0, 6).map(c => `${esc(SPECIES_BY_ID[c.id]?.name ?? c.id)} (${esc((SPOT_INFO[c.spot]?.label ?? c.spot).replace('Lake Illawarra ', 'Lake '))}) ${Math.round(c.was)} → ${Math.round(c.now)}`).join(' · ')}</p>` : ''}
+      ${changes.length ? `<h3>Stock health changes</h3><p class="muted">${changes.slice(0, 6).map(c => `${esc(SPECIES_BY_ID[c.id]?.name ?? c.id)} (${esc((SPOT_INFO[c.spot]?.label ?? c.spot).replace('Lake Illawarra ', 'Lake '))}) ${Math.round(c.was)} → ${Math.round(c.now)}`).join(' · ')}</p><p class="muted">A run-down stock recovers slowly, a few points each day it is left alone. Recovery takes time.</p>` : ''}
       ${pend ? `<div class="coop-offer club-offer">${pend === 'awards' ? '\ud83c\udfc6 <b>Awards night!</b> You have Mastered every fish and the bay is healthy. The club is waiting for you on Bellambi beach.' : '\ud83c\udf89 <b>You have caught every kind of fish!</b> The club wants to celebrate with you on Bellambi beach.'}</div>` : ''}
       <p class="sum-actions"><button class="btn primary" id="sum-again">${pend ? (pend === 'awards' ? 'Go to the club' : 'Join the celebration') : 'Fish again'}</button> <button class="btn" id="sum-guide">📗 Fish Guide</button> <button class="btn ghost" id="sum-title">Title screen</button></p>
     </div>`, null, { locked: true, flow: 'summary' });

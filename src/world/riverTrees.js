@@ -19,20 +19,21 @@ export function riverAtlas() {
   const S = 256, c = document.createElement('canvas'); c.width = S * COLS; c.height = S;
   const g = c.getContext('2d'), rnd = mulberry32(31);
   const cell = (i, draw) => { g.save(); g.translate(i * S, 0); g.beginPath(); g.rect(0, 0, S, S); g.clip(); draw(); g.restore(); };
-  // 0: she-oak: a drooping branchlet along the top, bunches of long jointed needles hanging from it in a ragged feathery curtain, olive-green with warm russet tips. Chunky strokes so the sprays survive distance.
+  // 0: she-oak: a soft drooping CLUMP, not a curtain of single lines. A rounded cap of dense needles at the top, then many fine jointed needles falling and curving out from it,
+  // all in one narrow band of muted olive green (low contrast, so it reads as soft foliage from the high camera), with only a hint of russet at the very tips.
   cell(0, () => {
     g.lineCap = 'round'; g.lineJoin = 'round';
-    g.strokeStyle = hsl(24, 26, 26); g.lineWidth = 5; g.beginPath(); g.moveTo(4, 14); g.quadraticCurveTo(128, -8, 252, 16); g.stroke();
-    const K = 46;
+    const grd = g.createRadialGradient(128, 56, 4, 128, 56, 64); grd.addColorStop(0, 'hsl(100, 26%, 30%)'); grd.addColorStop(0.55, 'hsl(100, 26%, 32%)'); grd.addColorStop(1, 'hsla(100, 26%, 34%, 0)');
+    g.fillStyle = grd; g.beginPath(); g.ellipse(128, 56, 64, 40, 0, 0, 6.3); g.fill();   // a soft filled core so the clump has a body
+    const K = 240;
     for (let k = 0; k < K; k++) {
-      const f = k / (K - 1), x0 = 8 + f * 240 + (rnd() - 0.5) * 7, y0 = 8 + 14 * (1 - 4 * (f - 0.5) * (f - 0.5)) * -0.5 + 10;
-      const len = 110 + rnd() * 120 - Math.abs(f - 0.5) * 50, n = Math.round(len / 10), fan = (x0 - 128) * 0.3 + (rnd() - 0.5) * 16, hue = 92 + rnd() * 24, lit = 25 + rnd() * 14, w0 = 4.6 + rnd() * 1.6;
+      const f = (k % 60) / 59, layer = Math.floor(k / 60), x0 = 128 + (f - 0.5) * (150 - layer * 20) + (rnd() - 0.5) * 16, y0 = 26 + layer * 12 + (rnd() - 0.5) * 12 + Math.abs(f - 0.5) * 30;
+      const len = 90 + rnd() * 110 - Math.abs(f - 0.5) * 50, n = Math.max(5, Math.round(len / 11)), side = f - 0.5, fan = side * 120 + (rnd() - 0.5) * 30, hue = 96 + rnd() * 14, lit = 30 + rnd() * 9, w0 = 2.6 + rnd() * 1.0;
       let px = x0, py = y0;
       for (let s = 1; s <= n; s++) {
-        const t = s / n, nx = x0 + fan * Math.pow(t, 1.4) + Math.sin(t * 5 + k) * 4 * t, ny = y0 + s * (len / n) * 0.97, tip = t > 0.84;
-        g.strokeStyle = tip ? hsl(24 + rnd() * 18, 62, 42 + rnd() * 10) : hsl(hue, 38 + (s % 2) * 5, lit + (s % 2) * 4 + t * 8);
-        g.lineWidth = w0 * (1 - t * 0.35); g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.stroke();
-        if (s % 2 === 0 && !tip) { g.fillStyle = hsl(hue + 8, 34, lit + 20); g.beginPath(); g.arc(nx, ny, w0 * 0.55, 0, 6.3); g.fill(); }   // the joint where the whorl of tiny teeth sits
+        const t = s / n, nx = x0 + fan * Math.pow(t, 1.1) + Math.sin(t * 4 + k) * 3 * t, ny = y0 + s * (len / n) * 0.98 - Math.pow(t, 3) * 0, tip = t > 0.9;
+        g.strokeStyle = tip ? hsl(30 + rnd() * 14, 34, 40) : hsl(hue, 30 + (s % 2) * 3, lit + (s % 2) * 3 + t * 5);
+        g.lineWidth = w0 * (1 - t * 0.4); g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.stroke();
         px = nx; py = ny;
       }
     }
@@ -96,15 +97,21 @@ export function sheOak(seed) {
   for (let i = 0; i < nb; i++) {
     const t = 0.38 + (i / nb) * 0.58, az = i * 2.4 + rnd() * 0.8, el = 0.22 + (1 - t) * 0.55 + rnd() * 0.2, len = 1.5 + (1.1 - t) * 2.4 + rnd() * 0.8;
     const dir = V(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)), b0 = trunk(t), pts = [b0, b0.clone().addScaledVector(dir, len * 0.35), b0.clone().addScaledVector(dir, len * 0.7).add(V(0, -0.06, 0)), b0.clone().addScaledVector(dir, len).add(V(0, -0.28, 0))];
-    parts.push(tube(pts, [0.065, 0.045, 0.03, 0.016], 5, () => col3(0.34, 0.28, 0.23)));
-    const hang = [0.3, 0.5, 0.68, 0.85, 1.0];
+    parts.push(tube(pts, [0.05, 0.036, 0.024, 0.012], 5, () => col3(0.3, 0.27, 0.2)));
+    // The foliage: several rounded, drooping clumps along the branch and a bigger one at its tip. Each clump is two crossed soft cards (so it reads from every side) plus a small cap of needles on top.
+    const hang = [0.35, 0.58, 0.8, 1.0];
     for (const [k, f] of hang.entries()) {
-      const p = b0.clone().addScaledVector(dir, len * f).add(V(0, -0.28 * f * f - 0.04, 0)), sz = 1.15 + rnd() * 0.6 + f * 0.25, tone = 0.8 + rnd() * 0.35, out = V(dir.x, 0, dir.z).normalize();
-      const nrm = V(out.x + (rnd() - 0.5) * 1.2, 0.05 + rnd() * 0.2, out.z + (rnd() - 0.5) * 1.2);
-      parts.push(card(p, nrm, sz, 0, [tone * 0.92, tone, tone * 0.85], rnd, crown, 0.5, 'top', 0.18));
-      if (k % 3 !== 1) parts.push(card(p, V(-nrm.z, 0.08, nrm.x), sz * 0.85, 0, [tone * 0.9, tone, tone * 0.82], rnd, crown, 0.5, 'top', 0.18));   // a second spray crossed with the first, so it reads from any side
+      const p = b0.clone().addScaledVector(dir, len * f).add(V(0, -0.28 * f * f + 0.02, 0)), sz = (0.95 + rnd() * 0.35) * (f > 0.95 ? 1.25 : 1), tone = 0.9 + rnd() * 0.16, out = V(dir.x, 0, dir.z).normalize();
+      const nrm = V(out.x + (rnd() - 0.5) * 1.1, 0.05 + rnd() * 0.15, out.z + (rnd() - 0.5) * 1.1), tint = [tone * 0.96, tone, tone * 0.9];
+      parts.push(card(p, nrm, sz, 0, tint, rnd, crown, 0.8, 'top', 0.12, 0.95));
+      parts.push(card(p, V(-nrm.z, 0.06, nrm.x), sz * 0.92, 0, tint, rnd, crown, 0.8, 'top', 0.12, 0.95));
+      if (k % 2 === 0) parts.push(card(p.clone().add(V(0, 0.08, 0)), V(dir.x * 0.3, 1, dir.z * 0.3), sz * 0.85, 0, tint, rnd, crown, 0.85, 'mid', 3.1));   // a soft cap seen from above
     }
-    parts.push(card(b0.clone().addScaledVector(dir, len * 0.8).add(V(0, 0.1, 0)), V(dir.x * 0.35, 1, dir.z * 0.35), 1.7 + rnd() * 0.6, 0, [0.8 + rnd() * 0.3, 0.9 + rnd() * 0.25, 0.75], rnd, crown, 0.7, 'mid', 3.1));   // a soft cap of needles seen from above
+  }
+  for (let i = 0; i < 4; i++) {   // a soft crown over the top of the trunk, so no bare pale spike shows from the high camera
+    const a = i * 1.6 + rnd(), p = V(tp[M].x + Math.cos(a) * 0.5, H * (0.8 + rnd() * 0.15), tp[M].z + Math.sin(a) * 0.5), tone = 0.92 + rnd() * 0.12;
+    parts.push(card(p, V(Math.cos(a), 0.1, Math.sin(a)), 1.25, 0, [tone * 0.96, tone, tone * 0.9], rnd, crown, 0.8, 'top', 0.12, 0.95));
+    parts.push(card(p.clone().add(V(0, 0.12, 0)), V(0.2, 1, 0.1), 1.3, 0, [tone * 0.96, tone, tone * 0.9], rnd, crown, 0.85, 'mid', 3.1));
   }
   return merge(parts);
 }

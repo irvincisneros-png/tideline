@@ -47,7 +47,7 @@ export class TouchControls {
       </div>
       <div class="t-stick t-land" id="t-stick" aria-label="Walk joystick"><div class="t-knob" id="t-knob"></div></div>
       <div class="t-pad t-land">
-        <div class="t-row"><button data-key="KeyE" class="t-sm t-talk" aria-label="Talk">💬</button><button data-key="KeyR" class="t-sm" aria-label="Fishing rod">🎣</button></div>
+        <div class="t-row"><button data-key="KeyB" class="t-sm t-land t-anchor" aria-label="Anchor or lift the anchor">⚓</button><button data-key="KeyE" class="t-sm t-talk" aria-label="Talk">💬</button><button data-key="KeyR" class="t-sm" aria-label="Fishing rod">🎣</button></div>
         <div class="t-row"><button data-key="Space" class="t-big" aria-label="Cast, strike, reel or jump">CAST</button></div>
       </div>
       <div id="t-rotate"><div>↻<br>Turn your phone sideways to play</div></div>`;
@@ -146,6 +146,8 @@ export class TouchControls {
       document.body.dataset.mode = g.mode;
       if (mode !== 'land') this.releaseAll();
     }
+    const anc = g.eco?.toggleAnchor ? '1' : '0';   // the ⚓ button only on the boat
+    if (this.root.dataset.anchor !== anc) this.root.dataset.anchor = anc;
     // Phone turned upright mid-game: pause behind the 'turn sideways' screen.
     if (g.mode === 'land' && !g.panels.isOpen && innerHeight > innerWidth) { this.releaseAll(); g.pauseMenu(); }
   }

@@ -222,7 +222,7 @@ check(await waitFor('.summary', 4000), 'the outing summary card shows');
 await t.wait(300);
 await t.shot('19-summary');
 const sum = await ev(() => document.querySelector('.summary').innerText);
-check(/Fined for 1 illegal/.test(sum), 'summary: the officer fined the illegal fish');
+check(/1 fish not legal to keep/.test(sum), 'summary: the officer noted the illegal fish');
 check(/Steward rating/.test(sum) && /Bay Health/.test(sum) && /fish caught/.test(sum), 'summary shows steward and Bay Health change');
 check(await ev(() => window.__game.progress.esky.length === 0 && window.__game.progress.steward.fines >= 1), 'esky emptied and the fine recorded');
 // Guide from the summary, then the title screen shows completion.

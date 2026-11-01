@@ -7,6 +7,7 @@ export const TAGLINE = 'Gotta catch ’em all… and release the small.';
 export const CLUB = "Illawarra Anglers' Club";
 const n = (x, one, many = one === 'fish' ? 'fish' : one + 's') => `${x} ${x === 1 ? one : many}`;
 const pct = x => `${Math.round(x)}%`;
+const bayText = v => `${(Math.floor(v * 10 + 1e-9) / 10).toFixed(1)}%`;   // one decimal, rounded down (never reads as the target while still short)
 
 /** Awards night: one speech per person. `title` is the award; `line` is what they say. {name} is filled in by the runner. */
 export const AWARDS = [
@@ -19,7 +20,7 @@ export const AWARDS = [
   { npc: 'jo', title: 'Looking After the Fish', line: s => `${n(s.releases, 'fish')} went back to swim another day. Looking after the fish means there are fish for the people who come after us. Thank you, {name}.` },
   { npc: 'nell', title: 'Healthy Bay', line: s => `Bay Health is at ${pct(s.bay)}. That is fish for the next generation, and for my trawler and every boat in the basin. Healthy Bay, {name}. When you are ready, come and see me about a co-op licence.` },
   { npc: 'mika', title: 'Best Fishing Buddy', line: s => `You found all ${s.total} kinds of fish, and your biggest was a ${s.best.cm} cm ${s.best.id ? SPECIES_BY_ID[s.best.id].name.toLowerCase() : 'fish'}! I am only a little bit jealous. Best Fishing Buddy, {name}!` },
-  { npc: 'officer', title: 'Steward of the Coast', line: s => `A Steward rating of ${s.stars.toFixed(1)} stars${s.fines ? `, even after ${n(s.fines, 'fine')}` : ', and a clean record'}. You follow the rules and you know why they are there. Steward of the Coast, {name}.` },
+  { npc: 'officer', title: 'Steward of the Coast', line: s => `A Steward rating of ${s.stars.toFixed(1)} stars${s.fines ? `, even after ${n(s.fines, 'illegal keep')} on the way` : ', and a clean record'}. You follow the rules and you know why they are there. Steward of the Coast, {name}.` },
 ];
 
 /** The softer ceremony at 100% Caught: four friends, a lighter speech. */
@@ -35,6 +36,6 @@ export function nextSteps(s, bayNeed) {
   const left = s.total - s.mastered;
   const out = [];
   if (left > 0) out.push(`Master ${left} more kind${left === 1 ? '' : 's'} of fish (a name from the key, a measure within 1 cm and the right keep-or-release call).`);
-  if (s.bay < bayNeed) out.push(`Lift Bay Health from ${pct(s.bay)} to ${pct(bayNeed)}: release the small ones and stay inside the bag limits.`);
+  if (s.bay < bayNeed) out.push(`Lift Bay Health from ${bayText(s.bay)} to ${bayText(bayNeed)}: release fish with wet hands, tag them, pull litter out of the water and keep only legal fish.`);
   return out;
 }

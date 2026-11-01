@@ -270,6 +270,35 @@ check(await waitFor('#home-go', 3000), 'H asks to head home'); await page.click(
 const sum = await ev(() => document.querySelector('#modal-body')?.innerText ?? '');
 check(/Outing summary/.test(sum) && /Trip log/.test(sum) && /3 aboard/.test(sum), 'the outing summary shows the trip log');
 await t.shot('summary');
+// ================================================================== 8b. touch: the fish finder's ? and Anchor, and the ⚓ button, are tappable over the look surface
+for (const [w, h] of narrow ? [[700, 375]] : [[812, 375], [700, 375]]) {
+  const tt = await launch({ query: `eco=reef&play&touch=1&quality=${quality}&time=day&tide=rising&season=summer&officer=0`, outDir: `playtest-shots/reef/${tag}-touch`, phone: { w, h } });
+  const pg = tt.page, e2 = (f, a) => pg.evaluate(f, a);
+  await tt.wait(2500);
+  const info = await e2(() => {
+    const r = s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, cx: b.left + b.width / 2, cy: b.top + b.height / 2, hit: document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2) === e || e.contains(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)), vis: b.width > 0 }; };
+    return { help: r('#sn-help'), anchor: r('#sn-anchor'), tAnchor: r('.t-anchor'), cast: r('.t-big'), rod: r('[data-key=KeyR]'), talk: r('[data-key=KeyE]'), stick: r('#t-stick'), sonar: r('#sonar') };
+  });
+  const hit = (a, b) => a && b && !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t);
+  check(info.help?.hit && info.anchor?.hit, `${w}x${h} touch: the fish finder ? and Anchor are on top of the look surface (hit-test)`);
+  check(info.tAnchor?.vis && info.tAnchor.hit, `${w}x${h} touch: a ⚓ Anchor button shows at the reef`);
+  check(!hit(info.tAnchor, info.cast) && !hit(info.tAnchor, info.rod) && !hit(info.tAnchor, info.talk) && !hit(info.sonar, info.stick), `${w}x${h} touch: ⚓ does not overlap CAST / rod / talk, and the fish finder clears the joystick`);
+  await tt.shot(`touch-${w}x${h}`);
+  await pg.touchscreen.tap(info.help.cx, info.help.cy); await tt.wait(500);
+  check(await e2(() => window.__game.panels.isOpen && /fish finder/i.test(document.querySelector('#modal-body').innerText)), `${w}x${h} touch: tapping ? opens how a fish finder works`);
+  await pg.evaluate(() => window.__game.panels.close(true)); await tt.wait(300);
+  await e2(() => { document.querySelector('#toast').innerHTML = ''; });
+  const a0 = await e2(() => window.__game.eco.state.anchored);
+  await pg.touchscreen.tap(info.tAnchor.cx, info.tAnchor.cy); await tt.wait(500);
+  const a1 = await e2(() => ({ anchored: window.__game.eco.state.anchored, toast: document.querySelector('#toast').innerText }));
+  check(a1.anchored !== a0 || /anchor/i.test(a1.toast), `${w}x${h} touch: tapping ⚓ presses B (anchored ${a0} -> ${a1.anchored}; "${a1.toast.slice(0, 50)}")`);
+  await e2(() => { document.querySelector('#toast').innerHTML = ''; });
+  await pg.touchscreen.tap(info.anchor.cx, info.anchor.cy); await tt.wait(500);
+  const a2 = await e2(() => ({ anchored: window.__game.eco.state.anchored, toast: document.querySelector('#toast').innerText }));
+  check(a2.anchored !== a1.anchored || /anchor/i.test(a2.toast), `${w}x${h} touch: tapping the fish finder's Anchor button works (${a1.anchored} -> ${a2.anchored})`);
+  const te = tt.errors.filter(e => !/favicon/.test(e)); check(te.length === 0, `${w}x${h} touch: zero console errors${te.length ? ': ' + te.slice(0, 2) : ''}`);
+  await tt.close();
+}
 const errs = t.errors.filter(e => !/favicon/.test(e));
 check(errs.length === 0, `zero console errors${errs.length ? ': ' + errs.slice(0, 3) : ''}`);
 for (const l of log) console.log(...l);
