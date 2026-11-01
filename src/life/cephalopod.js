@@ -139,7 +139,7 @@ export function buildCephalopod(look, opts = {}) {
   const re = Math.max(headRy, headRz) * (cuttle ? 0.5 : 0.42), ex = rowX(headU) + 0.004 * L, ey = headRy * 0.12;
   for (const side of [-1, 1]) {
     const ez = side * headRz * 0.9;
-    ball(ex, ey, ez, re * 0.98, 0.16, 0.97, 0.32);                                                  // the socket: a dark rim round the eye
+    ball(ex, ey, ez, re * 0.9, 0.16, 0.97, 0.32);                                                  // the socket: a dark rim round the eye
     ball(ex, ey, ez + side * re * 0.05, re * 0.8, 0.5, 0.97, 0.42);                                // the iris, a flat disc
     ball(ex + re * 0.1, ey, ez + side * re * 0.23, re * 0.5, 0.16, 0.97, 0.4);                     // the pupil
     ball(ex + re * 0.28, ey + re * 0.24, ez + side * re * 0.42, re * 0.14, 0.84, 0.97, 0.4, 8, 5); // the highlight

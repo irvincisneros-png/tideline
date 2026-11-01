@@ -11,15 +11,19 @@ const grain = (u, s) => 0.94 + 0.06 * hash(Math.floor(u * 90), Math.floor(s * 40
 /** Countershaded base: darker back, paler belly. */
 const counter = (top, bottom, k = 1) => (u, s) => mix(C(bottom), C(top), sm(-0.6 * k, 0.5 * k, s));
 
+/** One eye construction for every fish: a dark-teal rim, a coloured iris and a black pupil (painted here; fishModel.js lays a flush glossy lens with a small highlight over it).
+ *  r = eyeball radius as a fraction of the body length (u units); typical real values are 0.02 (kingfish) to 0.035 (scad, mackerel). */
 function withEye(fn, eyeU = 0.86, eyeS = 0.3, r = 0.045, iris = 0x111111, ring = 0xd8c070) {
+  r *= 1.3;   // a touch bigger than life so the eye reads at game scale (still flush)
   const f = (u, s, side) => {
     const du = (u - eyeU), ds = (s - eyeS) * 0.55;
     const d = Math.hypot(du, ds);
-    if (d < r * 0.6) return C(iris);
-    if (d < r) return mix(C(ring), C(iris), 0.25);
+    if (d < r * 0.48) return [0.03, 0.05, 0.06];            // pupil
+    if (d < r * 0.88) return C(ring);                       // iris
+    if (d < r * 1.0) return [0.08, 0.2, 0.23];              // thin dark-teal rim, the same ink as the outlines
     return fn(u, s, side);
   };
-  f.eye = { u: eyeU, s: eyeS, r }; // lets the model builder add a domed, glossy eyeball over the painted eye
+  f.eye = { u: eyeU, s: eyeS, r }; // lets the model builder add a flush, glossy lens over the painted eye
   return f;
 }
 /** Vertical bars: list of [uCentre, halfWidth, colour, edgeColour?, edgeWidth?] */

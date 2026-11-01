@@ -6,77 +6,87 @@ import { paint as P } from '../life/looks.js';
 const { C, mix, sm, withEye, counter, spots } = P;
 
 registerLook('australiansalmon', {
-  // Arripis trutta: blue-green back, silver flanks and belly, small dark spots scattered over the back and upper sides (no bars), pale fins, a dark-edged forked tail.
-  length: 0.5, depth: 0.25, width: 0.13, peak: 0.55, snout: 0.85, tailFrac: 0.2, tail: 'forked', tailSpan: 1.3, pectoral: 0.13,
-  dorsal: { from: 0.35, to: 0.6, height: 0.08, shape: 'tri' }, anal: { from: 0.2, to: 0.35, height: 0.06 },
-  paint: { body: withEye(spots((u, s) => mix(C(0xeaf0f0), C(0x6f9a92), sm(-0.25, 0.75, s)), 0x2c4a44, 40, 0.1, (u, s) => s > 0.12 && u > 0.12 && u < 0.82), 0.88, 0.25, 0.05), fin: (u, part) => (part === 'tail' ? C(0x55706a) : C(0xd8dcc0)) },
+  // Arripis trutta: blue-green back, silver flanks and belly, small dark spots over the back and upper sides (no bars), a spiny dorsal then a small soft one, a dark-edged forked tail, a mid-sized eye.
+  length: 0.5, depth: 0.24, width: 0.13, peak: 0.55, snout: 0.85, tailFrac: 0.2, tail: 'forked', tailSpan: 1.1, pectoral: 0.13, mouth: { len: 0.08, s: -0.1 },
+  dorsal: { from: 0.5, to: 0.64, height: 0.06, shape: 'tri' }, dorsal2: { from: 0.27, to: 0.37, height: 0.045 }, anal: { from: 0.25, to: 0.37, height: 0.05 },
+  paint: { body: withEye(spots((u, s) => mix(C(0xeaf0f0), C(0x6f9a92), sm(-0.25, 0.75, s)), 0x2c4a44, 40, 0.1, (u, s) => s > 0.12 && u > 0.12 && u < 0.82), 0.88, 0.25, 0.026, 0x101010, 0xd8d8b0), fin: (u, part) => (part === 'tail' ? C(0x55706a) : C(0xd8dcc0)) },
   swim: { freq: 6, amp: 0.7 }, metal: 0.5,
 });
 registerLook('tailor', {
-  length: 0.45, depth: 0.25, width: 0.12, peak: 0.55, snout: 0.75, tailFrac: 0.2, tail: 'forked', tailSpan: 1.2, pectoral: 0.12,
-  dorsal: { from: 0.25, to: 0.65, height: 0.07 }, anal: { from: 0.2, to: 0.45, height: 0.06 },
-  paint: { body: withEye(counter(0x5a8a9a, 0xdce6e2, 0.9), 0.88, 0.25, 0.05), fin: (u, part) => part === 'tail' ? C(0x6a7a6a) : C(0xc8c890) },
+  // Pomatomus saltatrix: a sturdy, streamlined bluish-green fish with a big oblique mouth full of teeth, a short spiny dorsal then a long soft one, a long soft anal and a forked tail.
+  length: 0.45, depth: 0.24, width: 0.12, peak: 0.5, snout: 0.75, tailFrac: 0.2, tail: 'forked', tailSpan: 1.15, pectoral: 0.12, mouth: { len: 0.1, s: -0.06 },
+  dorsal: { from: 0.52, to: 0.64, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.26, to: 0.5, height: 0.05 }, anal: { from: 0.26, to: 0.47, height: 0.05 },
+  paint: { body: withEye(counter(0x5a8a9a, 0xdce6e2, 0.9), 0.88, 0.25, 0.027, 0x101010, 0xd8d0a8), fin: (u, part) => part === 'tail' ? C(0x6a7a6a) : C(0xc8c890) },
   swim: { freq: 6, amp: 0.7 }, metal: 0.45,
 });
 registerLook('sandwhiting', {
-  length: 0.3, depth: 0.18, width: 0.1, peak: 0.5, snout: 1.2, tailFrac: 0.16, tail: 'truncate', pectoral: 0.11,
-  dorsal: { from: 0.2, to: 0.7, height: 0.042 }, anal: { from: 0.15, to: 0.45, height: 0.05 },
-  paint: { body: withEye((u, s) => mix(C(0xf2ecd8), C(0xc8b890), sm(-0.2, 0.9, s)), 0.9, 0.25, 0.04), fin: () => C(0xd8c890) },
+  // Sillago ciliata: a long, slim, pale sandy fish with a pointed snout and a small low mouth, two separate dorsals (a short spiny one then a long soft one) and a long soft anal.
+  length: 0.3, depth: 0.15, width: 0.1, peak: 0.5, snout: 1.3, tailFrac: 0.16, tail: 'truncate', pectoral: 0.11, mouth: { len: 0.035, s: -0.3 },
+  dorsal: { from: 0.55, to: 0.65, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.47, height: 0.036 }, anal: { from: 0.2, to: 0.47, height: 0.036 },
+  paint: { body: withEye((u, s) => mix(C(0xf2ecd8), C(0xc8b890), sm(-0.2, 0.9, s)), 0.9, 0.25, 0.024, 0x101010, 0xd8d0a0), fin: () => C(0xd8c890) },
   swim: { freq: 6, amp: 0.6 }, metal: 0.3,
 });
 registerLook('yellowfinbream', {
-  length: 0.3, depth: 0.42, width: 0.13, peak: 0.55, snout: 0.75, tailFrac: 0.16, tail: 'forked', tailSpan: 1.1, pectoral: 0.13,
-  dorsal: { from: 0.2, to: 0.75, height: 0.09 }, anal: { from: 0.2, to: 0.4, height: 0.07 },
-  paint: { body: withEye((u, s) => mix(C(0xdcdad0), C(0x8a8a6a), sm(-0.3, 0.9, s)), 0.88, 0.25, 0.045), fin: (u, part) => part === 'anal' || part === 'pectoral' ? C(0xf0d040) : C(0x9a9a7a) },
+  // Acanthopagrus australis: a deep, oval, silvery-olive body, steep rounded forehead, a small low mouth, ONE long dorsal (tall spines at the front, soft behind) and yellow pelvic and anal fins.
+  length: 0.3, depth: 0.4, width: 0.13, peak: 0.55, snout: 0.7, tailFrac: 0.16, tail: 'forked', tailSpan: 1.0, pectoral: 0.13, mouth: { len: 0.05, s: -0.2 },
+  dorsal: { from: 0.2, to: 0.76, height: 0.1, shape: 'dual' }, anal: { from: 0.22, to: 0.4, height: 0.065 },
+  paint: { body: withEye((u, s) => mix(C(0xdcdad0), C(0x8a8a6a), sm(-0.3, 0.9, s)), 0.88, 0.25, 0.026, 0x101010, 0xd8c070), fin: (u, part) => part === 'anal' || part === 'pectoral' ? C(0xf0d040) : C(0x9a9a7a) },
   swim: { freq: 5, amp: 0.6 }, metal: 0.4,
 });
 
 registerLook('duskyflathead', {
-  // Platycephalus fuscus: a long, flat, spade-shaped head with the eyes on top close together, dark mottled olive-brown back with small black spots, a cream belly, and a
-  // rounded-truncate tail (a broad fan with a softly curved edge, never forked) with a dark blotch and a pale edge.
-  length: 0.6, depth: 0.1, width: 0.24, peak: 0.75, snout: 0.25, tailFrac: 0.16, tail: 'truncate', tailSpan: 0.95, peduncle: 0.2, pectoral: 0.15, pecWing: 0.45, boxy: 3,
-  dorsal: { from: 0.2, to: 0.7, height: 0.05 }, anal: { from: 0.15, to: 0.5, height: 0.04 },
+  // Platycephalus fuscus: a long, flat, spade-shaped head with a big wide mouth and the eyes raised on TOP close together, a dark mottled olive-brown back with small black spots, a cream belly, two dorsals
+  // (a small spiny one then a long soft one), no pelvic fins on show, and a rounded-truncate tail (a broad fan, never forked) with a dark blotch and a pale edge.
+  length: 0.6, depth: 0.1, width: 0.24, peak: 0.75, snout: 0.25, tailFrac: 0.16, tail: 'truncate', tailSpan: 0.95, peduncle: 0.2, pectoral: 0.15, pecWing: 0.45, boxy: 3, pelvic: 0, eyeRaise: 0.5, mouth: { len: 0.12, s: -0.35 },
+  dorsal: { from: 0.66, to: 0.73, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.28, to: 0.6, height: 0.04 }, anal: { from: 0.26, to: 0.55, height: 0.035 },
   paint: {
-    body: withEye(spots((u, s) => mix(C(0xeee2c4), C(0x8d7852), sm(-0.3, 0.3, s)), 0x3a2e20, 30, 0.14, (u, s) => s > -0.2), 0.86, 0.96, 0.03, 0x222222, 0xd0b060),
+    body: withEye(spots((u, s) => mix(C(0xeee2c4), C(0x8d7852), sm(-0.3, 0.3, s)), 0x3a2e20, 30, 0.14, (u, s) => s > -0.2), 0.86, 0.96, 0.02, 0x222222, 0xd0b060),
     fin: (u, part, f) => (part === 'tail' ? (f > 0.86 ? C(0xe9dfa8) : f > 0.4 && f < 0.82 ? C(0x3a2e20) : C(0x8d7852)) : part === 'pectoral' ? mix(C(0xe8dcb8), C(0x8d7852), f) : C(0x8d7852)),
   }, swim: { freq: 2.5, amp: 0.5 },
 });
 registerLook('seamullet', {
-  length: 0.45, depth: 0.22, width: 0.16, peak: 0.6, snout: 0.45, tailFrac: 0.18, tail: 'forked', pectoral: 0.11,
-  dorsal: { from: 0.35, to: 0.5, height: 0.08, shape: 'tri' }, anal: { from: 0.2, to: 0.35, height: 0.06 },
-  paint: { body: withEye((u, s) => mix(C(0xdce2e4), C(0x5a6a70), sm(-0.1, 0.8, s)).map(v => v * (Math.sin(s * 18) > 0.85 ? 0.85 : 1)), 0.92, 0.25, 0.035), fin: () => C(0x6a7a80) }, swim: { freq: 4.5, amp: 0.6 }, metal: 0.4,
+  // Mugil cephalus: a stout, torpedo-shaped silvery fish with a flat blunt head, a small mouth, TWO short, widely separated dorsals (4 spines, then a soft one), a short anal and a forked tail; pale stripes along the scale rows.
+  length: 0.45, depth: 0.22, width: 0.16, peak: 0.6, snout: 0.45, tailFrac: 0.18, tail: 'forked', pectoral: 0.11, mouth: { len: 0.05, s: -0.1 },
+  dorsal: { from: 0.5, to: 0.59, height: 0.055, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.29, height: 0.045 }, anal: { from: 0.2, to: 0.3, height: 0.045 },
+  paint: { body: withEye((u, s) => mix(C(0xdce2e4), C(0x7f9298), sm(-0.1, 0.8, s)).map(v => v * (Math.sin(s * 18) > 0.85 ? 0.88 : 1)), 0.92, 0.25, 0.02, 0x101010, 0xd8d0a8), fin: () => C(0x7a8a90) }, swim: { freq: 4.5, amp: 0.6 }, metal: 0.4,
 });
 registerLook('mulloway', {
-  length: 0.8, depth: 0.24, width: 0.12, peak: 0.5, snout: 0.8, tailFrac: 0.17, tail: 'truncate', tailSpan: 1.05, pectoral: 0.12,
-  dorsal: { from: 0.25, to: 0.72, height: 0.09 }, anal: { from: 0.16, to: 0.3, height: 0.06 },
-  paint: { body: withEye((u, s) => mix(C(0xefece4), C(0x9a8a78), sm(-0.3, 0.8, s)).map(v => v * (Math.abs(s - 0.1) < 0.03 && u > 0.2 && u < 0.8 ? 0.9 : 1)), 0.9, 0.22, 0.06, 0x101010, 0xe0d8c0), fin: () => C(0x7a6a5a) },
+  // Argyrosomus japonicus: a long, silvery-bronze body, a big oblique mouth, a large eye, a tall spiny dorsal then a long soft one, a pale lateral line and a squarish tail.
+  length: 0.8, depth: 0.22, width: 0.12, peak: 0.5, snout: 0.8, tailFrac: 0.17, tail: 'truncate', tailSpan: 1.0, pectoral: 0.12, mouth: { len: 0.09, s: -0.05 },
+  dorsal: { from: 0.5, to: 0.67, height: 0.07, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.48, height: 0.05 }, anal: { from: 0.16, to: 0.3, height: 0.05 },
+  paint: { body: withEye((u, s) => mix(C(0xefece4), C(0xa08e78), sm(-0.3, 0.8, s)).map(v => v * (Math.abs(s - 0.1) < 0.03 && u > 0.2 && u < 0.8 ? 0.92 : 1)), 0.9, 0.22, 0.025, 0x101010, 0xe0d8c0), fin: () => C(0x8a7a68) },
   swim: { freq: 4, amp: 0.55 }, metal: 0.35,
 });
 registerLook('silvertrevally', {
-  length: 0.35, depth: 0.34, width: 0.11, peak: 0.55, snout: 0.7, tailFrac: 0.19, tail: 'forked', tailSpan: 1.35, pectoral: 0.14,
-  dorsal: { from: 0.2, to: 0.6, height: 0.09 }, anal: { from: 0.18, to: 0.4, height: 0.07 },
+  // Pseudocaranx georgianus: a deep, flat-sided silver fish with a steep head, a small mouth, a black spot at the top of the gill cover, a short spiny dorsal then a long soft one, and a yellow-tinged deeply forked tail.
+  length: 0.35, depth: 0.36, width: 0.11, peak: 0.55, snout: 0.7, tailFrac: 0.19, tail: 'forked', tailSpan: 1.25, pectoral: 0.14, mouth: { len: 0.05, s: -0.2 },
+  dorsal: { from: 0.5, to: 0.64, height: 0.07, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.5, height: 0.065 }, anal: { from: 0.2, to: 0.42, height: 0.06 },
   paint: {
-    body: withEye((u, s) => (Math.hypot((u - 0.78) * 1.6, (s - 0.52) * 0.7) < 0.05 ? C(0x1c2024) : mix(C(0xeef2f4), C(0x86a0b0), sm(-0.2, 0.9, s))), 0.9, 0.3, 0.05, 0x101010, 0xe8e8d0),
+    body: withEye((u, s) => (Math.hypot((u - 0.78) * 1.6, (s - 0.52) * 0.7) < 0.05 ? C(0x1c2024) : mix(C(0xeef2f4), C(0x86a0b0), sm(-0.2, 0.9, s))), 0.9, 0.3, 0.03, 0x101010, 0xe8e8d0),
     fin: (u, part) => (part === 'tail' ? C(0xe6d060) : C(0xc8d0d4)),
   },
   swim: { freq: 5, amp: 0.65 }, metal: 0.6,
 });
 registerLook('rockblackfish', {
-  length: 0.4, depth: 0.42, width: 0.14, peak: 0.5, snout: 0.6, tailFrac: 0.17, tail: 'truncate', tailSpan: 1.0, pectoral: 0.13,
-  dorsal: { from: 0.15, to: 0.8, height: 0.1 }, anal: { from: 0.2, to: 0.42, height: 0.07 },
-  paint: { body: withEye((u, s) => mix(C(0xb8c4c8), C(0x66767f), sm(-0.4, 0.7, s)), 0.88, 0.26, 0.045, 0x101010, 0xc8b878), fin: () => C(0x6e7c84) },
+  // Girella elevata: a deep, heavy, slate-grey body (paler than a luderick, no bars), a small blunt head and mouth, one long dorsal (stiff spines at the front, soft behind) and a squarish tail.
+  length: 0.4, depth: 0.4, width: 0.15, peak: 0.5, snout: 0.55, tailFrac: 0.17, tail: 'truncate', tailSpan: 0.95, pectoral: 0.13, mouth: { len: 0.045, s: -0.15 },
+  dorsal: { from: 0.15, to: 0.8, height: 0.09, shape: 'dual' }, anal: { from: 0.2, to: 0.42, height: 0.065 },
+  paint: { body: withEye((u, s) => mix(C(0xc0cacc), C(0x72828b), sm(-0.4, 0.7, s)), 0.88, 0.26, 0.025, 0x101010, 0xc8b878), fin: () => C(0x7e8c94) },
   swim: { freq: 4, amp: 0.55 },
 });
 registerLook('garfish', {
-  length: 0.3, depth: 0.07, width: 0.07, peak: 0.45, snout: 1.7, tailFrac: 0.15, tail: 'forked', tailSpan: 1.6, pectoral: 0.09,
+  // Hyporhamphus australis: a slim, silver-green, round-bodied fish whose LOWER jaw is drawn out into a long beak with a red tip, the upper jaw a short triangle; dorsal and anal sit far back, opposite each other; forked tail with a longer lower lobe.
+  length: 0.3, depth: 0.07, width: 0.07, peak: 0.45, snout: 1.2, tailFrac: 0.15, tail: 'forked', tailSpan: 1.6, pectoral: 0.09, pelvic: 0.04, beak: 0.13, mouth: { len: 0.03, s: -0.3 },
   dorsal: { from: 0.1, to: 0.3, height: 0.032, shape: 'tri' }, anal: { from: 0.12, to: 0.32, height: 0.028, shape: 'tri' },
-  paint: { body: withEye((u, s) => (u > 0.94 ? C(0xff7a40) : mix(C(0xf2f6f6), C(0x86b4a8), sm(-0.1, 0.8, s))), 0.86, 0.3, 0.04), fin: () => C(0xbcc8c8) },
+  paint: { body: withEye((u, s) => (u > 0.94 ? C(0xff7a40) : mix(C(0xf2f6f6), C(0x86b4a8), sm(-0.1, 0.8, s))), 0.86, 0.3, 0.02, 0x101010, 0xd8d8b8), fin: () => C(0xbcc8c8) },
   swim: { freq: 7, amp: 0.55 }, metal: 0.5,
 });
 registerLook('bonito', {
-  length: 0.55, depth: 0.25, width: 0.12, peak: 0.45, snout: 0.9, tailFrac: 0.19, tail: 'forked', tailSpan: 1.3, pectoral: 0.1,
-  dorsal: { from: 0.3, to: 0.72, height: 0.062 }, anal: { from: 0.18, to: 0.28, height: 0.05 },
-  paint: { body: withEye((u, s) => (s > 0.1 && Math.sin(u * 46 + s * 14) > 0.55 ? C(0x2a4658) : mix(C(0xeef0f0), C(0x4a8aa6), sm(-0.2, 0.7, s))), 0.9, 0.25, 0.04), fin: (u, part) => (part === 'tail' ? C(0x4a5a6a) : C(0x7a98a8)) },
+  // Sarda australis: a tuna-like torpedo, steel-blue back with oblique dark stripes, a silver belly, a big mouth, a long low spiny first dorsal then a small second one, a row of finlets, a narrow tail base and a forked tail.
+  length: 0.55, depth: 0.25, width: 0.12, peak: 0.45, snout: 0.9, tailFrac: 0.19, tail: 'forked', tailSpan: 1.25, pectoral: 0.1, peduncle: 0.1, mouth: { len: 0.1, s: -0.06 },
+  dorsal: { from: 0.42, to: 0.72, height: 0.045, shape: 'tri' }, dorsal2: { from: 0.28, to: 0.36, height: 0.035 }, anal: { from: 0.26, to: 0.34, height: 0.035 },
+  finlets: { from: 0.04, to: 0.26, n: 6, h: 0.02 },
+  paint: { body: withEye((u, s) => (s > 0.1 && Math.sin(u * 46 + s * 14) > 0.55 ? C(0x2e4e64) : mix(C(0xeef0f0), C(0x4a8aa6), sm(-0.2, 0.7, s))), 0.9, 0.25, 0.024, 0x101010, 0xd8d0a8), fin: (u, part) => (part === 'tail' ? C(0x4a5a6a) : C(0x7a98a8)) },
   swim: { freq: 7, amp: 0.65 }, metal: 0.55,
 });
 // ---- Cephalopods (models in life/cephalopod.js). u = 0 tail .. 1 head, s = +1 back .. -1 belly. Colours are pastel-shifted (art bible), markings are real.
@@ -131,69 +141,71 @@ registerLook('cuttlefish', {
   swim: { freq: 6, amp: 0.15 },
 });
 registerLook('yakka', {
-  // Yellowtail scad (Trachurus): slim and silvery, blue-green back, a yellow tail and fins, a dark spot on the gill cover and a line of bony scutes along the side.
-  length: 0.25, depth: 0.2, width: 0.1, peak: 0.55, snout: 0.8, tailFrac: 0.2, tail: 'forked', tailSpan: 1.25, pectoral: 0.11,
-  dorsal: { from: 0.28, to: 0.7, height: 0.06 }, anal: { from: 0.2, to: 0.5, height: 0.05 },
+  // Yellowtail scad (Trachurus novaezelandiae): slim and silvery, blue-green back, a BIG (but flush) eye, a yellow tail and fins, a dark spot on the gill cover, a short spiny first dorsal then a long soft one, and a line of bony scutes along the side.
+  length: 0.25, depth: 0.2, width: 0.1, peak: 0.55, snout: 0.8, tailFrac: 0.2, tail: 'forked', tailSpan: 1.15, pectoral: 0.11, mouth: { len: 0.06, s: -0.12 },
+  dorsal: { from: 0.52, to: 0.64, height: 0.05, shape: 'tri' }, dorsal2: { from: 0.22, to: 0.49, height: 0.04 }, anal: { from: 0.2, to: 0.43, height: 0.035 },
   paint: {
     body: withEye((u, s) => {
       if (Math.hypot((u - 0.79) * 1.7, (s - 0.35) * 0.7) < 0.045) return C(0x24343a);                          // the dark gill-cover spot
       if (Math.abs(s - 0.04) < 0.035 && u > 0.2 && u < 0.76 && Math.sin(u * 95) > -0.2) return C(0xcdb55a);      // lateral line scutes
       return mix(C(0xeef4f0), C(0x6aa7b4), sm(-0.2, 0.8, s));
-    }, 0.9, 0.3, 0.046),
+    }, 0.9, 0.3, 0.04, 0x101010, 0xd8d0a0),
     fin: (u, part) => (part === 'tail' || part === 'anal' ? C(0xf0cf4c) : C(0xdcd890)),
   },
   swim: { freq: 7, amp: 0.65 }, metal: 0.5,
 });
 registerLook('slimymackerel', {
-  // Scomber australasicus: a torpedo of a fish with a big eye, wavy dark lines over a blue-green back, a silver belly and a forked tail with finlets behind the fins.
-  length: 0.32, depth: 0.2, width: 0.11, peak: 0.5, snout: 0.9, tailFrac: 0.2, tail: 'forked', tailSpan: 1.3, pectoral: 0.1,
-  dorsal: { from: 0.3, to: 0.62, height: 0.06, shape: 'tri' }, anal: { from: 0.18, to: 0.4, height: 0.045 },
+  // Scomber australasicus: a torpedo of a fish with a big eye, wavy dark lines over a blue-green back, a silver belly, two separate dorsals, a row of finlets behind the dorsal and anal, a narrow tail base and a forked tail.
+  length: 0.32, depth: 0.2, width: 0.11, peak: 0.5, snout: 0.9, tailFrac: 0.2, tail: 'forked', tailSpan: 1.2, pectoral: 0.1, peduncle: 0.1, mouth: { len: 0.08, s: -0.08 },
+  dorsal: { from: 0.5, to: 0.68, height: 0.05, shape: 'tri' }, dorsal2: { from: 0.3, to: 0.4, height: 0.035 }, anal: { from: 0.26, to: 0.34, height: 0.03 },
+  finlets: { from: 0.1, to: 0.28, n: 5, h: 0.018 },
   paint: {
     body: withEye((u, s) => {
       const back = mix(C(0xeef2f0), C(0x5f9fae), sm(-0.15, 0.7, s));
       return s > 0.12 && u > 0.12 && u < 0.84 && Math.sin(u * 62 + Math.sin(s * 22) * 2.2) > 0.4 ? mix(back, C(0x2f5f70), 0.7) : back;   // wavy dark lines on the back
-    }, 0.89, 0.25, 0.062),
+    }, 0.89, 0.25, 0.034, 0x101010, 0xd8d0a0),
     fin: (u, part) => (part === 'tail' ? C(0x6f8f9a) : C(0xb8cdd0)),
   },
   swim: { freq: 7, amp: 0.65 }, metal: 0.55,
 });
 registerLook('shortfineel', {
-  length: 0.7, depth: 0.05, width: 0.05, peak: 0.45, snout: 0.7, tailFrac: 0.05, tail: 'round', tailSpan: 0.45, pectoral: 0.025, peduncle: 0.6,
+  // Anguilla australis: a snake-like round body, a small pointed head with a small eye, a wide mouth, tiny pectoral fins, no pelvics, and one continuous dorsal-anal-tail fin edging the back half; olive-brown above, pale below.
+  length: 0.7, depth: 0.05, width: 0.05, peak: 0.45, snout: 0.7, tailFrac: 0.05, tail: 'round', tailSpan: 0.45, pectoral: 0.025, pelvic: 0, eyeRaise: 0.15, peduncle: 0.6, mouth: { len: 0.05, s: -0.15 }, noLateral: true,
   dorsal: { from: 0.06, to: 0.8, height: 0.025 }, anal: { from: 0.06, to: 0.55, height: 0.02 },
-  paint: { body: withEye((u, s) => mix(C(0xe8e0c0), C(0x6e6a42), sm(-0.4, 0.5, s)), 0.95, 0.3, 0.03, 0x101010, 0xe0d070), fin: () => C(0x8a8458) },
+  paint: { body: withEye((u, s) => mix(C(0xe8e0c0), C(0x6e6a42), sm(-0.4, 0.5, s)), 0.95, 0.3, 0.008, 0x101010, 0xd8c860), fin: () => C(0x8a8458) },
   swim: { freq: 3.5, amp: 0.4 }, waveK: 3,
 });
 // ---- Phase 6: the offshore reef and the freshwater river.
 registerLook('jackassmorwong', {
-  // Nemadactylus douglasii: a deep, silvery-grey body with a dark band over the shoulder, one long trailing pectoral fin, a small "kissing" mouth with thick lips and a forked tail.
-  length: 0.45, depth: 0.38, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.17, tail: 'forked', tailSpan: 1.1, pectoral: 0.24, pecAt: 0.7, lips: true,
-  dorsal: { from: 0.18, to: 0.82, height: 0.075 }, anal: { from: 0.2, to: 0.42, height: 0.06 },
+  // Nemadactylus douglasii: a deep, silvery-grey body with a dark band over the shoulder, one long trailing pectoral fin, a small "kissing" mouth with thick lips, a long dorsal (tall at the front) and a forked tail.
+  length: 0.45, depth: 0.37, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.17, tail: 'forked', tailSpan: 1.05, pectoral: 0.24, pecAt: 0.7, lips: true, mouth: { len: 0.04, s: -0.2 },
+  dorsal: { from: 0.18, to: 0.82, height: 0.085, shape: 'dual' }, anal: { from: 0.2, to: 0.42, height: 0.06 },
   paint: {
     body: withEye((u, s) => {
       const base = mix(C(0xeaeceb), C(0x8e9aa0), sm(-0.4, 0.8, s));
-      return Math.abs(u - 0.7) < 0.045 && s > -0.1 ? mix(base, C(0x4c5a62), 0.7) : base;      // the dark shoulder band
-    }, 0.9, 0.25, 0.048, 0x101010, 0xe6d8a0),
+      return Math.abs(u - 0.7 + s * 0.05) < 0.04 && s > -0.15 ? mix(base, C(0x4c5a62), 0.62 * (1 - sm(0.6, 1, Math.abs(u - 0.7 + s * 0.05) / 0.04)) + 0.1) : base;      // the dark shoulder band
+    }, 0.9, 0.25, 0.026, 0x101010, 0xe6d8a0),
     fin: (u, part) => (part === 'pectoral' ? C(0xd8dcdc) : part === 'tail' ? C(0x6f7e86) : C(0x9aa6ac)),
   },
   swim: { freq: 4, amp: 0.55 }, metal: 0.3,
 });
 registerLook('australianbass', {
-  // Macquaria novemaculeata: a dark golden-olive perch with a paler belly, a pointed head with a lower jaw that juts out, spiny-fronted dorsal and a forked tail.
-  length: 0.35, depth: 0.3, width: 0.12, peak: 0.55, snout: 0.85, tailFrac: 0.17, tail: 'forked', tailSpan: 1.0, pectoral: 0.12,
-  dorsal: { from: 0.2, to: 0.78, height: 0.075 }, anal: { from: 0.18, to: 0.38, height: 0.055 },
-  paint: { body: withEye((u, s) => mix(C(0xe2d6a6), C(0x7d6a3a), sm(-0.35, 0.8, s)), 0.9, 0.3, 0.05, 0x101010, 0xd8b050), fin: (u, part) => (part === 'tail' ? C(0x6a5a34) : C(0x8d7a4a)) },
+  // Macquaria novemaculeata: a golden-olive perch with a paler belly, a pointed head with a big oblique mouth and a lower jaw that juts out, a spiny first dorsal joined (with a notch) to a rounded soft one, and a slightly forked tail.
+  length: 0.35, depth: 0.29, width: 0.12, peak: 0.55, snout: 0.85, tailFrac: 0.17, tail: 'forked', tailSpan: 0.95, pectoral: 0.12, mouth: { len: 0.1, s: -0.02 },
+  dorsal: { from: 0.5, to: 0.74, height: 0.08, shape: 'tri' }, dorsal2: { from: 0.22, to: 0.47, height: 0.06 }, anal: { from: 0.2, to: 0.36, height: 0.055 },
+  paint: { body: withEye((u, s) => mix(C(0xe2d6a6), C(0x8a7646), sm(-0.35, 0.8, s)), 0.9, 0.3, 0.028, 0x101010, 0xd8b050), fin: (u, part) => (part === 'tail' ? C(0x7a6a40) : C(0x9a8656)) },
   swim: { freq: 5, amp: 0.6 },
 });
 registerLook('carp', {
-  // Cyprinus carpio: a stout golden-olive body with big scales (a pattern of scale edges), a sucker-like downturned mouth with two pairs of barbels, one long dorsal fin and a forked red-brown tail.
-  length: 0.45, depth: 0.34, width: 0.15, peak: 0.5, snout: 0.5, tailFrac: 0.17, tail: 'forked', tailSpan: 0.95, pectoral: 0.11,
-  dorsal: { from: 0.12, to: 0.78, height: 0.07 }, anal: { from: 0.18, to: 0.32, height: 0.05 },
+  // Cyprinus carpio: a stout golden-olive body with big scales (a pattern of scale edges), a small eye, a sucker-like downturned mouth with two pairs of barbels, ONE long dorsal (tall at the front), a short anal and a forked red-brown tail.
+  length: 0.45, depth: 0.34, width: 0.15, peak: 0.5, snout: 0.5, tailFrac: 0.17, tail: 'forked', tailSpan: 0.95, pectoral: 0.11, barbels: 2, mouth: { len: 0.035, s: -0.3 }, noLateral: true,
+  dorsal: { from: 0.12, to: 0.78, height: 0.085, shape: 'dual' }, anal: { from: 0.2, to: 0.31, height: 0.05 },
   paint: {
     body: withEye((u, s) => {
       const base = mix(C(0xe9dca2), C(0x8a7a3e), sm(-0.35, 0.8, s));
       const row = Math.floor((s + 1) * 6), off = (row % 2) * 0.5, edge = Math.abs(((u * 26 + off) % 1) - 0.5) > 0.44 || Math.abs((((s + 1) * 6) % 1) - 0.5) > 0.46;
       return edge && u > 0.12 && u < 0.8 ? mix(base, C(0x6a5a2a), 0.4) : base;                                  // the big scale edges
-    }, 0.88, 0.28, 0.04, 0x101010, 0xd8b050),
+    }, 0.88, 0.28, 0.017, 0x101010, 0xd8b050),
     fin: (u, part) => (part === 'tail' || part === 'anal' ? C(0xb0664a) : C(0x9a8a52)),
   },
   swim: { freq: 3.5, amp: 0.5 },

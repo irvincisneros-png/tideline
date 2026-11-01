@@ -167,29 +167,32 @@ const { C, mix, sm, withEye, bars, spots, counter, hash } = P;
 /** Smooth value noise (0..1): big soft blotches for patterned skins. */
 const vnoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, f = t => t * t * (3 - 2 * t), a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1); return (a + (b - a) * f(fx)) * (1 - f(fy)) + (c + (d - c) * f(fx)) * f(fy); };
 const looks = {
-  bluegroper: { length: 0.9, depth: 0.34, width: 0.2, peak: 0.55, snout: 0.45, tailFrac: 0.15, tail: 'round', tailSpan: 0.8, peduncle: 0.32, pectoral: 0.14, belly: 0.3, lips: true, hump: { at: 0.84, h: 0.28, w: 0.13 }, // the male's bulbous forehead hump
-    dorsal: { from: 0.12, to: 0.8, height: 0.06 }, anal: { from: 0.12, to: 0.45, height: 0.06 },
-    // Eastern blue groper (male): a bright cornflower blue, paler on the belly, a big ROUNDED tail, thick lips.
-    paint: { body: withEye((u, s) => mix(C(0xb4d6f4), C(0x5a96dc), sm(-0.55, 0.55, s)).map(v => v * (0.95 + 0.06 * Math.sin(u * 90 + s * 4))), 0.9, 0.3, 0.03, 0x111111, 0xd06030), fin: () => C(0x6aa2e2) }, swim: { freq: 3, amp: 0.4 } },
-  redmorwong: { length: 0.5, depth: 0.36, width: 0.16, peak: 0.6, snout: 0.6, tailFrac: 0.18, tail: 'forked', pectoral: 0.16,
-    dorsal: { from: 0.15, to: 0.8, height: 0.12, shape: 'tri' }, anal: { from: 0.15, to: 0.4, height: 0.08 }, lips: true,
-    paint: { body: withEye(bars((u, s) => mix(C(0xf0e4da), C(0xd9705a), sm(-0.2, 0.8, s)), [[0.72, 0.035, 0x6a3228], [0.55, 0.035, 0x6a3228]]), 0.9, 0.25, 0.04), fin: () => C(0xc8553f) }, swim: { freq: 3, amp: 0.5 } },
+  bluegroper: { length: 0.9, depth: 0.32, width: 0.2, peak: 0.55, snout: 0.45, tailFrac: 0.15, tail: 'round', tailSpan: 0.8, peduncle: 0.32, pectoral: 0.14, belly: 0.3, lips: true, hump: { at: 0.84, h: 0.28, w: 0.13 }, mouth: { len: 0.05, s: -0.15 }, // the male's bulbous forehead hump
+    dorsal: { from: 0.12, to: 0.8, height: 0.06, shape: 'dual' }, anal: { from: 0.12, to: 0.45, height: 0.06 },
+    // Eastern blue groper (male): a bright cornflower blue, paler on the belly, a big ROUNDED tail, thick lips, a smallish eye set low on the head.
+    paint: { body: withEye((u, s) => mix(C(0xb4d6f4), C(0x62a0e0), sm(-0.55, 0.55, s)).map(v => v * (0.97 + 0.04 * Math.sin(u * 90 + s * 4))), 0.9, 0.3, 0.019, 0x111111, 0xd8a050), fin: () => C(0x74aae6) }, swim: { freq: 3, amp: 0.4 } },
+  redmorwong: { length: 0.5, depth: 0.36, width: 0.16, peak: 0.6, snout: 0.6, tailFrac: 0.18, tail: 'forked', pectoral: 0.16, hump: { at: 0.86, h: 0.07, w: 0.1 }, mouth: { len: 0.04, s: -0.2 },
+    dorsal: { from: 0.15, to: 0.8, height: 0.12, shape: 'dual' }, anal: { from: 0.15, to: 0.4, height: 0.075 }, lips: true,
+    // Cheilodactylus fuscus: a deep pinkish-red body, two dark bands, thick lips, a steep head, one long dorsal (very tall at the front) and long pectorals.
+    paint: { body: withEye(bars((u, s) => mix(C(0xf4e8de), C(0xdc7c68), sm(-0.2, 0.8, s)), [[0.72, 0.03, 0x7a4036], [0.55, 0.03, 0x7a4036]]), 0.9, 0.25, 0.026, 0x101010, 0xe0c880), fin: () => C(0xd4614c) }, swim: { freq: 3, amp: 0.5 } },
   mado: { length: 0.18, depth: 0.45, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.18, tail: 'forked', pectoral: 0.12,
     dorsal: { from: 0.2, to: 0.75, height: 0.14 }, anal: { from: 0.18, to: 0.45, height: 0.1 },
     paint: { body: withEye((u, s) => (Math.abs(((s * 4 + u * 0.6) % 1 + 1) % 1 - 0.5) < 0.15 ? C(0x1a1a1a) : C(0xe8e0a0)), 0.86, 0.25, 0.05), fin: () => C(0xe8d070) }, swim: { freq: 7, amp: 0.8 } },
-  luderick: { length: 0.4, depth: 0.38, width: 0.15, peak: 0.55, snout: 0.6, tailFrac: 0.17, tail: 'forked', pectoral: 0.12,
-    dorsal: { from: 0.15, to: 0.78, height: 0.08 }, anal: { from: 0.15, to: 0.42, height: 0.08 },
-    // Girella tricuspidata: olive-grey back, silvery flanks, 6-8 dark bars across the upper two-thirds, a slightly forked tail.
-    paint: { body: withEye((u, s) => { const bar = s > -0.35 && u > 0.2 && u < 0.78 && ((u - 0.2) * 12.5) % 1 < 0.38; const base = mix(C(0xc4c8b4), C(0x7c8466), sm(-0.4, 0.7, s)); return bar ? mix(base, C(0x434d38), 0.62) : base; }, 0.9, 0.25, 0.04), fin: () => C(0x5a6450) }, swim: { freq: 4, amp: 0.6 } },
-  kingfish: { length: 1.1, depth: 0.25, width: 0.14, peak: 0.6, snout: 0.9, tailFrac: 0.22, tail: 'forked', tailSpan: 1.6, pectoral: 0.12,
-    dorsal: { from: 0.2, to: 0.65, height: 0.06 }, anal: { from: 0.18, to: 0.42, height: 0.05 },
-    paint: { body: withEye((u, s) => { if (Math.abs(s - 0.1) < 0.06) return C(0xd8c040); return mix(C(0xe8eef0), C(0x3a6a8a), sm(-0.1, 0.6, s)); }, 0.9, 0.25, 0.03), fin: (u, part) => (part === 'tail' ? C(0xe0c030) : C(0x5a7a8a)) }, swim: { freq: 3.5, amp: 0.6 }, metal: 0.5 },
+  luderick: { length: 0.4, depth: 0.38, width: 0.15, peak: 0.55, snout: 0.6, tailFrac: 0.17, tail: 'forked', pectoral: 0.12, mouth: { len: 0.04, s: -0.15 },
+    dorsal: { from: 0.15, to: 0.78, height: 0.085, shape: 'dual' }, anal: { from: 0.15, to: 0.42, height: 0.07 },
+    // Girella tricuspidata: olive-grey back, silvery flanks, 6-8 narrow dark bars across the upper two-thirds, a small mouth, one long dorsal and a slightly forked tail.
+    paint: { body: withEye((u, s) => { const bar = s > -0.35 && u > 0.2 && u < 0.78 && ((u - 0.2) * 12.5) % 1 < 0.26; const base = mix(C(0xcdd0be), C(0x8a9270), sm(-0.4, 0.7, s)); return bar ? mix(base, C(0x434d38), 0.55) : base; }, 0.9, 0.25, 0.026, 0x101010, 0xd8d090), fin: () => C(0x6a7460) }, swim: { freq: 4, amp: 0.6 } },
+  kingfish: { length: 1.1, depth: 0.22, width: 0.14, peak: 0.6, snout: 0.9, tailFrac: 0.22, tail: 'forked', tailSpan: 1.4, pectoral: 0.12, peduncle: 0.1, mouth: { len: 0.09, s: -0.06 },
+    dorsal: { from: 0.58, to: 0.66, height: 0.035, shape: 'tri' }, dorsal2: { from: 0.22, to: 0.55, height: 0.05 }, anal: { from: 0.2, to: 0.38, height: 0.045 },
+    // Seriola lalandi: a long, torpedo-shaped fish, blue-green back, silver belly, a golden-yellow stripe along the side, a dark bar through the eye, a yellow tail and fins, a short spiny dorsal then a long soft one.
+    paint: { body: withEye((u, s) => { if (u > 0.84 && u < 0.97 && Math.abs(s - 0.28) < 0.06 && Math.abs(s - 0.28) > 0.0) return C(0x3a6a80); if (Math.abs(s - 0.1) < 0.04 && u < 0.84) return C(0xe0cc58); return mix(C(0xe8eef0), C(0x4a7a98), sm(-0.1, 0.6, s)); }, 0.9, 0.25, 0.019, 0x101010, 0xd8d0a0), fin: (u, part) => (part === 'tail' || part === 'anal' ? C(0xe8cc48) : C(0x6a8a98)) }, swim: { freq: 3.5, amp: 0.6 }, metal: 0.5 },
   oldwife: { length: 0.25, depth: 0.6, width: 0.1, peak: 0.55, snout: 0.9, tailFrac: 0.15, tail: 'truncate', pectoral: 0.1,
     dorsal: { from: 0.25, to: 0.8, height: 0.25, shape: 'sail' }, anal: { from: 0.2, to: 0.5, height: 0.18 },
     paint: { body: withEye(bars(() => C(0xe8e4d8), [[0.82, 0.04, 0x1a1a1a], [0.62, 0.06, 0x1a1a1a], [0.42, 0.06, 0x1a1a1a], [0.22, 0.05, 0x1a1a1a]]), 0.88, 0.2, 0.04), fin: (u) => (u > 0.5 ? C(0x1a1a1a) : C(0xd0c8b8)) }, swim: { freq: 4, amp: 0.5 } },
-  snapper: { length: 0.7, depth: 0.38, width: 0.15, peak: 0.6, snout: 0.6, tailFrac: 0.17, tail: 'forked', pectoral: 0.14,
-    dorsal: { from: 0.18, to: 0.78, height: 0.08 }, anal: { from: 0.16, to: 0.4, height: 0.07 },
-    paint: { body: withEye(spots((u, s) => mix(C(0xf0c8b0), C(0xc06050), sm(-0.3, 0.7, s)), 0x6ab0ff, 28, 0.12, (u, s) => s > -0.2), 0.9, 0.3, 0.035), fin: () => C(0xd07060) }, swim: { freq: 3, amp: 0.5 } },
+  snapper: { length: 0.7, depth: 0.38, width: 0.15, peak: 0.6, snout: 0.6, tailFrac: 0.17, tail: 'forked', pectoral: 0.14, hump: { at: 0.84, h: 0.1, w: 0.1 }, mouth: { len: 0.06, s: -0.18 },
+    dorsal: { from: 0.18, to: 0.78, height: 0.09, shape: 'dual' }, anal: { from: 0.16, to: 0.4, height: 0.065 },
+    // Chrysophrys auratus: a deep pink-red body with a scatter of small electric-blue spots on the back and upper sides, a steep head with a bony forehead hump, a big eye, one long dorsal (spiny front) and a forked tail with a pale edge.
+    paint: { body: withEye(spots((u, s) => mix(C(0xf4d2c4), C(0xd4705e), sm(-0.3, 0.7, s)), 0x7ac4f4, 28, 0.12, (u, s) => s > -0.2), 0.9, 0.3, 0.028, 0x101010, 0xe8d8b0), fin: () => C(0xdc7a6a) }, swim: { freq: 3, amp: 0.5 } },
   easternbluedevil: { length: 0.3, depth: 0.32, width: 0.15, peak: 0.55, snout: 0.6, tailFrac: 0.15, tail: 'round', pectoral: 0.14,
     dorsal: { from: 0.12, to: 0.8, height: 0.12 }, anal: { from: 0.12, to: 0.45, height: 0.12 },
     paint: { body: withEye(spots((u, s) => mix(C(0x0a1a5a), C(0x1a3aa0), s * 0.5 + 0.5), 0xbfe0ff, 30, 0.1), 0.88, 0.25, 0.04), fin: (u, part, f) => (f > 0.8 ? C(0x60c0ff) : C(0x1a3aa0)) }, swim: { freq: 2.5, amp: 0.4 } },
@@ -199,10 +202,10 @@ const looks = {
   portjackson: { length: 1.1, depth: 0.2, width: 0.2, peak: 0.75, snout: 0.35, tailFrac: 0.22, tail: 'heterocercal', tailSpan: 1.1, pectoral: 0.16, pecWing: 0.6,
     dorsal: { from: 0.55, to: 0.65, height: 0.08, shape: 'tri' }, anal: { from: 0.2, to: 0.28, height: 0.05 },
     paint: { body: withEye((u, s) => { const harness = Math.abs(u - 0.66 + Math.abs(s) * 0.15) < 0.03 || Math.abs(u - 0.42 + Math.abs(s) * 0.1) < 0.03; return harness && s > -0.3 ? C(0x2a2018) : mix(C(0xe0d4c0), C(0xa89880), sm(-0.4, 0.5, s)); }, 0.88, 0.45, 0.025), fin: () => C(0x9a8a70) }, swim: { freq: 1.8, amp: 0.5 } },
-  wobbegong: { length: 1.6, depth: 0.1, width: 0.28, peak: 0.7, snout: 0.25, tailFrac: 0.2, tail: 'round', pectoral: 0.17, pecWing: 0.55, boxy: 3,
-    dorsal: { from: 0.25, to: 0.35, height: 0.05 }, anal: null,
-    // Orectolobus: a tassel-edged flat shark in a patchwork: pale cream blotches and saddles on olive-brown, outlined darker.
-    paint: { body: withEye((u, s) => { const n = vnoise(u * 9, s * 3.4), base = mix(C(0xd6c8a0), C(0x7d6c44), sm(-0.3, 0.3, s)); if (s < -0.25) return base; return n > 0.62 ? C(0xefe2b6) : n > 0.54 ? C(0x6a5a38) : base; }, 0.86, 0.96, 0.025), fin: (u, part, f) => (f > 0.8 ? C(0xe6d8a8) : C(0x8a7850)) }, swim: { freq: 1.5, amp: 0.4 } },
+  wobbegong: { length: 1.6, depth: 0.1, width: 0.28, peak: 0.7, snout: 0.25, tailFrac: 0.2, tail: 'round', pectoral: 0.17, pecWing: 0.55, boxy: 3, tassels: 8, pelvic: 0.1, mouth: { len: 0.1, s: -0.3 }, noLateral: true,
+    dorsal: { from: 0.3, to: 0.4, height: 0.055 }, dorsal2: { from: 0.17, to: 0.26, height: 0.045 }, anal: { from: 0.1, to: 0.16, height: 0.035 },
+    // Orectolobus: a flat shark with a fringe of branching tassels round the wide mouth and head, small eyes on top, two similar dorsals set far back, in a patchwork: pale cream blotches and saddles on olive-brown, outlined darker.
+    paint: { body: withEye((u, s) => { const n = vnoise(u * 9, s * 3.4), base = mix(C(0xd6c8a0), C(0x7d6c44), sm(-0.3, 0.3, s)); if (s < -0.25) return base; return n > 0.62 ? C(0xefe2b6) : n > 0.54 ? C(0x6a5a38) : base; }, 0.86, 0.96, 0.012, 0x222222, 0xd8c060), fin: (u, part, f) => (f > 0.8 ? C(0xe6d8a8) : C(0x8a7850)) }, swim: { freq: 1.5, amp: 0.4 } },
   fiddlerray: { kind: 'stingray', length: 0.9, span: 0.55, thick: 0.18, tail: 0.9,
     paint: (u, v, top) => { if (!top) return C(0xf0ece4); const line = Math.abs(Math.sin((u * 6 + Math.abs(v - 0.5) * 8))) < 0.18; return line ? C(0x3a3020) : mix(C(0xa89870), C(0x7a6a48), v); }, swim: { freq: 2.5, amp: 0.4 } },
 };
