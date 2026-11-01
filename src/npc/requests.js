@@ -3,7 +3,7 @@
 //
 //   need types:  mastered {id} · masteredCount {n} · identifiedCount {n} · caughtSpecies {n} · releases {n, maxAir} (logbook rows released with
 //   no more than maxAir seconds out of the water) · accurateMeasures {n} · accurateSlot {id} (an accurate measure of a fish inside its legal
-//   slot) · protectedRelease · taggedReleases {n} · catchSize {id, minCm} · litter {n}
+//   slot) · identified {id} (that species is Identified or Mastered) · protectedRelease · taggedReleases {n} · catchSize {id, minCm} · litter {n}
 //   progress.npc = { day, met: {npcId: t}, accepted: {tradeId: t}, done: {tradeId: t}, quizFail: {tradeId: day}, rot: {key: n}, heard: {key: n} }
 import { SPECIES, SPECIES_BY_ID } from '../fishing/species.js';
 import * as G from '../fishing/guide.js';
@@ -25,6 +25,7 @@ const tiers = (p, min) => SPECIES.filter(s => G.atLeast(G.tierOf(p, s.id), min))
 export function progressOf(need, p) {
   switch (need.type) {
     case 'mastered': { const ok = G.tierOf(p, need.id) === 'mastered'; return { have: +ok, need: 1, done: ok, text: `Master the ${SPECIES_BY_ID[need.id].name}${ok ? '' : ` (now: ${G.TIER_LABEL[G.tierOf(p, need.id)]})`}` }; }
+    case 'identified': { const ok = G.atLeast(G.tierOf(p, need.id), 'identified'); return { have: +ok, need: 1, done: ok, text: `Identify the ${SPECIES_BY_ID[need.id].name} with the key${ok ? '' : ` (now: ${G.TIER_LABEL[G.tierOf(p, need.id)]})`}` }; }
     case 'masteredCount': return { ...count(tiers(p, 'mastered'), need.n), text: `Master ${need.n} species` };
     case 'identifiedCount': return { ...count(tiers(p, 'identified'), need.n), text: `Identify ${need.n} species` };
     case 'caughtSpecies': return { ...count(tiers(p, 'caught'), need.n), text: `Catch ${need.n} different species` };

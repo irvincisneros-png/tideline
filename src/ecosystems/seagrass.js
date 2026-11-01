@@ -81,9 +81,6 @@ const looks = {
   pipefish: { length: 0.18, depth: 0.05, width: 0.05, peak: 0.5, snout: 1.4, tailFrac: 0.05, tail: 'round', pectoral: 0.03, peduncle: 0.3,
     dorsal: { from: 0.45, to: 0.6, height: 0.04 }, anal: null,
     paint: { body: withEye((u, s) => (Math.sin(u * 120) > 0.6 ? C(0x6a7a3a) : C(0x9aa858)), 0.95, 0.2, 0.06), fin: () => C(0x9aa858) }, swim: { freq: 3, amp: 0.3 }, waveK: 3 },
-  cuttlefish: { length: 0.3, depth: 0.32, width: 0.28, peak: 0.55, snout: 0.45, tailFrac: 0.02, tail: 'none', pectoral: 0, belly: 0.2,
-    dorsal: { from: 0.05, to: 0.9, height: 0.05 }, anal: { from: 0.05, to: 0.9, height: 0.05 },
-    paint: { body: withEye((u, s) => { const zeb = Math.sin(u * 50 + Math.sin(s * 6) * 2) > 0.4 && s > 0; return zeb ? C(0x5a4030) : mix(C(0xe8dcc8), C(0xa08a6a), sm(-0.4, 0.5, s)); }, 0.84, 0.2, 0.05, 0x111111, 0xd8c880), fin: () => C(0xd8ccb0) }, swim: { freq: 6, amp: 0.15 } },
 };
 for (const [id, l] of Object.entries(looks)) registerLook(id, l);
 

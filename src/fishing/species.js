@@ -13,6 +13,9 @@ export const SPOT_INFO = {
   channel: { label: 'Lake Illawarra channel', blurb: 'Deeper tidal channel edge.' },
   jetty: { label: 'Lake Illawarra jetty', blurb: 'Pylons, shade and baitfish.' },
   mangrove: { label: 'Lake Illawarra mangrove edge', blurb: 'Roots and snags along the bank.' },
+  wharf: { label: 'Belmore wharf', blurb: 'Pylons, lamp light and baitfish under the wharf.' },
+  breakwall: { label: 'Belmore breakwall', blurb: 'Stone blocks and weedy rocks. Waves wash over it in a big swell.' },
+  basin: { label: 'Belmore basin', blurb: 'Calm, sandy harbour water between the wharf and the breakwall.' },
 };
 
 /** Stock health (0-100) a species starts at, by NSW stock status (SAFS). */
@@ -28,7 +31,7 @@ export const STOCK_SEED = { sustainable: 80, depleting: 55, depleted: 30, recove
 export const SPECIES = [
   {
     id: 'australiansalmon', name: 'Australian salmon', sci: 'Arripis trutta', habitat: 'pelagic',
-    spots: { beach: 4, rock: 1.5 },
+    spots: { beach: 4, rock: 1.5 , breakwall: 1.5},
     rig: { metalslug: 1, paternoster: 0.6, softplastic: 0.5, runningsinker: 0.4, float: 0.3 },
     bait: { pilchard: 1, squidstrip: 0.4, prawn: 0.3 },
     tide: ['rising'], time: ['dawn', 'dusk'], season: ['autumn', 'winter'],
@@ -42,7 +45,7 @@ export const SPECIES = [
   },
   {
     id: 'tailor', name: 'Tailor', sci: 'Pomatomus saltatrix', habitat: 'pelagic',
-    spots: { beach: 3, rock: 2, channel: 2, jetty: 2, flats: 0.4, seagrass: 0.5 },
+    spots: { beach: 3, rock: 2, channel: 2, jetty: 2, flats: 0.4, seagrass: 0.5 , wharf: 2.5, breakwall: 1, basin: 0.6},
     rig: { metalslug: 1, runningsinker: 0.9, float: 0.8, softplastic: 0.6, paternoster: 0.5 },
     bait: { pilchard: 1, squidstrip: 0.5, prawn: 0.3 },
     tide: ['rising', 'falling'], time: ['dawn', 'dusk', 'night'], season: ['autumn', 'winter'],
@@ -70,7 +73,7 @@ export const SPECIES = [
   },
   {
     id: 'yellowfinbream', name: 'Yellowfin bream', sci: 'Acanthopagrus australis', habitat: 'demersal',
-    spots: { beach: 2, rock: 3, flats: 3, seagrass: 3, channel: 3, jetty: 4, mangrove: 4 },
+    spots: { beach: 2, rock: 3, flats: 3, seagrass: 3, channel: 3, jetty: 4, mangrove: 4 , wharf: 4, breakwall: 2, basin: 2},
     rig: { unweighted: 1, runningsinker: 0.9, float: 0.5, softplastic: 0.5, paternoster: 0.4 },
     bait: { prawn: 1, nipper: 0.9, beachworm: 0.7, pilchard: 0.6, squidstrip: 0.4 },
     tide: ['falling', 'low'], time: ['dawn', 'dusk'], season: [],
@@ -84,7 +87,7 @@ export const SPECIES = [
   },
   {
     id: 'luderick', name: 'Luderick (blackfish)', sci: 'Girella tricuspidata', habitat: 'reef',
-    spots: { rock: 4, seagrass: 3, jetty: 3, mangrove: 2 },
+    spots: { rock: 4, seagrass: 3, jetty: 3, mangrove: 2 , wharf: 2, breakwall: 4, basin: 0.5},
     rig: { float: 1, unweighted: 0.15, runningsinker: 0.1 },
     bait: { greenweed: 1, nipper: 0.1, prawn: 0.08 },
     tide: ['rising', 'high'], time: ['day'], season: ['autumn', 'winter'],
@@ -98,7 +101,7 @@ export const SPECIES = [
   },
   {
     id: 'snapper', name: 'Snapper', sci: 'Chrysophrys auratus', habitat: 'reef',
-    spots: { rock: 1 },
+    spots: { rock: 1 , breakwall: 0.6},
     rig: { paternoster: 1, runningsinker: 0.8, softplastic: 0.6, float: 0.2 },
     bait: { pilchard: 1, squidstrip: 1, prawn: 0.5 },
     tide: [], time: ['dawn', 'dusk'], season: ['spring', 'summer'],
@@ -112,7 +115,7 @@ export const SPECIES = [
   },
   {
     id: 'kingfish', name: 'Yellowtail kingfish', sci: 'Seriola lalandi', habitat: 'pelagic',
-    spots: { rock: 0.7, jetty: 0.3 },
+    spots: { rock: 0.7, jetty: 0.3 , wharf: 0.5, breakwall: 0.8},
     rig: { metalslug: 0.9, softplastic: 0.7, runningsinker: 0.35, squidjig: 0.3, paternoster: 0.2 },
     bait: { squidstrip: 0.9, pilchard: 0.5, prawn: 0.2 },
     tide: ['rising', 'falling'], time: ['dawn', 'dusk'], season: ['summer', 'autumn'],
@@ -126,7 +129,7 @@ export const SPECIES = [
   },
   {
     id: 'bluegroper', name: 'Eastern blue groper', sci: 'Achoerodus viridis', habitat: 'reef',
-    spots: { rock: 0.8 },
+    spots: { rock: 0.8 , breakwall: 0.6},
     rig: { paternoster: 0.8, runningsinker: 0.8, float: 0.3, softplastic: 0.1 },
     bait: { prawn: 0.8, squidstrip: 0.6, nipper: 0.5, pilchard: 0.3 },
     tide: [], time: ['day'], season: [],
@@ -154,7 +157,7 @@ export const SPECIES = [
   },
   {
     id: 'mulloway', name: 'Mulloway (jewfish)', sci: 'Argyrosomus japonicus', habitat: 'demersal',
-    spots: { channel: 1, beach: 0.4, jetty: 0.6 },
+    spots: { channel: 1, beach: 0.4, jetty: 0.6 , wharf: 0.8},
     rig: { runningsinker: 1, softplastic: 0.6, paternoster: 0.4, float: 0.15 },
     bait: { squidstrip: 1, pilchard: 0.8, prawn: 0.3 },
     tide: ['rising', 'falling'], time: ['night', 'dusk'], season: ['spring', 'summer'],
@@ -168,7 +171,7 @@ export const SPECIES = [
   },
   {
     id: 'seamullet', name: 'Sea mullet', sci: 'Mugil cephalus', habitat: 'estuarine',
-    spots: { flats: 2, beach: 2, jetty: 1.5, channel: 1, mangrove: 1.5, seagrass: 1 },
+    spots: { flats: 2, beach: 2, jetty: 1.5, channel: 1, mangrove: 1.5, seagrass: 1 , wharf: 1.5, basin: 2},
     rig: { float: 1, unweighted: 0.8, runningsinker: 0.3, paternoster: 0.1 },
     bait: { beachworm: 0.7, greenweed: 0.6, nipper: 0.3 },
     tide: ['rising', 'high'], time: ['day'], season: ['autumn'],
@@ -182,7 +185,7 @@ export const SPECIES = [
   },
   {
     id: 'silvertrevally', name: 'Silver trevally', sci: 'Pseudocaranx georgianus', habitat: 'demersal',
-    spots: { rock: 1.5, jetty: 1.5, channel: 1, seagrass: 0.4 },
+    spots: { rock: 1.5, jetty: 1.5, channel: 1, seagrass: 0.4 , wharf: 2, breakwall: 1},
     rig: { runningsinker: 1, float: 0.5, paternoster: 0.5, unweighted: 0.3, softplastic: 0.2 },
     bait: { prawn: 1, pilchard: 0.8, squidstrip: 0.4, nipper: 0.4 },
     tide: ['rising', 'falling'], time: ['dusk', 'day'], season: ['summer'],
@@ -196,7 +199,7 @@ export const SPECIES = [
   },
   {
     id: 'redmorwong', name: 'Red morwong', sci: 'Cheilodactylus fuscus', habitat: 'reef',
-    spots: { rock: 1.5 },
+    spots: { rock: 1.5 , breakwall: 1},
     rig: { paternoster: 1, runningsinker: 0.6, float: 0.2 },
     bait: { prawn: 1, squidstrip: 0.9, nipper: 0.4, pilchard: 0.3 },
     tide: [], time: [], season: [],
@@ -210,7 +213,7 @@ export const SPECIES = [
   },
   {
     id: 'rockblackfish', name: 'Rock blackfish (black drummer)', sci: 'Girella elevata', habitat: 'reef',
-    spots: { rock: 2 },
+    spots: { rock: 2 , breakwall: 1.5},
     rig: { float: 0.8, runningsinker: 0.7, paternoster: 0.3 },
     bait: { greenweed: 0.8, nipper: 0.3, prawn: 0.3 },
     tide: ['rising', 'high'], time: [], season: ['winter'],
@@ -224,7 +227,7 @@ export const SPECIES = [
   },
   {
     id: 'garfish', name: 'Eastern sea garfish', sci: 'Hyporhamphus australis', habitat: 'pelagic',
-    spots: { jetty: 2, flats: 0.8, seagrass: 1 },
+    spots: { jetty: 2, flats: 0.8, seagrass: 1 , wharf: 1.5, basin: 1},
     rig: { float: 1, unweighted: 0.4, softplastic: 0.03 },
     bait: { greenweed: 0.5, prawn: 0.15, nipper: 0.15 },
     tide: [], time: ['day'], season: [],
@@ -238,7 +241,7 @@ export const SPECIES = [
   },
   {
     id: 'bonito', name: 'Australian bonito', sci: 'Sarda australis', habitat: 'pelagic',
-    spots: { rock: 0.6 },
+    spots: { rock: 0.6 , breakwall: 0.5},
     rig: { metalslug: 1, softplastic: 0.6, runningsinker: 0.2 },
     bait: { pilchard: 0.4, squidstrip: 0.2 },
     tide: [], time: ['dawn', 'dusk'], season: ['summer', 'autumn'],
@@ -252,7 +255,7 @@ export const SPECIES = [
   },
   {
     id: 'wobbegong', name: 'Wobbegong shark', sci: 'Orectolobus spp.', habitat: 'reef',
-    spots: { rock: 0.35 },
+    spots: { rock: 0.35 , breakwall: 0.3},
     rig: { runningsinker: 0.8, paternoster: 0.6, float: 0.1 },
     bait: { pilchard: 1, squidstrip: 0.8, prawn: 0.2 },
     tide: [], time: ['night', 'dusk'], season: [],
@@ -265,18 +268,35 @@ export const SPECIES = [
     src: { rules: 'DPIRD', status: 'dataset: not assessed [unverified]', id: 'dataset A3 [unverified]', fact: 'DPIRD', swap: 'dataset B1 [DPIRD]', biology: 'unverified' },
   },
   {
-    id: 'squid', name: 'Squid', sci: 'Sepioteuthis australis', habitat: 'invertebrate',
-    spots: { rock: 1.2, jetty: 1.5, seagrass: 1.2 },
-    rig: { squidjig: 1, softplastic: 0.03, metalslug: 0.02 },
+    id: 'squid', name: 'Squid (southern calamari)', sci: 'Sepioteuthis australis', habitat: 'invertebrate',
+    spots: { rock: 1.2, jetty: 1.5, seagrass: 1.2, wharf: 2.5, breakwall: 1.5, basin: 1.5 },
+    rig: { squidjig: 1 },
     bait: {},
     tide: [], time: ['dusk', 'night'], season: [],
+    // Gate: squid only take a jig, and only at dusk and night (they come up into the lamp light). `lamp` = extra bite weight for a cast that lands in a lamp pool.
+    gate: { time: ['dusk', 'night'], rig: ['squidjig'] }, lamp: 1.6,
     length: [14, 38], fight: 'jet', power: 0.3,
-    rules: { min: null, slotMax: null, bag: 20, possession: 20, protected: false, note: 'No legal minimum size; daily bag limit 20 (squid and cuttlefish in total). Use a squid jig with spikes only: no barbed hook.' },
+    rules: { min: null, slotMax: null, bag: 20, possession: 20, protected: false, bagGroup: 'cephalopod', bagLabel: 'squid and cuttlefish together', note: 'No legal minimum size; daily bag limit 20 (squid and cuttlefish in total). Use a squid jig with spikes only: no barbed hook.' },
     status: 'undefined', statusNote: "Gould's squid is sustainable; the status of southern calamari is not confirmed.",
     idFeature: 'Tubular body with fins along the sides, eight arms plus two long tentacles, and ink.',
-    fact: 'Squid is a mollusc, not a fish.',
+    fact: 'Squid is a mollusc, not a fish. The bag limit of 20 counts squid and cuttlefish together.',
     swap: null,
-    src: { rules: 'DPIRD; worksheet 2.1.4', status: 'SAFS (Gould\'s squid only)', id: 'dataset A3 [unverified]', fact: 'worksheet 2.1.4', biology: 'unverified' },
+    src: { rules: 'DPIRD (bag 20, squid + cuttlefish); worksheet 2.1.4', status: 'SAFS (Gould\'s squid only)', id: 'dataset A3 [unverified]', fact: 'worksheet 2.1.4', biology: 'unverified' },
+  },
+  {
+    id: 'cuttlefish', name: 'Cuttlefish', sci: 'Sepia spp.', habitat: 'invertebrate',
+    spots: { wharf: 0.8, breakwall: 1, basin: 1.4 },
+    rig: { squidjig: 1 },
+    bait: {},
+    tide: [], time: ['dusk', 'night'], season: [],
+    gate: { time: ['dusk', 'night'], rig: ['squidjig'] }, lamp: 1.2,
+    length: [15, 45], fight: 'jet', power: 0.35,
+    rules: { min: null, slotMax: null, bag: 20, possession: 20, protected: false, bagGroup: 'cephalopod', bagLabel: 'squid and cuttlefish together', note: 'No legal minimum size; daily bag limit 20 (squid and cuttlefish in total). Use a squid jig with spikes only: no barbed hook.' },
+    status: 'undefined', statusNote: 'Not assessed in the national stock report.',
+    idFeature: 'A wide, oval body with a frill of fin all the way round, eight arms and two tentacles, and zebra-like bands on the back.',
+    fact: 'Cuttlefish are molluscs too, and they share the squid bag limit of 20. They change colour in a blink.',
+    swap: null,
+    src: { rules: 'DPIRD (bag 20, squid + cuttlefish)', status: 'dataset: not assessed [unverified]', id: 'dataset A3 [unverified]', fact: 'worksheet 2.1.4; DPIRD', biology: 'unverified' },
   },
   {
     id: 'shortfineel', name: 'Shortfin eel', sci: 'Anguilla australis', habitat: 'estuarine',
@@ -291,6 +311,34 @@ export const SPECIES = [
     fact: 'The minimum is 30 cm for shortfin eels; longfin eels have a 58 cm minimum.',
     swap: null,
     src: { rules: 'DPIRD', status: 'SAFS', id: 'dataset A3 [unverified]', fact: 'DPIRD', biology: 'unverified' },
+  },
+  {
+    id: 'yakka', name: 'Yellowtail scad (yakka)', sci: 'Trachurus novaezelandiae', habitat: 'pelagic',
+    spots: { wharf: 4, breakwall: 1.5, basin: 1.2 },
+    rig: { unweighted: 1, paternoster: 0.9, float: 0.8, runningsinker: 0.3 },
+    bait: { prawn: 0.8, pilchard: 0.5, squidstrip: 0.4, nipper: 0.4 },
+    tide: [], time: ['dusk', 'night'], season: ['summer', 'autumn'], lamp: 1.4,
+    length: [14, 32], fight: 'twitch', power: 0.25,
+    rules: { min: null, slotMax: null, bag: 50, possession: 50, protected: false, note: 'No legal minimum length; daily bag limit 50 per species (yellowtail scad, slimy mackerel and the other scad and mackerel).' },
+    status: 'sustainable', statusNote: 'Sustainable (Eastern Australia).',
+    idFeature: 'A slim silver fish with a yellow tail, a forked tail and a row of bony scutes along the side, and a dark spot by the gill cover.',
+    fact: 'Yakka gather in the lamp light under wharves at dusk and are a favourite live bait for kingfish and mulloway. Bag limit 50.',
+    swap: null,
+    src: { rules: 'DPIRD (bag 50)', status: 'SAFS', id: 'dataset A3 [unverified]', fact: 'DPIRD', biology: 'unverified' },
+  },
+  {
+    id: 'slimymackerel', name: 'Slimy mackerel', sci: 'Scomber australasicus', habitat: 'pelagic',
+    spots: { wharf: 2.5, breakwall: 1.2, basin: 0.6 },
+    rig: { paternoster: 1, unweighted: 0.8, float: 0.7, metalslug: 0.5, runningsinker: 0.3 },
+    bait: { pilchard: 0.8, prawn: 0.7, squidstrip: 0.5 },
+    tide: [], time: ['dusk', 'night'], season: ['winter', 'spring'], lamp: 0.9,
+    length: [20, 40], fight: 'dart', power: 0.45,
+    rules: { min: null, slotMax: null, bag: 50, possession: 50, protected: false, note: 'No legal minimum length; daily bag limit 50 per species (slimy mackerel, yellowtail scad and the other scad and mackerel).' },
+    status: 'undefined', statusNote: 'Status not confirmed in the dataset.',
+    idFeature: 'A torpedo-shaped silver fish with wavy dark lines on a blue-green back, a forked tail and two dorsal fins well apart.',
+    fact: 'Slimy mackerel are oily and make good bait. Bag limit 50, no minimum size.',
+    swap: null,
+    src: { rules: 'DPIRD (bag 50, mackerel group)', status: 'dataset: not stated [unverified]', id: 'dataset A3 [unverified]', fact: 'DPIRD', biology: 'unverified' },
   },
 ];
 
@@ -326,6 +374,9 @@ export const FEATURES = {
   bonito: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'stripes', colour: 'silver', jaw: 'large', closer: 'Sharp, cone-shaped teeth.' },
   wobbegong: { body: 'flattened', tail: 'rounded', yellow: 'none', markings: 'patchwork', colour: 'sandy', jaw: 'large', closer: 'Whisker-like skin flaps (tassels) around the mouth; a shark, so no scales.' },
   squid: { body: 'tentacles', tail: 'none', yellow: 'none', markings: 'spots', colour: 'pink', jaw: 'tentacles' },
+  cuttlefish: { body: 'tentacles', tail: 'none', yellow: 'none', markings: 'bars', colour: 'brown', jaw: 'tentacles', closer: 'A chalky cuttlebone inside the body, and a W-shaped pupil.' },
+  yakka: { body: 'torpedo', tail: 'forked', yellow: 'tail', markings: 'blotch', colour: 'silver', jaw: 'small', closer: 'A row of bony scutes (plates) along the lateral line.' },
+  slimymackerel: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'stripes', colour: 'silver', jaw: 'small', closer: 'Two dorsal fins well apart and a row of finlets behind them.' },
   shortfineel: { body: 'snake', tail: 'rounded', yellow: 'none', markings: 'none', colour: 'brown', jaw: 'small' },
 };
 /** Deep-water fish: pulled up from about 10 m or more, they can suffer barotrauma and need a release weight to return to depth (content C17). */
@@ -336,6 +387,7 @@ for (const s of SPECIES) { s.feat = FEATURES[s.id]; s.deepWater = DEEP_WATER.has
 export const REGIONS = {
   lake: { label: 'Lake Illawarra', spots: ['flats', 'seagrass', 'channel', 'jetty', 'mangrove'] },
   bellambi: { label: 'Bellambi beach & rocks', spots: ['beach', 'rock'] },
+  harbour: { label: 'Belmore Basin harbour', spots: ['wharf', 'breakwall', 'basin'] },
 };
 export const speciesInRegion = region => SPECIES.filter(s => REGIONS[region].spots.some(k => s.spots[k]));
 

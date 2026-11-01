@@ -627,3 +627,20 @@ body.creator-open #npc-labels { display: none; }
 .letter h2 { font-family: var(--font-display); } .letter p { line-height: 1.5; }
 .letter-why { background: var(--turq-pale); border: 3px solid var(--teal-ink); border-left-width: 10px; border-radius: 16px; padding: 8px 14px; margin: 10px 0; } .letter-why ul { margin: 4px 0 0 18px; padding: 0; }
 @media (max-width: 560px) { .shop-coins b { font-size: 19px; } .shop-card .btn { min-width: 92px; } .tb-col { flex-wrap: wrap; } .tb-col .btn { flex: 1 1 100%; } }
+
+/* ---- phase 5: the squid catch bar (a soft pull with jets and an ink puff) and the harbour */
+#catchbar[data-profile="jet"] .cb-track { background: linear-gradient(180deg, #6f86c8 0%, #3f5aa6 55%, #243a7c 100%); }
+#catchbar[data-profile="jet"] .cb-track::before { background: repeating-linear-gradient(180deg, transparent 0 22px, rgba(255, 255, 255, 0.14) 22px 24px); }
+.cb-ink { position: absolute; left: 50%; bottom: 50%; width: 40px; height: 40px; margin: 0 0 -20px -20px; border-radius: 50%; pointer-events: none; z-index: 1; opacity: 0;
+  background: radial-gradient(circle, rgba(46, 24, 70, 0.9) 0%, rgba(46, 24, 70, 0.55) 45%, rgba(46, 24, 70, 0) 72%); }
+.cb-ink.puff { animation: cbink 0.9s ease-out; }
+@keyframes cbink { 0% { opacity: 0.95; transform: scale(0.4); } 100% { opacity: 0; transform: scale(2.4); } }
+.surv-cut { margin: 8px 0 0; padding: 8px 10px; border: 2px dashed var(--ink-teal); border-radius: 12px; background: #fff9e6; font-size: 13.5px; }
+.eco-card.locked { opacity: 0.78; filter: saturate(0.6); cursor: not-allowed; }
+.eco-card.locked .chip { background: #ffe9c2; color: #8a4a08; }
+#ink-splash { position: fixed; inset: 0; z-index: 8; pointer-events: none; opacity: 0; overflow: hidden; }
+#ink-splash i { position: absolute; background: radial-gradient(circle at 42% 40%, rgba(70, 44, 108, 0.94), rgba(38, 22, 68, 0.92) 70%, rgba(30, 16, 56, 0.9) 100%); filter: blur(0.6px); }
+#ink-splash i.d { border-radius: 50%; }
+#ink-splash.show { animation: inksplash 2.8s ease-out forwards; }
+@keyframes inksplash { 0% { opacity: 0; transform: scale(0.7); } 8% { opacity: 1; transform: scale(1); } 55% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { #ink-splash.show { animation-duration: 1.2s; } }

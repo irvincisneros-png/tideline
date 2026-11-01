@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/noise.js';
 import { globalUniforms } from '../ocean/shaders.js';
-import { SPOTS, SPECIES_BY_ID } from '../fishing/catches.js';
+import { SPOTS, SPECIES_BY_ID, gateOpen } from '../fishing/catches.js';
 
 export const SEEN_RANGE = 8; // metres: a school this close to the angler counts as Seen in the Fish Guide
 
@@ -45,8 +45,8 @@ export class Shoals {
     this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.v = new THREE.Vector3(); this.sc = new THREE.Vector3();
   }
   /** Which species swims in this school: weighted by the catch table of the fishing spot the school is over (nearest to where the angler stands). */
-  speciesAt(eco, p, x, z) {
-    const spot = eco?.fishing?.spotAt?.(p.x, p.z, x, z) ?? 'beach', tab = SPOTS[spot]?.fish;
+  speciesAt(eco, p, x, z, time) {
+    const spot = eco?.fishing?.spotAt?.(p.x, p.z, x, z) ?? 'beach', tab = SPOTS[spot]?.fish?.filter(f => gateOpen(SPECIES_BY_ID[f[0]], { time, rig: null }));   // squid only show at dusk and night
     if (!tab?.length) return null;
     const total = tab.reduce((a, f) => a + f[1], 0); let r = this.rnd() * total;
     for (const f of tab) if ((r -= f[1]) <= 0) return f[0];
@@ -54,14 +54,15 @@ export class Shoals {
   }
   /** A spot of shallow water (0.4-2.4 m deep) 5-16 m from the angler, else null. */
   pick(world, p, minR = 5, maxR = 16) {
+    const [dMin, dMax] = world.eco?.shoalDepth ?? [0.4, 2.4];   // how deep the water can be and still show fish (clearer sites: deeper)
     for (let i = 0; i < 24; i++) {
       const a = this.rnd() * 6.283, r = minR + this.rnd() * (maxR - minR), x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
       const d = world.surfaceAt(x, z) - world.groundAt(x, z);
-      if (d > 0.4 && d < 2.4) return new THREE.Vector2(x, z);
+      if (d > dMin && d < dMax) return new THREE.Vector2(x, z);
     }
     return null;
   }
-  update(dt, t, world, walker, eco) {
+  update(dt, t, world, walker, eco, time) {
     if (!walker || !world.terrain) { this.mesh.visible = false; return; }
     this.mesh.visible = true;
     const p = walker.pos, m = this.m, q = this.q, e = this.e, v = this.v, sc = this.sc;
@@ -73,7 +74,7 @@ export class Shoals {
         const c = this.pick(world, p, 4, 18);
         if (!c) { s.wait = 1.5; s.ready = false; for (const f of s.fish) this.mesh.setMatrixAt(f.i, this.zero); continue; }
         s.c.copy(c); s.wp.copy(c); s.ready = true; s.wait = 0;
-        s.sp = this.speciesAt(eco, p, c.x, c.y);
+        s.sp = this.speciesAt(eco, p, c.x, c.y, time);
         const info = SPECIES_BY_ID[s.sp], mid = info ? (info.length[0] + info.length[1]) / 2 : 40, k2 = Math.max(0.8, Math.min(1.6, 0.6 + mid / 70));
         for (const f of s.fish) { f.x = c.x + f.ox; f.z = c.y + f.oz; f.hd = this.rnd() * 6.283; f.len = f.base * k2; }
       }

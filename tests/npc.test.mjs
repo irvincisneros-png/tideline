@@ -46,10 +46,14 @@ test('schedule lookup: who is where when', () => {
   assert.ok(!isAway(slotAt(NPCS.mitra, 'seagrass', 'day')));
   const lakeDay = presentAt(NPCS, 'seagrass', 'day').map(x => x.id), beachDay = presentAt(NPCS, 'rocky', 'day').map(x => x.id);
   for (const id of ['mitra', 'tam', 'priya', 'jo', 'mika', 'officer']) assert.ok(lakeDay.includes(id), `${id} at the lake by day`);
+  assert.ok(presentAt(NPCS, 'harbour', 'day').some(x => x.id === 'nell'), 'the co-op fisher works the harbour by day');
   for (const id of ['sione', 'bev', 'fatima', 'mika', 'officer']) assert.ok(beachDay.includes(id), `${id} at Bellambi by day`);
   assert.ok(!beachDay.includes('mitra') && !lakeDay.includes('sione'));
-  // Night: the shop owner and the club organiser go home, the lifeguard and Tam stay.
-  assert.ok(presentAt(NPCS, 'seagrass', 'night').some(x => x.id === 'tam'));
+  // Night: the shop owner and the club organiser go home, the lifeguard stays, and Old Tam walks up to Belmore Basin for the squid (phase 5).
+  assert.ok(!presentAt(NPCS, 'seagrass', 'night').some(x => x.id === 'tam'), 'Tam has left the lake by night');
+  assert.ok(presentAt(NPCS, 'harbour', 'night').some(x => x.id === 'tam'), 'Tam fishes the harbour wharf at night');
+  assert.equal(slotAt(NPCS.tam, 'harbour', 'night').at, 'wharfEnd');
+  assert.ok(isAway(slotAt(NPCS.tam, 'harbour', 'day')), 'Tam is not at the harbour by day');
   assert.ok(!presentAt(NPCS, 'seagrass', 'night').some(x => x.id === 'mitra'));
   assert.ok(presentAt(NPCS, 'rocky', 'night').some(x => x.id === 'sione'));
   // The kid angler moves between spots: a different place by day than at dawn.
@@ -92,7 +96,7 @@ test('tips rotate and respect the day\'s tide, time and season; specific tips co
 test('every NPC has tips for every kind of day, and gossip lines name a real species, a place and a when', () => {
   const conds = [];
   for (const tide of ['rising', 'high', 'falling', 'low']) for (const time of TIMES) for (const season of ['summer', 'autumn', 'winter', 'spring']) conds.push({ tide, time, season });
-  const PLACE_WORDS = /(lake|jetty|channel|flats|seagrass|mangrove|beach|platform|gutter|rock|surf|piles|pylons|sand)/i, WHEN_WORDS = /(dawn|dusk|night|day|daytime|midday|morning|tide|summer|autumn|winter|spring)/i;
+  const PLACE_WORDS = /(lake|jetty|channel|flats|seagrass|mangrove|beach|platform|gutter|rock|surf|piles|pylons|sand|wharf|breakwall|basin)/i, WHEN_WORDS = /(dawn|dusk|night|day|daytime|midday|morning|tide|summer|autumn|winter|spring)/i;
   for (const [id, def] of Object.entries(NPCS)) {
     assert.ok(def.tips.length >= 3, `${id} has tips`);
     for (const c of conds) assert.ok(pickLine(def.tips, c, 0), `${id} has a tip for ${JSON.stringify(c)}`);

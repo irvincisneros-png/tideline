@@ -211,19 +211,24 @@ export class NPCManager {
   // ------------------------------------------------------------------ the lifeguard and the rock platform
   /** Swell of 2.5 m or more: the lifeguard warns you off the rock platform; if you stay on it, the Steward rating takes a safety mark. */
   guardPlatform(dt) {
-    const g = this.game, sione = this.byId.sione;
-    if (this.siteId !== 'rocky' || !sione) return;
-    const pos = g.walker.pos, onPlat = platformMask(pos.x, pos.z) > 0.35, swell = g.cond.swell, big = swell >= SWELL_LIMIT;
+    const g = this.game, eco = g.eco, hz = eco.hazard;
+    // Bellambi: Sione and the rock platform. Belmore Basin: the co-op fisher (or a plain warning when she is away) and the breakwall (eco.hazard).
+    const who = this.siteId === 'rocky' ? this.byId.sione : hz ? this.byId[hz.warner] ?? null : null;
+    if (this.siteId !== 'rocky' && !hz) return;
+    if (this.siteId === 'rocky' && !who) return;
+    const pos = g.walker.pos, swell = g.cond.swell, limit = hz?.swell ?? SWELL_LIMIT;
+    const onPlat = hz ? hz.at(pos.x, pos.z) : platformMask(pos.x, pos.z) > 0.35, big = swell >= limit;
     this.penaltyCool = Math.max(0, this.penaltyCool - dt);
     if (!(onPlat && big)) { this.platT = 0; if (!onPlat) this.offT = (this.offT ?? 0) + dt; if (this.offT > 12) this.warned = false; return; }
     this.offT = 0; this.platT += dt;
-    const line = (k, extra = {}) => fmt(sione.def.warn[k].replace('{swell}', swell.toFixed(1)), nameOf(this.p));
+    const W = who?.def.warn ?? hz?.warnText, line = k => fmt(W[k].replace('{swell}', swell.toFixed(1)), nameOf(this.p));
+    const name = who?.def.name ?? 'Harbour notice';
     if (!this.warned) {
       this.warned = true; this.warnT = this.platT;
-      const text = line('swell'); sione.say(text, 7); g.toast(`Sione: "${text}"`, 'warn'); g.audio.play('warn');
+      const text = line('swell'); who?.say(text, 7); g.toast(`${name}: "${text}"`, 'warn'); g.audio.play('warn');
     } else if (this.platT - this.warnT > 7 && this.penaltyCool <= 0) {
       const st = this.p.steward; st.safety = (st.safety ?? 0) + 1; this.penaltyCool = 25; this.warnT = this.platT;
-      const text = line('ignored'); sione.say(text, 7); g.toast(`Sione: "${text}" (Steward rating down: safety mark ${st.safety})`, 'warn'); g.audio.play('wrong');
+      const text = line('ignored'); who?.say(text, 7); g.toast(`${name}: "${text}" (Steward rating down: safety mark ${st.safety})`, 'warn'); g.audio.play('wrong');
       g.persist(); g.updateStats();
     }
   }

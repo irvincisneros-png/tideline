@@ -2,6 +2,10 @@
 import * as THREE from 'three';
 import { globalUniforms, noiseGLSL } from './shaders.js';
 import { makeNoise } from '../core/noise.js';
+import { daylightAt, NIGHT, GLOW } from './daylight.js';
+
+/** Night and dusk values for the stylised lighting (ambient from above / below, the key light, the rim light): moonlit blue, bright enough to read. */
+const NIGHT_STYLE = { sky: [0.23, 0.33, 0.6], ground: [0.12, 0.16, 0.32], sun: [0.27, 0.37, 0.72], rim: [0.24, 0.38, 0.7] };
 
 export class Environment {
   constructor(scene, renderer, quality) {
@@ -26,6 +30,7 @@ export class Environment {
     this.shafts = quality.shafts ? this.makeShafts() : null;
     if (this.shafts) scene.add(this.shafts);
     this.island = null;
+    this.night = 0; this.glow = 0; this.daylightOn = false; this.tmp = new THREE.Color();
     this.renderer = renderer;
     this.envRT = null;
   }
@@ -53,9 +58,42 @@ export class Environment {
     this.hemiBase = this.hemi.intensity = w.ambient ?? 1.1;
     this.fogDepthScale = w.fogDepthScale ?? 25;
     this.exposureAbove = w.exposure ?? 0.82;
+    // Remember the site's own (day) palette so setDaylight can blend it toward dusk and night.
+    const C = h => new THREE.Color(h);
+    this.base = { skyTop: C(w.skyTop), skyHorizon: C(w.skyHorizon), shallow: C(w.shallow), mid: C(w.mid), deep: C(w.deep), fog: C(w.fog), fogDeep: C(w.fogDeep), sunColor: C(w.sunColor ?? 0xfff2dd),
+      sunIntensity: w.sunIntensity ?? 2.6, hemiSky: C(w.hemiSky ?? 0xbfe6ff), hemiGround: C(w.hemiGround ?? 0x3a6a70), hemiIntensity: w.ambient ?? 1.1, exposure: this.exposureAbove, sunDir: new THREE.Vector3(...w.sun).normalize() };
+    this.daylightOn = !!eco.daylight; this.night = 0; this.glow = 0;
+    globalUniforms.uNight.value = 0; globalUniforms.uLampOn.value = 0;
     this.buildEnvMap();
     if (this.island) { this.scene.remove(this.island); this.island.geometry.dispose(); this.island = null; }
     if (eco.island) this.island = this.makeIsland(eco.island, eco.islandKind);
+  }
+
+  /**
+   * Set the time of day (hour 0-24) for a site with eco.daylight: blends the site's day palette toward the dusk glow and the dark-blue night, dims and tints the sun
+   * (the moon at night), and switches the wharf lamps on and off. Call every frame before update(). Returns the daylightAt() state.
+   */
+  setDaylight(hour) {
+    const d = daylightAt(hour), B = this.base, N = NIGHT, k = d.night, t = this.tmp, G = globalUniforms;
+    const mixInto = (target, day, night, kk = k) => target.copy(day).lerp(t.set(night), kk);
+    mixInto(G.uSkyTop.value, B.skyTop, N.skyTop);
+    mixInto(G.uSkyHorizon.value, B.skyHorizon, N.skyHorizon);
+    // The sunset / sunrise glow: amber at the horizon, a dusty violet-blue higher up.
+    G.uSkyHorizon.value.lerp(t.set(GLOW.skyHorizon), d.glow * 0.62 * (1 - 0.55 * k));
+    G.uSkyTop.value.lerp(t.set(GLOW.skyTop), d.glow * 0.3 * (1 - k));
+    mixInto(G.uShallowTint.value, B.shallow, N.shallow); mixInto(G.uWaterTint.value, B.mid, N.mid); mixInto(G.uDeepTint.value, B.deep, N.deep);
+    mixInto(this.fogBelow, B.fog, N.fog); mixInto(this.fogDeep, B.fogDeep, N.fogDeep);
+    this.fogAbove.copy(G.uSkyHorizon.value);
+    mixInto(this.sun.color, B.sunColor, N.sunColor); this.sun.color.lerp(t.set(0xffa468), d.glow * 0.55 * (1 - k));
+    this.sunBase = (B.sunIntensity + (N.sunIntensity - B.sunIntensity) * k) * (1 - 0.18 * d.glow);
+    mixInto(this.hemi.color, B.hemiSky, N.hemiSky); mixInto(this.hemi.groundColor, B.hemiGround, N.hemiGround);
+    this.hemiBase = B.hemiIntensity + (N.hemiIntensity - B.hemiIntensity) * k;
+    this.exposureAbove = B.exposure + (N.exposure - B.exposure) * k;
+    // The sun sinks toward the horizon at dusk, and the moon (fixed, high) takes over.
+    const dir = G.uSunDir.value.copy(B.sunDir); dir.y *= 0.4 + 0.6 * d.light; dir.normalize();
+    const moonW = 1 - Math.min(1, d.light / 0.5); dir.lerp(this.moon ??= new THREE.Vector3(...N.moonDir).normalize(), moonW * moonW * (3 - 2 * moonW)).normalize();
+    G.uNight.value = k; G.uLampOn.value = d.lamps; this.night = k; this.glow = d.glow;
+    return d;
   }
 
   buildEnvMap() {
@@ -152,6 +190,15 @@ export class Environment {
         G.uStyleGround.value.set(0.46, 0.4, 0.3);
         G.uStyleSun.value.set(0.86, 0.74, 0.52).multiplyScalar(Math.min(1, this.sunBase / 2.4));
         G.uStyleRim.value.set(0.35, 0.42, 0.5);
+        if (this.daylightOn) {
+          // Dusk: a warmer, lower key light; night: moonlit blue everywhere (kept bright enough to read, never black).
+          // The blue only takes over once it is properly dark (kk), so early dusk keeps its warm amber light on the ground and the walls.
+          const k = this.night, kk = Math.min(1, Math.max(0, (k - 0.3) / 0.7)), warm = this.glow * (1 - kk), ns = NIGHT_STYLE;
+          G.uStyleSun.value.lerp(this.tmp.setRGB(1.0, 0.6, 0.34), warm * 0.8).multiplyScalar(1 - 0.35 * kk);
+          G.uStyleSky.value.lerp(this.tmp.setRGB(0.78, 0.58, 0.56), warm * 0.45);          // a peachy ambient from the sky at sunset
+          G.uStyleSky.value.lerp(this.tmp.setRGB(...ns.sky), kk); G.uStyleGround.value.lerp(this.tmp.setRGB(...ns.ground), kk);
+          G.uStyleSun.value.lerp(this.tmp.setRGB(...ns.sun), kk); G.uStyleRim.value.lerp(this.tmp.setRGB(...ns.rim), kk);
+        }
       }
     }
     if (u) {

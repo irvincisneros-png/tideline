@@ -4,7 +4,7 @@
 //   logbook records (citizen science), tag-and-release, club comps, missions, and litter pulled out of the water. There is no price on a fish anywhere.
 //
 // Shop items: { id, cat, name, price, tier?, blurb, why?, stats (shown as chips), req? (a request `need`, see npc/requests.js progressOf), ... }
-//   cat rod | line | bait | conservation | style
+//   cat rod | line | bait | lure | conservation | style
 //   rods and lines are `gear` (equip one of each); `starter` ones are owned from the start.
 //   `grants` = an inventory item id (content/items.js) that the purchase gives, so the rest of the game (the release step, the tackle box) sees it.
 //   bait packs add `qty` to progress.shop.bait[bait].
@@ -71,6 +71,10 @@ export const SHOP = [
   { id: 'pack-pilchard', cat: 'bait', name: 'Frozen pilchards x10', price: 10, bait: 'pilchard', qty: 10, grants: 'bait-pilchard', blurb: 'Oily and smelly: tailor, salmon and snapper cannot resist it.', why: 'Keep bait on ice in a sealed tub, out of the sun (worksheet 2.1.10).' },
   { id: 'pack-squid', cat: 'bait', name: 'Squid strips x10', price: 12, bait: 'squidstrip', qty: 10, grants: 'bait-squidstrip', blurb: 'Tough strips that stay on the hook for snapper, mulloway and morwong.', why: 'Brined or tough bait stays on the hook, so fewer wasted casts.' },
 
+  // ------------------------------------------------------------ lures (the squid jig opens the night squid at Belmore Basin; Mitra's lake quiz gives one free)
+  { id: 'rig-squidjig', cat: 'lure', name: 'Squid jig', price: 14, grants: 'rig-squidjig', blurb: 'A prawn-shaped jig with a ring of spikes and no barbed hook. Squid and cuttlefish take it at dusk and night.',
+    why: 'In NSW a squid jig must have spikes only, no barbed hook (DPIRD, worksheet 2.1.4). The daily bag limit is 20, squid and cuttlefish together.' },
+
   // ------------------------------------------------------------ conservation gear: it helps the fish, not just you
   { id: 'tool-releaseweight', cat: 'conservation', name: 'Release weight', price: 30, grants: 'tool-releaseweight', blurb: 'Clip it on a deep-water fish and it sinks back to depth.',
     why: 'Fish pulled up from about 10 m or more can suffer barotrauma: their gas bladder swells. A release weight returns them to depth and survival jumps (DPIRD). Also adds a little to Bay Health.' },
@@ -96,6 +100,7 @@ export const SHOP_CATS = [
   { id: 'rod', label: 'Rods', icon: '🎣' },
   { id: 'line', label: 'Reels and line', icon: '🧵' },
   { id: 'bait', label: 'Bait', icon: '🦐' },
+  { id: 'lure', label: 'Lures', icon: '🦑' },
   { id: 'conservation', label: 'Help the fish', icon: '🌊' },
   { id: 'style', label: 'Style', icon: '🧢' },
   { id: 'earn', label: 'Earn credits', icon: '🪙' },

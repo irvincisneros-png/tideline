@@ -3,7 +3,7 @@
 // On the strike the catch bar opens (catchbar.js): hold Space to lift the green zone and keep the fish inside it.
 // Seen from the high follow camera: the cast arcs out, a thin dark line sags to a red and white float, a ring marks the landing.
 import * as THREE from 'three';
-import { pickCatch, waitFor, judge, RULES, FIGHT, SPOTS } from './catches.js';
+import { pickCatch, waitFor, judge, RULES, FIGHT, SPOTS, SPECIES_BY_ID } from './catches.js';
 import { CatchBar } from './catchbar.js';
 import { buildFish } from '../life/fishModel.js';
 import { LOOKS } from '../life/looks.js';
@@ -110,7 +110,7 @@ export class Fishing {
         this.state = 'wait'; g.audio.play('smallSplash'); g.fx.splash?.(this.float.position, 6); this.dist = this.float.position.distanceTo(eye);
         const spot = g.fishingSpot(this.target);
         if (spot !== this.spot) { this.spot = spot; g.toast(`Fishing: ${SPOTS[spot].label}.`); }
-        this.ctx = g.biteContext(); // the tackle and conditions you cast with decide the wait and what bites
+        this.ctx = g.biteContext(this.target); // the tackle and conditions you cast with decide the wait and what bites
         this.waitT = waitFor(this.spot, this.ctx);
       }
     } else if (this.state === 'wait') {
@@ -211,6 +211,7 @@ export class Fishing {
       m.rotation.set(Math.PI / 2, 0, 0); m.position.set(0.05, 0.1, 0.02); m.castShadow = true;
       const holder = new THREE.Group(); holder.add(m); g.angler.hold(holder); this.held = holder;
     }
+    if (SPECIES_BY_ID[c.id]?.habitat === 'invertebrate') g.inkSplash?.(g.walker.pos);   // squid and cuttlefish squirt ink as they come out of the water
     // A moment to admire the catch before the keep-or-release card opens.
     this.landT = 1.2; this.landed = { ...c, ctx: this.ctx };
   }

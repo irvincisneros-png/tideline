@@ -2,6 +2,7 @@
 // Model space: head toward +x, dorsal +y, origin at body centre, units metres.
 import * as THREE from 'three';
 import { globalUniforms } from '../ocean/shaders.js';
+import { buildCephalopod } from './cephalopod.js';
 
 /** Cosy art style: rounder bodies, thick soft fins, big glossy eyes (species proportions and markings unchanged). */
 const cosy = () => globalUniforms.uStyle.value > 0.5;
@@ -80,11 +81,12 @@ function paintSkin(look, W = 512, H = 512) {
 
 /** Build fish geometry. Returns { geometry, texture, length }.
  *  opts.flatTail: spread the tail fin flat (horizontal), as it lies on a brag mat: used for the top-down picture of flat-bodied fish.
- *  look.arms (squid): that many arms plus two long tentacles, taking the front `armsFrac` of the length; look.lips: thick lips. */
+ *  look.cephalopod ('squid' | 'cuttle'): see life/cephalopod.js. look.hump: forehead hump. look.lips: thick lips. */
 export function buildFish(look, opts = {}) {
+  if (look.cephalopod) return buildCephalopod(look, opts);   // squid and cuttlefish have their own model (life/cephalopod.js)
   const L = look.length;
   const tailFrac = look.tailFrac ?? 0.2;
-  const armsL = look.arms ? (look.armsFrac ?? 0.24) * L : 0;
+  const armsL = 0;
   const bodyLen = L * (1 - tailFrac) - armsL;
   const C = cosy();
   const depth = look.depth * L, width = look.width * L * (C ? 1.18 : 1);
@@ -105,7 +107,9 @@ export function buildFish(look, opts = {}) {
       const phi = (s / SEG) * TAU;
       const c = Math.cos(phi), sn = Math.sin(phi);
       const ex = 2 / superE;
-      const y = Math.sign(c) * Math.pow(Math.abs(c), ex) * hh - yOff * (c < 0 ? 1 : 0);
+      // look.hump { at, h, w }: a forehead hump (the male blue groper's bulbous brow): the back of the head rises in a smooth bump.
+      const hump = look.hump ? look.hump.h * depth * Math.exp(-(((t - look.hump.at) / look.hump.w) ** 2)) * Math.max(0, c) * close : 0;
+      const y = Math.sign(c) * Math.pow(Math.abs(c), ex) * hh - yOff * (c < 0 ? 1 : 0) + hump;
       const z = Math.sign(sn) * Math.pow(Math.abs(sn), ex) * ww;
       pos.push(bodyX(t), y, z);
       uv.push(t, 1 - (s / SEG) * 0.75); fin.push(0, -1);
@@ -198,21 +202,6 @@ export function buildFish(look, opts = {}) {
         if (tail === 'heterocercal') yy = y > 0 ? y * span * 1.15 + tl * 0.25 * y : y * span * 0.6;
         return flat ? [x, 0, yy] : [x, yy, 0];
       }, n, 0.5, k => 0.02 + 0.06 * Math.abs(k - 0.5));
-  }
-  // Squid: eight arms and two longer tentacles fanned out from the front of the mantle (the key's "tentacles" feature is visible on the model).
-  if (look.arms) {
-    const t0 = 0.9, x1 = bodyX(1), hh0 = depth * 0.5 * bodyProfile(t0, look), ww0 = width * 0.5 * bodyProfile(t0, look);
-    const arm = (a, len, r0, spread, droop) => {
-      const SEGS = 5, RING = 6, start = pos.length / 3;
-      for (let i = 0; i <= 8; i++) {
-        const k = i / 8, r = r0 * (1 - 0.82 * k) + 0.0015;
-        const cx = bodyX(t0) + (x1 - bodyX(t0) + len) * k, cy = Math.cos(a) * (hh0 * 0.45 + spread * k * k) - droop * k * k, cz = Math.sin(a) * (ww0 * 0.45 + spread * k * k);
-        for (let j = 0; j < RING; j++) { const q = (j / RING) * TAU; pos.push(cx, cy + Math.cos(q) * r, cz + Math.sin(q) * r); uv.push(0.9, 0.78); fin.push(0, -1); }
-      }
-      for (let i = 0; i < 8; i++) for (let j = 0; j < RING; j++) { const a0 = start + i * RING + j, a1 = start + i * RING + (j + 1) % RING, b0 = a0 + RING, b1 = a1 + RING; idx.push(a0, a1, b0, a1, b1, b0); }
-    };
-    for (let i = 0; i < look.arms; i++) arm((i / look.arms) * TAU + 0.3, armsL * 0.92, depth * 0.085, depth * 0.1, depth * 0.05);
-    for (const a of [0.6, Math.PI + 0.6]) arm(a, armsL * 1.35 - (x1 - bodyX(t0)) * 0.0, depth * 0.045, depth * 0.05, depth * 0.1);
   }
   // Thick lips: two soft pads at the front of the jaws.
   if (look.lips) {

@@ -30,7 +30,7 @@ export const MISMATCH_BAIT = 0.2;
 const COND_HIT = 1.4, COND_MISS = 0.7;
 
 /** Default gear/conditions (used by tests and anything that calls pickCatch without a context). */
-export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, time: null, season: null, stock: null, shy: 1, lureMod: 1 };
+export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, time: null, season: null, stock: null, shy: 1, lureMod: 1, lit: 0 };
 
 export const stockKey = (spot, id) => `${spot}:${id}`;
 /** Stock health of a species at a spot (0-100): the saved value, else seeded from its NSW stock status. */
@@ -44,6 +44,17 @@ export function adjustStock(progress, spot, id, delta) {
   progress.stock ??= {};
   progress.stock[stockKey(spot, id)] = Math.max(0, Math.min(100, Math.round(stockOf(progress.stock, spot, id) + delta)));
 }
+
+/** Does a species' hard gate let it bite? (Squid and cuttlefish: only on a squid jig, only at dusk and night.) An unknown time (tests) does not block. */
+export function gateOpen(sp, ctx) {
+  const g = sp.gate;
+  if (!g) return true;
+  if (g.rig && ctx.rig && !g.rig.includes(ctx.rig)) return false;
+  if (g.time && ctx.time && !g.time.includes(ctx.time)) return false;
+  return true;
+}
+/** The species that share a daily bag limit with this one (squid and cuttlefish: 20 together). */
+export const bagGroupIds = id => { const g = SPECIES_BY_ID[id]?.rules.bagGroup; return g ? SPECIES.filter(s => s.rules.bagGroup === g).map(s => s.id) : [id]; };
 
 const cond = (list, value) => (!list?.length || !value ? 1 : list.includes(value) ? COND_HIT : COND_MISS);
 export const rigMatch = (sp, rig) => sp.rig[rig] ?? (rig === 'squidjig' ? 0.02 : MISMATCH_RIG); // a squid jig is hopeless for fish
@@ -62,8 +73,10 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const rigM = rigMatch(sp, ctx.rig), baitM = baitMatch(sp, ctx.rig, ctx.bait);
     const condM = cond(sp.tide, ctx.tide) * cond(sp.time, ctx.time) * cond(sp.season, ctx.season);
     const stock = stockOf(ctx.stock, spot, sp.id);
+    const lampM = 1 + (sp.lamp ?? 0) * (ctx.lit ?? 0);   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light
     const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1);
-    out.push({ sp, base, rigM, baitM, condM, stock, gearM, w: base * rigM * baitM * condM * (stock / 100) * gearM, ideal: base * condM * (stock / 100) });
+    const open = gateOpen(sp, ctx);
+    out.push({ sp, base, rigM, baitM, condM, stock, gearM, lampM, open, w: open ? base * rigM * baitM * condM * (stock / 100) * gearM * lampM : 0, ideal: !sp.gate?.time || !ctx.time || sp.gate.time.includes(ctx.time) ? base * condM * (stock / 100) * lampM : 0 });
   }
   return out;
 }

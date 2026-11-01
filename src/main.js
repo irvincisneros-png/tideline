@@ -32,6 +32,7 @@ import { lookOf, nameOf } from './core/anglerData.js';
 import { DayConditions, RIGS, BAITS, tackleBoxHTML } from './fishing/gear.js';
 import { Panels, esc } from './ui/panels.js';
 import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
+import { siteLock } from './ecosystems/unlock.js';
 import { NPCManager } from './npc/manager.js';
 import { rigUnlocked, baitUnlocked, lockHint } from './npc/inventory.js';
 import { openQuestLog } from './ui/questLog.js';
@@ -42,6 +43,8 @@ import { ensureEcon, recaptureLetter } from './economy/coins.js';
 import { COIN, COLLECT } from './content/shop.js';
 
 const $ = s => document.querySelector(s);
+/** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
+const REGION_OF = { rocky: 'bellambi', seagrass: 'lake', harbour: 'harbour' };
 const params = new URLSearchParams(location.search);
 
 class Game {
@@ -167,11 +170,8 @@ class Game {
   // ------------------------------------------------------------------ menu
   bindMenu() {
     const cards = $('#eco-cards');
-    const rc = Object.fromEntries(G.regionCounts(this.progress).map(c => [c.key, c]));
-    const regionOf = { rocky: 'bellambi', seagrass: 'lake' };
-    cards.innerHTML = ECOSYSTEMS.map(e => { const c = rc[regionOf[e.id]]; return `<button class="eco-card ${e.id === this.eco.id ? 'sel' : ''}" data-id="${e.id}">
-      <b>${esc(e.name)}</b><small>${esc(e.place)} — ${esc(e.blurb)}</small>${c ? `<span class="chip">${esc(c.label)} ${c.done}/${c.total}</span>` : ''}</button>`; }).join('');
-    cards.querySelectorAll('.eco-card').forEach(b => b.onclick = () => this.switchEco(b.dataset.id));
+    cards.innerHTML = this.ecoCardsHTML();
+    cards.querySelectorAll('.eco-card').forEach(b => b.onclick = () => this.switchEco(b.dataset.id, true));
     $('#btn-play').onclick = () => { this.audio.start(); this.beginPlay(); };
     $('#btn-angler').onclick = () => this.creator.open({});
     $('#btn-journal').onclick = () => this.openGuide();
@@ -181,6 +181,16 @@ class Game {
     $('#home-btn').onclick = () => this.outing.ask();
     $('#quest-btn').onclick = () => this.questLog();
     this.updateProgressSummary();
+  }
+  /** The site picker: a card per site with its Fish Guide counter; a locked site shows what it needs ("Identify 5 species, 3 of 5"). */
+  ecoCardsHTML() {
+    const rc = Object.fromEntries(G.regionCounts(this.progress).map(c => [c.key, c])), regionOf = REGION_OF;
+    return ECOSYSTEMS.map(e => {
+      const c = rc[regionOf[e.id]], lock = siteLock(this.progress, e);
+      const chip = lock.locked ? `🔒 ${lock.text} (${lock.have} of ${lock.need})` : c ? `${c.label} ${c.done}/${c.total}` : '';
+      return `<button class="eco-card ${e.id === this.eco.id ? 'sel' : ''} ${lock.locked ? 'locked' : ''}" data-id="${e.id}" ${lock.locked ? 'aria-disabled="true"' : ''}>
+      <b>${esc(e.name)}</b><small>${esc(e.place)} — ${esc(e.blurb)}</small>${chip ? `<span class="chip">${esc(chip)}</span>` : ''}</button>`;
+    }).join('');
   }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
   beginPlay() {
@@ -195,8 +205,10 @@ class Game {
     $('#btn-angler')?.setAttribute('title', `Edit ${a.name || 'my angler'}`);
     if (this.mode === 'menu') this.angler.update(1 / 60, this.time, { state: 'off' });
   }
-  async switchEco(id) {
+  async switchEco(id, fromPicker = false) {
     if (id === this.eco.id || this.loading) return;
+    const lock = siteLock(this.progress, ecoById(id));
+    if (fromPicker && lock.locked) { this.toast(`${ecoById(id).name} opens when you ${lock.text.charAt(0).toLowerCase()}${lock.text.slice(1)} (${lock.have} of ${lock.need} so far). Catch fish and solve the key to get there.`, 'warn'); return; }
     this.loading = true; // the frame loop idles while the old site is torn down and the new one built
     this.eco = ecoById(id);
     $('#loading').classList.add('show'); $('#menu').classList.remove('show');
@@ -226,8 +238,12 @@ class Game {
   }
   updateProgressSummary() {
     const p = this.progress, st = G.stewardRating(p), bay = G.bayHealth(p);
-    const rc = Object.fromEntries(G.regionCounts(p).map(c => [c.key, c])), regionOf = { rocky: 'bellambi', seagrass: 'lake' };
-    document.querySelectorAll('.eco-card').forEach(card => { const c = rc[regionOf[card.dataset.id]], chip = card.querySelector('.chip'); if (c && chip) chip.textContent = `${c.label} ${c.done}/${c.total}`; });
+    const rc = Object.fromEntries(G.regionCounts(p).map(c => [c.key, c]));
+    document.querySelectorAll('.eco-card').forEach(card => {
+      const e = ecoById(card.dataset.id), c = rc[REGION_OF[card.dataset.id]], lock = siteLock(p, e), chip = card.querySelector('.chip');
+      card.classList.toggle('locked', lock.locked); if (lock.locked) card.setAttribute('aria-disabled', 'true'); else card.removeAttribute('aria-disabled');
+      if (chip) chip.textContent = lock.locked ? `🔒 ${lock.text} (${lock.have} of ${lock.need})` : c ? `${c.label} ${c.done}/${c.total}` : '';
+    });
     $('#progress-sum').textContent = `Fish Guide ${G.completion(p)}% · Steward ${st.value.toFixed(1)}★ · Bay Health ${Math.round(bay)}%`;
   }
   /** The Illawarra Fish Guide (J). opts: { focus: species id, back: callback (shows a Back button and locks the panel), region }. */
@@ -405,9 +421,9 @@ class Game {
   }
   toggleRod() { this.fishing.toggle(this.fishingSpot()); }
   /** The tackle and conditions the bite model uses (catches.js pickCatch). */
-  biteContext() {
-    const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink';
-    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time) });
+  biteContext(target) {
+    const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink', t = target ?? this.walker.pos;
+    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time), lit: this.eco.litAt?.(t.x, t.z) ?? 0 });
   }
   /** What your rod, line and tools do (economy/store.js): the catch bar and the bite model read these, nothing is hard-coded in fishing.js. */
   gearStats() { return gearStats(this.progress); }
@@ -484,6 +500,44 @@ class Game {
   onFishLanded(c, spot, done) {
     this.catchFlow.run(c, spot, done);
   }
+  /**
+   * A squid or cuttlefish squirts ink as it is landed: dark splotches splash across the screen (and fade), and ink spots the deck round the angler's feet
+   * (a flat decal that fades over about 40 s). Cephalopods ink to escape a predator, which is why the splash is a quick burst.
+   */
+  inkSplash(pos) {
+    const el = document.getElementById('ink-splash') ?? (() => { const d = document.createElement('div'); d.id = 'ink-splash'; d.setAttribute('aria-hidden', 'true'); document.body.appendChild(d); return d; })();
+    // Each splotch is a ragged star-shaped splat (a random polygon with a few long drips) plus a sprinkle of small round droplets.
+    const splat = () => {   // an organic splat: a lumpy round body (two sine waves) with three or four long drips
+      const n = 44, p1 = Math.random() * 6.28, p2 = Math.random() * 6.28, drips = Array.from({ length: 3 + Math.floor(Math.random() * 2) }, () => Math.random() * 6.28), pts = [];
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * 6.2832; let r = 0.56 + 0.1 * Math.sin(3 * a + p1) + 0.06 * Math.sin(7 * a + p2);
+        for (const d of drips) { const da = Math.abs(((a - d + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI); r += 0.34 * Math.exp(-(da * da) / 0.012); }
+        pts.push(`${(50 + Math.cos(a) * r * 50).toFixed(1)}% ${(50 + Math.sin(a) * r * 50).toFixed(1)}%`);
+      }
+      return `polygon(${pts.join(',')})`;
+    };
+    const blobs = Array.from({ length: 6 }, () => { const s = 130 + Math.random() * 270, x = 8 + Math.random() * 84, y = 8 + Math.random() * 84; return `<i style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;clip-path:${splat()};transform:translate(-50%,-50%) rotate(${Math.random() * 360}deg)"></i>`; });
+    const drops = Array.from({ length: 22 }, () => { const s = 6 + Math.random() * 26, x = Math.random() * 100, y = Math.random() * 100; return `<i class="d" style="left:${x}%;top:${y}%;width:${s}px;height:${s * (0.8 + Math.random() * 0.5)}px"></i>`; });
+    el.innerHTML = blobs.concat(drops).join('');
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(this.inkT); this.inkT = setTimeout(() => el.classList.remove('show'), 2800);
+    // the deck (or the ground): a flat splat of ink under and around the angler
+    this.inkDecals ??= [];
+    if (!this.inkTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+      g.fillStyle = 'rgba(38,22,62,0.92)';
+      for (let i = 0; i < 26; i++) { const a = Math.random() * 6.283, r = Math.pow(Math.random(), 0.7) * 100, x = 128 + Math.cos(a) * r, y = 128 + Math.sin(a) * r, s = 4 + Math.random() * (28 - r * 0.18); g.beginPath(); g.ellipse(x, y, s, s * (0.5 + Math.random() * 0.5), Math.random() * 3, 0, 6.283); g.fill(); }
+      g.beginPath(); g.ellipse(128, 128, 36, 28, 0.4, 0, 6.283); g.fill();
+      this.inkTex = new THREE.CanvasTexture(c); this.inkTex.colorSpace = THREE.SRGBColorSpace;
+    }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.inkTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, fog: false }));
+    m.position.set(pos.x, this.world.walkAt(pos.x, pos.z) + 0.045, pos.z); m.rotation.y = Math.random() * 6.28; m.renderOrder = 3;
+    this.scene.add(m); this.inkDecals.push({ m, age: 0 });
+    while (this.inkDecals.length > 4) { const d = this.inkDecals.shift(); this.scene.remove(d.m); d.m.geometry.dispose(); d.m.material.dispose(); }
+  }
+  updateInk(dt) {
+    for (const d of this.inkDecals ?? []) { d.age += dt; d.m.material.opacity = Math.max(0, 1 - Math.max(0, d.age - 20) / 25); d.m.visible = d.m.material.opacity > 0.01; }
+  }
   /** HUD chips: the esky and the Steward rating. */
   updateStats() {
     const p = this.progress, esky = p.esky ?? [], bad = esky.filter(x => !x.legal).length, st = G.stewardRating(p);
@@ -554,11 +608,14 @@ class Game {
     const cam = this.camera.position;
     const surfaceY = this.world.surfaceAt(cam.x, cam.z);
     const depth = surfaceY - cam.y;
+    if (this.eco.daylight) this.env.setDaylight(this.cond.hour);   // dusk glow, the dark-blue night and the wharf lamps (ocean/daylight.js)
     this.env.update(dt, this.camera, depth, this.mode === 'land' ? this.focus : null);
     globalUniforms.uPlayer.value.set(this.walker.pos.x, this.mode === 'land' ? this.walker.pos.y : -999, this.walker.pos.z);
     this.world.props?.update(dt, this.time);
     this.npcs.update(dt, this.time);
-    this.shoals?.update(dt, this.time, this.world, this.mode === 'land' ? this.walker : null, this.eco);
+    this.world.harbour?.update(dt, this.time, this.cond);
+    this.updateInk(dt);
+    this.shoals?.update(dt, this.time, this.world, this.mode === 'land' ? this.walker : null, this.eco, this.cond.time);
     this.prints?.update(dt, this.mode === 'land' ? this.walker : null, this.eco.rockAt);
     this.world.ocean.update(this.camera, depth > 0);
     this.world.reef?.cull(cam, depth > 0 ? 2.6 / this.env.fogDensityBelow + 4 : 150, depth > 0 ? 0.9 / this.env.fogDensityBelow : 40);

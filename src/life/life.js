@@ -117,6 +117,7 @@ export class Life {
     const built = model ? fromModel(model, look) : look.kind ? buildRay(look) : buildFish(look);
     const mat = new THREE.MeshStandardMaterial({ map: built.texture, vertexColors: !!model, roughness: look.metal ? 0.3 : (look.rough ?? 0.42), metalness: look.metal ?? 0.05, side: THREE.DoubleSide });
     if (!look.kind && !look.transparent) mat.alphaToCoverage = true; // soft fin edges (needs MSAA; otherwise fins are simply opaque)
+    if (look.emissive != null && !built.emissive) { mat.emissive = new THREE.Color(look.emissive); mat.emissiveIntensity = look.emissiveIntensity ?? 0.3; }   // a gentle all-over glow: squid in the dark water
     if (built.emissive) { mat.emissiveMap = built.emissive; mat.emissive = new THREE.Color(0xffffff); mat.emissiveIntensity = look.glowIntensity ?? 2.5; }
     if (look.transparent) { mat.transparent = true; mat.opacity = look.transparent; mat.depthWrite = false; }
     patchUnderwater(mat, { fish: !look.kind, swim: true, swimLength: built.length, flap: !!look.kind || !!look.flap, waveK: look.kind ? 2.5 : (look.waveK ?? 6.0), vertical: !!look.vertical });
@@ -385,6 +386,7 @@ export class Life {
           break;
         }
         case 'school': case 'vortex': desired = this.schoolSteer(a, dt); break;
+        case 'hold': desired = this.seek(a, a.target, sp); break;   // the site moves a.target itself (squid at the edge of a lamp pool: world/harbourLife.js)
         case 'cleaner': desired = this.cleanerSteer(a, dt); break;
         case 'patrol': {
           a.ang += dt * sp / 32;
@@ -427,7 +429,8 @@ export class Life {
       const minAlt = b.type === 'rest' ? 0.04 : b.type === 'host' ? 0.1 : (b.alt?.[0] ?? 0.8) * 0.6;
       if (a.pos.y < ground + minAlt) desired.y += (ground + minAlt - a.pos.y) * 2;
       const canSurface = b.type === 'bird' || ((b.type === 'breather' || b.type === 'migrate' || b.breathEvery) && (a.state === 'ascend' || a.state === 'breathe'));
-      if (!canSurface && a.pos.y > -0.8) desired.y -= (a.pos.y + 0.8) * 2;
+      const topY = b.shallow ? -0.22 : -0.8;   // b.shallow: animals that hover just under the surface (squid in the lamp light)
+      if (!canSurface && a.pos.y > topY) desired.y -= (a.pos.y - topY) * 2;
       const bd = this.eco.bounds;
       if (a.pos.x < bd.xMin - 15) desired.x += 0.5; if (a.pos.x > bd.xMax + 15) desired.x -= 0.5;
       if (a.pos.z < bd.zMin - 15) desired.z += 0.5; if (a.pos.z > bd.zMax + 15) desired.z -= 0.5;

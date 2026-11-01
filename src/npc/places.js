@@ -22,6 +22,12 @@ export const PLACES = {
     patrolA: { x: 34, z: shoreZ(34) + 6 },
     patrolB: { x: 64, z: shoreZ(64) + 6 },
   },
+  harbour: {
+    wharfEnd: { x: 11.6, z: 7.4 },
+    wharfBase: { x: 12, z: 44.4 },
+    coopDoor: { x: -27, z: 45.8 },
+    benchWest: { x: -4, z: 43.4 },
+  },
   rocky: {
     tower: { x: -9.8, z: 95.6 },
     board: { x: -4.4, z: 112.4 },

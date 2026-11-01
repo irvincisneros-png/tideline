@@ -31,6 +31,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FISH_SVG = `<svg viewBox="0 0 40 24" width="34" height="20" aria-hidden="true"><path d="M3 12 L11 4 L12 8 C17 2 30 2 36 12 C30 22 17 22 12 16 L11 20 Z" fill="#ff9a5a" stroke="#1f5f6b" stroke-width="2.2" stroke-linejoin="round"/><circle cx="29" cy="10" r="2.2" fill="#fff" stroke="#1f5f6b" stroke-width="1.2"/><circle cx="29.6" cy="10" r="0.9" fill="#1f5f6b"/><path d="M16 9 q4 -3 8 0" fill="none" stroke="#fff3" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const SQUID_SVG = `<svg viewBox="0 0 40 24" width="36" height="22" aria-hidden="true"><path d="M2 12 C8 6 14 5 20 7 C25 5 30 6 37 12 C30 18 25 19 20 17 C14 19 8 18 2 12Z" fill="#f2b8a8" stroke="#1f5f6b" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 7 L26 2 L28 8 M20 17 L26 22 L28 16" fill="#e89a8c" stroke="#1f5f6b" stroke-width="1.8" stroke-linejoin="round"/><circle cx="30" cy="10" r="2.4" fill="#fff" stroke="#1f5f6b" stroke-width="1.4"/><circle cx="30.5" cy="10" r="1.1" fill="#1f5f6b"/><path d="M36 10 q3 0 4 2 M36 12 q3 1 4 3 M36 14 q3 2 3 4" fill="none" stroke="#1f5f6b" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 const LITTER = {
   line: { label: 'Tangled line', svg: `<svg viewBox="0 0 30 30" width="26" height="26" aria-hidden="true"><path d="M4 22 C2 8 18 2 22 10 C26 18 8 20 10 10 C12 4 24 8 26 20" fill="none" stroke="#6a7a84" stroke-width="2.4" stroke-linecap="round"/><path d="M4 22 l-2 5 M26 20 l2 -3" stroke="#1f5f6b" stroke-width="2" stroke-linecap="round"/></svg>` },
   bag: { label: 'Plastic bag', svg: `<svg viewBox="0 0 30 30" width="26" height="26" aria-hidden="true"><path d="M9 6 C9 1 21 1 21 6" fill="none" stroke="#1f5f6b" stroke-width="2" stroke-linecap="round"/><path d="M7 7 H23 L26 25 C20 28 10 28 4 25 Z" fill="#f4f8fa" fill-opacity="0.92" stroke="#1f5f6b" stroke-width="2" stroke-linejoin="round"/><path d="M11 12 q3 6 0 10" fill="none" stroke="#9ab" stroke-width="1.4"/></svg>` },
@@ -50,7 +51,7 @@ export function barParams(opts = {}) {
 }
 
 /** Fish movement per behaviour profile. Each has init(s, bar) and step(s, dt, bar) which sets s.tgt and s.speed (track heights / s). */
-const PROFILES = {
+export const PROFILES = {
   // Pelagic (tailor, salmon): rests an instant, then darts across the bar.
   dart: {
     init(s) { s.t = 0.3; s.tgt = 0.5; s.speed = 1.2; },
@@ -103,21 +104,37 @@ const PROFILES = {
       s.tgt = clamp(s.cx + (s.off ?? 0), 0.06, 0.94); s.speed = 0.6 + (s.t < 0.1 ? 0.5 : 0.1);
     },
   },
-  // Squid: slow pulses, then a sudden backward jet away from the zone.
+  // Squid and cuttlefish ("jet"): a SOFT PULL that creeps the bar down while the animal pulses gently, then a squeeze (the mantle fills: a warning), then a
+  // JET: a sudden burst away from the zone that shoots out a puff of ink. After a jet it glides, and now and then it jets twice in a row.
+  // The way to win is to follow the soft pull smoothly and ease off at the squeeze, not to jerk the bar.
   jet: {
-    init(s) { s.mode = 'drift'; s.t = rand(2, 3.2); s.base = 0.5; s.phase = 0; s.tgt = 0.5; s.speed = 0.4; },
+    init(s) { s.mode = 'pull'; s.t = rand(1.8, 2.8); s.base = 0.55; s.phase = 0; s.tgt = 0.55; s.speed = 0.3; s.jets = 0; },
     step(s, dt, bar) {
       s.t -= dt;
-      if (s.mode === 'drift') {
-        s.phase += dt * 6.28 / 2.4; s.tgt = clamp(s.base + 0.18 * Math.sin(s.phase), 0.08, 0.92); s.speed = 0.4;
-        if (s.t <= 0) { s.mode = 'squeeze'; s.t = 0.4; bar.squeeze = true; }
+      if (s.mode === 'pull') {
+        s.phase += dt * 6.28 / 2.2;
+        s.base = Math.max(0.2, s.base - 0.045 * dt);                                  // the soft pull: it keeps drawing the line downward
+        s.tgt = clamp(s.base + 0.14 * Math.sin(s.phase), 0.08, 0.92); s.speed = 0.3 * Math.min(1.3, bar.k);
+        if (s.t <= 0) { s.mode = 'squeeze'; s.t = 0.45; bar.squeeze = true; bar.warn = true; }
       } else if (s.mode === 'squeeze') {
-        s.speed = 0;
-        if (s.t <= 0) { s.mode = 'jet'; s.t = 0.3; bar.squeeze = false; const away = bar.fy >= bar.zy ? 1 : -1; s.tgt = clamp(bar.fy + away * rand(0.3, 0.45) * bar.k * bar.jetMul, 0.08, 0.92); s.speed = 2.4; }
-      } else if (s.t <= 0) { s.mode = 'drift'; s.t = rand(2, 3.4); s.base = bar.fy; s.phase = 0; }
+        s.speed = 0; s.jitter = Math.sin(bar.time * 50) * 0.004;
+        if (s.t <= 0) {
+          s.mode = 'jet'; s.t = 0.28; bar.squeeze = false; bar.warn = false; bar.ink = true; s.jets++;
+          const away = bar.fy >= bar.zy ? 1 : -1, far = bar.fy + away * rand(0.34, 0.5) * bar.k * bar.jetMul;
+          s.tgt = clamp(far, 0.08, 0.92); if (s.tgt === 0.08 || s.tgt === 0.92) s.tgt = clamp(bar.fy - away * 0.4, 0.08, 0.92); s.speed = 2.6;
+        }
+      } else if (s.mode === 'jet') {
+        if (s.t <= 0) { if (Math.random() < 0.25 && s.jets % 3 === 1) { s.mode = 'squeeze'; s.t = 0.25; bar.squeeze = true; } else { s.mode = 'glide'; s.t = rand(0.6, 1.0); s.speed = 0.5; } }
+      } else if (s.t <= 0) { s.mode = 'pull'; s.t = rand(2, 3.2); s.base = clamp(bar.fy, 0.25, 0.8); s.phase = 0; }
     },
   },
 };
+
+function el_setProfile(bar, profile) {
+  bar.el.dataset.profile = profile;
+  bar.fishEl.innerHTML = profile === 'jet' ? bar.fishSvgs.squid : bar.fishSvgs.fish;
+  bar.inkEl.classList.remove('puff');
+}
 
 export class CatchBar {
   constructor(game) {
@@ -128,14 +145,14 @@ export class CatchBar {
     el.setAttribute('aria-label', 'Catch bar. Hold Space, or press and hold here, to lift the green zone and keep the fish inside it.');
     el.innerHTML = `<div class="cb-card">
         <div class="cb-cols">
-          <div class="cb-track"><div class="cb-struct"><span>reef</span></div><div class="cb-zone"></div><div class="cb-litter"></div><div class="cb-fish">${FISH_SVG}</div></div>
+          <div class="cb-track"><div class="cb-struct"><span>reef</span></div><div class="cb-zone"></div><div class="cb-litter"></div><div class="cb-fish">${FISH_SVG}</div><div class="cb-ink"></div></div>
           <div class="cb-meter" title="Catch meter"><i></i></div>
         </div>
       </div>
       <div class="cb-hint"></div>`;
     document.body.appendChild(el);
     this.zoneEl = $('.cb-zone', el); this.fishEl = $('.cb-fish', el); this.litterEl = $('.cb-litter', el);
-    this.structEl = $('.cb-struct', el); this.meterEl = $('.cb-meter i', el); this.hintEl = $('.cb-hint', el);
+    this.structEl = $('.cb-struct', el); this.inkEl = $('.cb-ink', el); this.fishSvgs = { fish: FISH_SVG, squid: SQUID_SVG }; this.meterEl = $('.cb-meter i', el); this.hintEl = $('.cb-hint', el);
     const down = e => { e.preventDefault(); this.held = true; try { el.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ } game.audio.start(); };
     const up = () => { this.held = false; };
     el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
@@ -158,6 +175,8 @@ export class CatchBar {
     this.litterT = rand(...TUNING.litterFirst); this.litterCount = 0;
     this.s = {}; PROFILES[profile].init(this.s, this);
     this.structEl.style.display = profile === 'bolt' ? '' : 'none';
+    el_setProfile(this, profile);
+    this.ink = false;
     this.zoneEl.style.height = `${this.zoneH * 100}%`;
     this.zoneEl.classList.toggle('shaky', this.jitter > 0.15);
     this.hintKind = null; this.hint('hold');
@@ -168,7 +187,9 @@ export class CatchBar {
 
   hint(kind) {
     if (this.hintKind === kind) return; this.hintKind = kind;
-    const t = { hold: '<b>Fish on!</b> Hold <kbd>Space</kbd> to lift the green zone. Keep the fish inside it!', warn: 'It is heading for the reef! Cover it with the zone!' }[kind];
+    const squid = this.profile === 'jet';
+    const t = { hold: squid ? '<b>Squid on!</b> It pulls softly, then <b>jets</b>. Follow it gently and keep it in the green zone.' : '<b>Fish on!</b> Hold <kbd>Space</kbd> to lift the green zone. Keep the fish inside it!',
+      warn: squid ? 'It is squeezing to JET! Get ready to follow it.' : 'It is heading for the reef! Cover it with the zone!' }[kind];
     this.hintEl.innerHTML = this.game.hint(t);
   }
 
@@ -243,6 +264,7 @@ export class CatchBar {
     const ang = clamp(this.fv / 0.8, -1, 1) * -70;
     this.fishEl.style.bottom = `${this.fy * 100}%`;
     this.fishEl.style.transform = `translate(-50%, 50%) rotate(${ang}deg) scale(${this.squeeze ? 0.7 : 1})`;
+    if (this.ink) { this.ink = false; const el = this.inkEl; el.style.bottom = `${this.fy * 100}%`; el.classList.remove('puff'); void el.offsetWidth; el.classList.add('puff'); }
     const m = clamp(this.meter, 0, 1);
     this.meterEl.style.height = `${m * 100}%`;
     this.meterEl.classList.toggle('low', m < 0.25);

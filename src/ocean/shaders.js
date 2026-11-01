@@ -24,11 +24,16 @@ export const globalUniforms = {
   uStyleSun: { value: new THREE.Color(0.75, 0.68, 0.55) },   // the lit side
   uStyleRim: { value: new THREE.Color(0.35, 0.55, 0.6) },
   uDead: { value: 0 },    // algae overgrowth on dead coral 0..1
-  uPlayer: { value: new THREE.Vector3(0, -999, 0) }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
+  uPlayer: { value: new THREE.Vector3(0, -999, 0) },
+  // Night (sites with eco.daylight): 0 day .. 1 night (stars, a bluish moon), and the wharf lamps: up to 6 pools of warm light (xyz + radius, radius 0 = unused).
+  uNight: { value: 0 },
+  uLamps: { value: Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+  uLampCol: { value: new THREE.Color(1.0, 0.72, 0.38) },
+  uLampOn: { value: 0 }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
 };
 
 export const skyGLSL = /* glsl */`
-uniform vec3 uSunDir; uniform vec3 uSkyTop; uniform vec3 uSkyHorizon; uniform float uStyle;
+uniform vec3 uSunDir; uniform vec3 uSkyTop; uniform vec3 uSkyHorizon; uniform float uStyle; uniform float uNight;
 float skyHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float skyNoise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(skyHash(i), skyHash(i + vec2(1, 0)), u.x), mix(skyHash(i + vec2(0, 1)), skyHash(i + vec2(1, 1)), u.x), u.y); }
@@ -60,8 +65,15 @@ vec3 skyColor(vec3 d) {
     float inner = skyClouds(d + vec3(0.0, 0.035, 0.0));
     cloud = mix(vec3(0.78, 0.84, 0.94), vec3(1.06, 1.04, 1.0), smoothstep(0.2, 0.9, inner) * (0.7 + 0.3 * s));
   }
+  cloud = mix(cloud, cloud * vec3(0.3, 0.38, 0.62), uNight);                              // moonlit clouds are blue-grey
   col = mix(col, cloud, uStyle > 0.5 ? cl * 0.97 : cl * 0.9);
-  col += vec3(1.0, 0.92, 0.75) * (pow(s, 900.0) * 30.0 * (1.0 - cl) + pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.08);
+  vec3 sunCol = mix(vec3(1.0, 0.92, 0.75), vec3(0.78, 0.88, 1.0), uNight);                 // the moon is white-blue and softer than the sun
+  col += sunCol * (pow(s, 900.0) * mix(30.0, 9.0, uNight) * (1.0 - cl) + pow(s, 24.0) * mix(0.35, 0.18, uNight) + pow(s, 4.0) * mix(0.08, 0.05, uNight));
+  if (uNight > 0.01 && d.y > 0.02) {                                                      // stars: a sparse scatter of pin-pricks, a few brighter
+    vec2 sp = d.xz / (d.y + 0.25) * 46.0; vec2 si = floor(sp), sf = fract(sp);
+    float sh = skyHash(si), star = step(0.985, sh) * (1.0 - smoothstep(0.0, 0.34, length(sf - 0.5)) );
+    col += vec3(0.95, 0.96, 1.0) * star * (0.6 + 0.9 * step(0.996, sh)) * uNight * smoothstep(0.02, 0.25, d.y) * (1.0 - cl);
+  }
   col = mix(col, uSkyHorizon * 0.95, smoothstep(0.02, -0.08, d.y));
   return col;
 }
@@ -138,7 +150,7 @@ export function patchUnderwater(material, opts = {}) {
   material.onBeforeCompile = (shader, renderer) => {
     if (prev) prev(shader, renderer);
     shader.uniforms.uWaterCol = globalUniforms.uWaterTint;
-    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull']) shader.uniforms[k] = globalUniforms[k];
+    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull', 'uLamps', 'uLampCol', 'uLampOn']) shader.uniforms[k] = globalUniforms[k];
     if (opts.cutaway) shader.uniforms.uPlayer = globalUniforms.uPlayer;
     shader.uniforms.uSwimLen = { value: opts.swimLength ?? 1 };
     shader.uniforms.uSway = { value: opts.sway ?? 0 };
@@ -200,7 +212,7 @@ export function patchUnderwater(material, opts = {}) {
       #endif
       vWPos = (modelMatrix * wpw).xyz;`);
 
-    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim;\n` + causticGLSL + uwFogGLSL + paintGLSL;
+    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn;\n` + causticGLSL + uwFogGLSL + paintGLSL;
     if (opts.coral) fHead += 'varying float vBleach;\n';
     if (opts.detail) fHead += `varying vec3 vLocal;
       float dHash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -283,6 +295,19 @@ export function patchUnderwater(material, opts = {}) {
         // Shadows are a cool blue-teal tint of the colour, never grey; light is warm.
         vec3 shadowTint = vec3(0.8, 0.92, 1.1);
         outgoingLight = diffuseColor.rgb * (amb * shadowTint + uStyleSun * (lit + hi)) + uStyleRim * rim * (0.3 + 0.7 * lit) + totalEmissiveRadiance;
+        // Wharf lamps (harbour at night): a warm pool of light on whatever is near each lamp, brightest on surfaces that face up toward it.
+        if (uLampOn > 0.001) {
+          float lampSum = 0.0;
+          for (int li = 0; li < 6; li++) {
+            vec4 Lp = uLamps[li];
+            if (Lp.w > 0.0) {
+              vec3 toL = Lp.xyz - vWPos; float dl = length(toL);
+              float fall = 1.0 - smoothstep(0.0, Lp.w, dl); fall *= fall;
+              lampSum += fall * (0.45 + 0.55 * max(dot(toL / max(dl, 0.01), nP), 0.0));
+            }
+          }
+          outgoingLight += diffuseColor.rgb * uLampCol * lampSum * uLampOn * 1.5;
+        }
       }
       {
         float depth = uWaterLevel - vWPos.y;

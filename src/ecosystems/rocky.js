@@ -167,7 +167,7 @@ const { C, mix, sm, withEye, bars, spots, counter, hash } = P;
 /** Smooth value noise (0..1): big soft blotches for patterned skins. */
 const vnoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, f = t => t * t * (3 - 2 * t), a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1); return (a + (b - a) * f(fx)) * (1 - f(fy)) + (c + (d - c) * f(fx)) * f(fy); };
 const looks = {
-  bluegroper: { length: 0.9, depth: 0.34, width: 0.2, peak: 0.55, snout: 0.45, tailFrac: 0.15, tail: 'round', tailSpan: 0.8, peduncle: 0.32, pectoral: 0.14, belly: 0.3, lips: true,
+  bluegroper: { length: 0.9, depth: 0.34, width: 0.2, peak: 0.55, snout: 0.45, tailFrac: 0.15, tail: 'round', tailSpan: 0.8, peduncle: 0.32, pectoral: 0.14, belly: 0.3, lips: true, hump: { at: 0.84, h: 0.28, w: 0.13 }, // the male's bulbous forehead hump
     dorsal: { from: 0.12, to: 0.8, height: 0.06 }, anal: { from: 0.12, to: 0.45, height: 0.06 },
     // Eastern blue groper (male): a bright cornflower blue, paler on the belly, a big ROUNDED tail, thick lips.
     paint: { body: withEye((u, s) => mix(C(0xb4d6f4), C(0x5a96dc), sm(-0.55, 0.55, s)).map(v => v * (0.95 + 0.06 * Math.sin(u * 90 + s * 4))), 0.9, 0.3, 0.03, 0x111111, 0xd06030), fin: () => C(0x6aa2e2) }, swim: { freq: 3, amp: 0.4 } },

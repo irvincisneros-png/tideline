@@ -111,9 +111,14 @@ export const NPCS = {
     look: { skin: 0xe0a97c, hairStyle: 'short', hair: 0xc9ced2, hatStyle: 'straw', hat: 0xe9d9a6, sunnies: 'none', pattern: 'fishing', shirt: 0xf6f1e6, shorts: 0xc9b27a, rod: 0x8a5230 },
     props: ['bucket', 'thermos'],
     sites: {
+      // Old Tam fishes the lake jetty by day and dusk, then walks up to Belmore Basin for the squid, so at night he is on the harbour wharf, under the lamps.
       seagrass: {
         dawn: { act: 'fishing', at: 'jettyEnd', face: 'water' }, day: { act: 'sitting', at: 'jettySeat', face: 'water' },
-        dusk: { act: 'fishing', at: 'jettyEnd', face: 'water' }, night: { act: 'fishing', at: 'jettyEnd', face: 'water' },
+        dusk: { act: 'fishing', at: 'jettyEnd', face: 'water' }, night: { act: 'away' },
+      },
+      harbour: {
+        dawn: { act: 'away' }, day: { act: 'away' }, dusk: { act: 'away' },
+        night: { act: 'fishing', at: 'wharfEnd', face: 'water' },
       },
     },
     intro: [
@@ -134,6 +139,11 @@ export const NPCS = {
         'Cut the line close to its mouth. Do not rip the hook out. A bream that has swallowed the hook has only a 12% chance of survival if you pull it out, and over 85% if you cut the line.',
         'Use wet hands, keep it out of the water only a few seconds, and let it go.',
       ] },
+      { q: 'Why do you fish the harbour wharf at night?', a: [
+        'Because that is when the squid come up. The wharf lamps light the water, tiny plankton drifts into the light, the baitfish come for the plankton, and the squid come for the baitfish. It is a food chain lit up like a stage.',
+        'I use a squid jig. It is a prawn-shaped lure with a ring of spikes and no barbed hook. Let it sink, lift it slowly, and when you feel a soft weight, strike. Then hold on: a squid pulls softly and then JETS.',
+        'Bag limit is 20, and that counts squid and cuttlefish together.',
+      ] },
       { q: 'Any jetty manners?', a: [
         'Look behind you before you cast, and call out. Cover your hooks when you walk. A hook in a stranger is no way to start the day.',
         'Take your litter home, and put old line in a bin. Line left on the jetty drowns birds.',
@@ -145,6 +155,7 @@ export const NPCS = {
       { t: 'At night the tailor run along the jetty lights. Metal slug or pilchard on a running sinker, and a wire trace if you are brave.', time: ['night', 'dusk'] },
       { t: 'Green weed and a float, my friend. In winter the luderick are on it all day long.', season: ['winter', 'autumn'] },
       { t: 'High tide, slack water: nothing is moving. This is when I drink my tea.', tide: ['high'] },
+      { t: 'Under the wharf lamps at night, cast into the edge of the light pool, where the baitfish gather. Squid jig, let it sink, lift slowly.', time: ['night', 'dusk'] },
       { t: 'If the bait comes back untouched, move. Fish are not everywhere. Look for birds, shade under the jetty, and the edge of the channel.' },
       { t: 'The best tackle is the tackle that suits the fish. Ask the guide what it likes.' },
     ],
@@ -152,7 +163,7 @@ export const NPCS = {
       { species: 'yellowfinbream', t: 'Yellowfin bream hold around the Lake Illawarra jetty piles at dawn and dusk, mostly on a falling tide. Prawn or nippers on a light rig.', tide: ['falling', 'low'] },
       { species: 'luderick', t: 'Luderick are grazing weed round the jetty and the seagrass in the middle of the day in autumn and winter, on a rising tide. Float rig and green weed.', season: ['autumn', 'winter'] },
       { species: 'silvertrevally', t: 'Silver trevally have been schooling under the jetty at dusk. Summer. They fight well, and they love prawn.' },
-      { species: 'squid', t: 'Squid come in under the jetty lights at dusk and after dark. Jig them slowly, and let the jig sink.', time: ['dusk', 'night'] },
+      { species: 'squid', t: 'Squid come in under the jetty lights at dusk and after dark, and best of all under the Belmore Basin wharf lamps. Jig them slowly, and let the jig sink.', time: ['dusk', 'night'] },
       { species: 'garfish', t: 'Garfish skim along the jetty in daylight. A small hook, a float, and a bit of green weed. They have long beaks, so look for the flash.', time: ['day', 'dawn'] },
     ],
     trades: [
@@ -546,6 +557,85 @@ export const NPCS = {
     },
   },
 
+  // ------------------------------------------------------------------ Belmore Basin
+  nell: {
+    name: 'Nell', role: 'Co-op fisher', where: 'the co-op, Belmore Basin',
+    look: { skin: 0xc58c5e, hairStyle: 'pony', hair: 0x7a4e2c, hatStyle: 'beanie', hat: 0xf0715a, sunnies: 'none', pattern: 'plain', shirt: 0xf4c84a, shorts: 0x2f5496 },
+    props: ['crate'],
+    sites: {
+      harbour: {
+        dawn: { act: 'walking', path: ['wharfBase', 'coopDoor'] }, day: { act: 'standing', at: 'coopDoor', face: 'water' },
+        dusk: { act: 'sitting', at: 'benchWest', face: 'water' }, night: { act: 'away' },
+      },
+    },
+    intro: [
+      "G'day! I'm Nell. I crew a trawler out of Belmore Basin, and I sell through the co-op, right there behind you.",
+      'You fish for fun and for the feed. I fish for a living. Same sea, very different rules. Ask me anything.',
+    ],
+    greet: ["G'day, {name}! Smells like fish, I know.", 'Back at the harbour, {name}? Mind the ropes.', 'Hey {name}. The boats are in, ask me anything.'],
+    topics: [
+      { q: 'What is a co-op?', a: [
+        'A co-op is a business owned by the people who use it. We are licensed commercial fishers, and we land our catch at the co-op. It is weighed and sold on from there.',
+        'Boats work out of Wollongong Harbour all year. After the co-op the fish travel along a chain: the market, then a shop or restaurant, then the customer. Some NSW fish are sold at the Sydney Fish Market auction.',
+      ] },
+      { q: 'Why can I not sell my catch?', a: [
+        'Because you are a recreational fisher. In NSW, recreational fishers cannot sell their catch, ever. Your fish are for your own feed.',
+        'Licensed commercial fishers can sell, through a co-op or a market. But we have a licence, quotas, closures and rules about our nets and bycatch. It is a job with a lot of rules, not a way to get rich quick.',
+      ] },
+      { q: 'What kinds of nets are there?', a: [
+        'A trawl net is a cone towed along or just above the seabed, and the fish end up in the bag. A gill net is a wall of net that hangs in the water and stays in one place, and fish are caught by the gills. A seine net is drawn round a whole school and closed.',
+        'A handline is the opposite: one fisher, a line and a few hooks. Very selective, hardly any bycatch. Snapper and kingfish are caught that way.',
+      ] },
+      { q: 'What is mesh size for?', a: [
+        'Mesh size is the distance between opposite knots when the net is pulled tight. The right mesh lets young fish escape, so they can grow and breed. Too small and you catch fish you do not want. Too big and you lose the fish you are after.',
+      ] },
+      { q: 'What are licences, quotas and closures?', a: [
+        'A licence is permission to fish. A quota is a limit on how much you can catch in a year. A closure is an area or a season where there is no fishing at all. Size limits apply too.',
+        'Inshore waters, like estuaries, beaches and the near ocean, are managed by NSW DPIRD. Further offshore, from about 3 nautical miles out, it is the Australian Fisheries Management Authority.',
+      ] },
+      { q: 'What is bycatch?', a: [
+        'Bycatch is everything the net catches that you were not fishing for. In NSW, every ocean and estuary prawn trawl net has to have a bycatch reduction device, a BRD, that lets small animals escape.',
+        'In some tropical prawn trawls there is also a TED, a turtle excluder device: a grid with an escape hole that keeps turtles out of the net.',
+      ] },
+      { q: 'Do boats fish Lake Illawarra too?', a: [
+        'Yes. Lake Illawarra has some commercial fishing in the estuary. That is a different job from ours, and it follows its own rules. Rod and line only for you around the lake entrance, remember.',
+      ] },
+      { q: 'Could I get a commercial licence one day?', a: [
+        'Ha! Maybe. But not yet. The commercial licence is the last chapter, for when your Fish Guide is full and the bay is healthy. Then you could look at quotas, nets and bycatch from my side of the deck.',
+        'It is a promise, not a door you can open today. For now, keep catching, measuring, and releasing the small ones.',
+      ], teaser: 'commercial' },
+    ],
+    tips: [
+      { t: 'The wharf lamps bring plankton, the plankton brings baitfish, and the baitfish bring the squid. Look at the edge of the light pool.', time: ['dusk', 'night'] },
+      { t: 'Yakka sit around the pylons and make great live bait. They have no size limit, but there is a bag of 50.' },
+      { t: 'Fish are fussy about tide too. On a falling tide the bream come out from under the wharf.', tide: ['falling', 'low'] },
+      { t: 'Squid and cuttlefish count together: the bag limit is 20 in total. Count both.' },
+    ],
+    gossip: [
+      { species: 'squid', t: 'Squid have been coming up into the lamp light at Belmore Basin wharf at dusk and after dark. A squid jig, a slow lift, and soft hands.', time: ['dusk', 'night'] },
+      { species: 'yakka', t: 'Yakka are schooling around the pylons under the Belmore wharf at dusk, mostly in summer and autumn. A small hook and a bit of prawn.', time: ['dusk', 'night'] },
+      { species: 'slimymackerel', t: 'Slimy mackerel have been running along the wharf and the breakwall at dusk and night, mostly in winter and spring. Look for the wavy lines on their backs.', time: ['dusk', 'night'] },
+      { species: 'cuttlefish', t: 'Cuttlefish creep over the sand in the basin at night. They like the weedy edge of the breakwall rocks, and they take a squid jig too.', time: ['night', 'dusk'] },
+    ],
+    trades: [
+      { id: 'nell-squid', kind: 'show', title: 'Name a squid at the wharf', need: { type: 'identified', id: 'squid' }, reward: 'hat-coop',
+        ask: 'Squid are a mollusc, not a fish. Land one on a squid jig at dusk or night under the wharf lamps, then solve the key so it has its name in your Fish Guide. I will give you my co-op beanie.',
+        done: 'A squid, named with the key! You saw the arms and the two long tentacles. Here, the beanie is yours.' },
+      { id: 'nell-commercial', kind: 'quiz', title: 'Commercial fishing quiz', quiz: [24, 26, 30], reward: 'hat-oilskin',
+        ask: 'Three questions from my side of the boat: nets, bycatch and quotas. Get them right and the oilskin hat is yours. Wrong, and we try again tomorrow.',
+        done: 'Not a net out of place. That is the way a commercial fisher thinks. Here, the oilskin hat. Wear it into a southerly.' },
+    ],
+    react: {
+      illegal: { undersize: "That one's undersize, {name}. Put it back, it needs to breed first.", oversize: 'Over the slot, {name}. Let the big breeder go.', bag: 'That is your bag for that one, {name}. Squid and cuttlefish count together, remember.', possession: 'Careful, {name}. Possession limits count the freezer too.', protected: "That's a protected one, {name}. Back in, wet hands." },
+      cheer: ['What a catch, {name}!', 'Now that is a beauty, {name}.'],
+      greet: ["G'day, {name}.", 'Hello, {name}!'],
+    },
+    warn: {
+      swell: "Whoa, {name}! The swell is {swell} m and it is washing right over the breakwall. Get off the rocks, now. Fish the wharf or the basin instead.",
+      ignored: "{name}, I said to get off the breakwall! A wave can sweep you straight into the harbour. Walk back to the quay, please.",
+    },
+  },
+
   officer: {
     name: 'Fisheries Officer', role: 'NSW DPIRD Fisheries', where: 'patrolling the shore',
     look: { skin: 0xc58c5e, hairStyle: 'short', hair: 0x2a2020, hatStyle: 'cap', hat: 0x2f5496, sunnies: 'none', pattern: 'plain', shirt: 0x5fb3d6, shorts: 0x2f5496 },
@@ -588,7 +678,7 @@ export const NPCS = {
   },
 };
 
-export const NPC_ORDER = ['mitra', 'tam', 'priya', 'jo', 'mika', 'sione', 'bev', 'fatima', 'officer'];
+export const NPC_ORDER = ['mitra', 'tam', 'priya', 'jo', 'mika', 'sione', 'bev', 'fatima', 'nell', 'officer'];
 export const NPC_LIST = NPC_ORDER.map(id => ({ id, ...NPCS[id] }));
 /** Lines by kind when an NPC has no line of its own. */
 export const REACT_FALLBACK = {

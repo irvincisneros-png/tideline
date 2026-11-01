@@ -48,6 +48,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
     uTime: globalUniforms.uTime, uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon,
     uDeepTint: globalUniforms.uDeepTint, uShallowTint: globalUniforms.uShallowTint, uWaterTint: globalUniforms.uWaterTint,
     uFogColor: globalUniforms.uFogColor, uFogDensity: globalUniforms.uFogDensity, uUnderwater: globalUniforms.uUnderwater, uStyle: globalUniforms.uStyle,
+    uNight: globalUniforms.uNight, uLamps: globalUniforms.uLamps, uLampCol: globalUniforms.uLampCol, uLampOn: globalUniforms.uLampOn,
     uDetail: { value: detail }, uDepth: { value: depthTex }, uDepthBox: { value: depthBox },
     uCalm: { value: 1 }, uHole: { value: new THREE.Vector4(0, 0, 0, 0) }, uHoleOn: { value: 0 }, uWaveH: { value: 2.4 },
   };
@@ -76,7 +77,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
     ${noiseGLSL}
     uniform float uTime; uniform sampler2D uDetail; uniform sampler2D uDepth; uniform vec4 uDepthBox;
     uniform vec3 uDeepTint; uniform vec3 uShallowTint; uniform vec3 uWaterTint; uniform vec3 uFogColor; uniform float uFogDensity;
-    uniform float uUnderwater; uniform vec4 uHole; uniform float uHoleOn; uniform float uWaveH;
+    uniform float uUnderwater; uniform vec4 uHole; uniform float uHoleOn; uniform float uWaveH; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn;
     varying vec3 vWPos; varying vec3 vN; varying float vFoam; varying float vH;
     void main() {
       ${waveMesh ? '' : `
@@ -167,12 +168,25 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
           float sp2 = smoothstep(0.93, 1.0, vnoise(uv * 23.0 - vec2(uTime * 0.9, uTime * 0.6)));
           col += vec3(1.0, 0.97, 0.86) * (sp1 * 0.9 + sp2 * 0.7) * smoothstep(0.05, 0.4, wdepth) / (1.0 + length(cameraPosition - vWPos) * 0.02);
         }
+        // Wharf lamps: each one lays a warm pool of light on the water, broken up by ripples into dancing glints.
+        float lampGlow = 0.0;
+        if (uLampOn > 0.001) {
+          for (int li = 0; li < 6; li++) {
+            vec4 Lp = uLamps[li];
+            if (Lp.w > 0.0) {
+              float dd = distance(vWPos.xz, Lp.xz) / (Lp.w * 0.58), pool = 1.0 - smoothstep(0.0, 1.0, dd); pool *= pool;
+              float gl = smoothstep(0.62, 0.95, vnoise(uv * 4.5 + vec2(uTime * 0.45, -uTime * 0.3)) * 0.65 + vnoise(uv * 9.0 - uTime * 0.5) * 0.35);
+              lampGlow += pool * (0.5 + 0.35 * gl);
+            }
+          }
+          col += uLampCol * lampGlow * uLampOn * 0.5;
+        }
         col = mix(col, vec3(0.97, 0.99, 1.0) * (0.82 + 0.18 * max(dot(vN, uSunDir), 0.0)), foam);
         // Aerial haze
         float hz = 1.0 - exp(-length(cameraPosition - vWPos) * (uStyle > 0.5 ? 0.0032 : 0.0016)); // cosy: softer, hazier horizon
         col = mix(col, skyColor(normalize(vec3(-V.x, 0.02, -V.z))), hz);
         // Clear tropical water: see the reef when looking down into the shallows.
-        alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) : 0.42) + fres * 1.3 + smoothstep(3.0, 26.0, wdepth) * 0.6 + foam + hz, 0.0, 1.0);
+        alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) : 0.42) + fres * 1.3 + smoothstep(3.0, 26.0, wdepth) * 0.6 + foam + hz + lampGlow * uLampOn * 0.16, 0.0, 1.0);
         ${waveMesh ? 'alpha = mix(alpha, 1.0, smoothstep(uStyle > 0.5 ? 0.3 : 0.12, uStyle > 0.5 ? 0.85 : 0.45, thick));' : ''}
       } else {
         // Looking up from below: Snell's window shows the sky, outside it total internal reflection.
@@ -297,7 +311,7 @@ export class Sky {
   constructor(scene) {
     const geo = new THREE.SphereGeometry(5000, 32, 16);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon, uUnderwater: globalUniforms.uUnderwater, uFogColor: globalUniforms.uFogColor, uStyle: globalUniforms.uStyle },
+      uniforms: { uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon, uUnderwater: globalUniforms.uUnderwater, uFogColor: globalUniforms.uFogColor, uStyle: globalUniforms.uStyle, uNight: globalUniforms.uNight },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
       fragmentShader: `${skyGLSL}${uwFogGLSL}\nuniform float uUnderwater; uniform vec3 uFogColor; varying vec3 vDir;
         void main(){ vec3 d = normalize(vDir); vec3 c = uUnderwater > 0.5 ? uwFogColor(d, uFogColor, uSunDir) : skyColor(d); gl_FragColor = vec4(c,1.0);

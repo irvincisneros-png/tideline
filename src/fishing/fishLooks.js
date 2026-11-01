@@ -79,11 +79,83 @@ registerLook('bonito', {
   paint: { body: withEye((u, s) => (s > 0.1 && Math.sin(u * 46 + s * 14) > 0.55 ? C(0x2a4658) : mix(C(0xeef0f0), C(0x4a8aa6), sm(-0.2, 0.7, s))), 0.9, 0.25, 0.04), fin: (u, part) => (part === 'tail' ? C(0x4a5a6a) : C(0x7a98a8)) },
   swim: { freq: 7, amp: 0.65 }, metal: 0.55,
 });
+// ---- Cephalopods (models in life/cephalopod.js). u = 0 tail .. 1 head, s = +1 back .. -1 belly. Colours are pastel-shifted (art bible), markings are real.
+const hash2 = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+/** Chromatophores: scattered dots of pigment (reddish-brown, a few purple) that the animal can expand or shrink; denser on the back. */
+const dots = (u, s, dens, size) => {
+  const gu = u * dens, gs = (s + 1) * dens * 0.55, iu = Math.floor(gu), is = Math.floor(gs);
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+    const cu = iu + a + hash2(iu + a, is + b), cs = is + b + hash2(is + b, iu + a + 7), r = size * (0.55 + 0.9 * hash2(iu + a + 3, is + b + 5));
+    if (Math.hypot(gu - cu, gs - cs) < r) return hash2(iu + a + 9, is + b + 1) > 0.82 ? 2 : 1;
+  }
+  return 0;
+};
 registerLook('squid', {
-  length: 0.35, depth: 0.16, width: 0.15, peak: 0.45, snout: 0.9, tailFrac: 0.02, tail: 'none', pectoral: 0, belly: 0.1, arms: 8, armsFrac: 0.24,
-  dorsal: { from: 0.04, to: 0.6, height: 0.085, shape: 'round' }, anal: { from: 0.04, to: 0.6, height: 0.085, shape: 'round' },
-  paint: { body: withEye((u, s) => { const dots = Math.sin(u * 150 + s * 40) * Math.sin(u * 90 - s * 70) > 0.55; const c = mix(C(0xf0e0d4), C(0xd2a79a), sm(-0.4, 0.7, s)); return dots ? mix(c, C(0xa05a5a), 0.55) : c; }, 0.72, 0.15, 0.06, 0x101010, 0xb8d0e0), fin: () => C(0xe8d2c8) },
+  // Sepioteuthis australis (southern calamari): a long tube pointed at the tail, a diamond fin down the back half, big eyes, eight arms that curl at the tips
+  // and two long tentacles with paddle tips. Pale, see-through pink, freckled with reddish chromatophores, a darker back and a blue-green sheen.
+  cephalopod: 'squid', length: 0.55, emissive: 0xf2a496, emissiveIntensity: 0.5, depth: 0.19, width: 0.18, tailFrac: 0.02, tail: 'none', arms: 8, pectoral: 0,
+  paint: {
+    body: (u, s) => {
+      const back = sm(-0.5, 0.85, s);
+      let c = mix(C(0xfbf3ee), C(0xf1d3ca), back);
+      c = mix(c, C(0xc2e6e0), 0.2 * sm(0.15, 0.45, u) * (1 - sm(0.55, 0.8, u)) * (1 - Math.abs(s)));      // a pale blue-green sheen
+      c = mix(c, C(0xf0cfc6), 0.28 * sm(0.55, 0.95, s) * sm(0.05, 0.3, u));                                    // the darker stripe down the back
+      const d = dots(u, s, 56, 0.2 + 0.12 * back + (u > 0.89 ? 0.1 : 0));
+      if (d === 1) c = mix(c, C(0xd69a92), 0.5 + 0.15 * back);
+      else if (d === 2) c = mix(c, C(0xa88ab4), 0.4);
+      return c;
+    },
+    fin: (u, part, f) => { const c = mix(C(0xfdf6f2), C(0xf3d8d0), f * 0.7); const d = dots(u * 1.6, f * 2 - 1, 26, 0.2); return d ? mix(c, C(0xdca79f), 0.45) : c; },
+    arm: (u, f) => { const root = 1 - sm(0.1, 0.7, u), c = mix(C(0xfcf0ea), C(0xefc3b8), root); const d = dots(u * 0.9, f * 2 - 1, 30, 0.3); return d && u < 0.8 ? mix(c, C(0xd08c84), 0.5) : u > 0.82 ? mix(c, C(0xfffaf6), 0.7) : c; },
+    iris: [0.62, 0.74, 0.8],
+  },
   swim: { freq: 3, amp: 0.2 },
+});
+registerLook('cuttlefish', {
+  // Sepia spp.: a broad, flattened oval body with a frill of fin all the way round, short thick arms, W-shaped pupils and zebra-like bands across the back.
+  cephalopod: 'cuttle', length: 0.3, depth: 0.3, width: 0.3, tailFrac: 0.02, tail: 'none', arms: 8, pectoral: 0,
+  paint: {
+    body: (u, s) => {
+      const back = sm(-0.3, 0.8, s);
+      let c = mix(C(0xefe0c4), C(0xb59a74), back);
+      const band = Math.sin(u * 52 + Math.sin(s * 5) * 1.6);
+      if (s > -0.1 && u < 0.84 && band > 0.35) c = mix(c, C(0x6e553a), 0.55 + 0.3 * back);                     // zebra bands across the mantle
+      const d = dots(u, s, 70, 0.14);
+      if (d && s > 0.1) c = mix(c, C(0xfaf4e6), 0.7);                                                          // pale speckles
+      return c;
+    },
+    fin: (u, part, f) => mix(C(0xf1e4cc), C(0xcdb48a), Math.abs(Math.sin(u * 40)) * 0.5 + f * 0.3),
+    arm: (u, f) => mix(C(0xc9ad84), C(0xeadcbf), u),
+    iris: [0.78, 0.72, 0.5],
+  },
+  swim: { freq: 6, amp: 0.15 },
+});
+registerLook('yakka', {
+  // Yellowtail scad (Trachurus): slim and silvery, blue-green back, a yellow tail and fins, a dark spot on the gill cover and a line of bony scutes along the side.
+  length: 0.25, depth: 0.2, width: 0.1, peak: 0.55, snout: 0.8, tailFrac: 0.2, tail: 'forked', tailSpan: 1.25, pectoral: 0.11,
+  dorsal: { from: 0.28, to: 0.7, height: 0.06 }, anal: { from: 0.2, to: 0.5, height: 0.05 },
+  paint: {
+    body: withEye((u, s) => {
+      if (Math.hypot((u - 0.79) * 1.7, (s - 0.35) * 0.7) < 0.045) return C(0x24343a);                          // the dark gill-cover spot
+      if (Math.abs(s - 0.04) < 0.035 && u > 0.2 && u < 0.76 && Math.sin(u * 95) > -0.2) return C(0xcdb55a);      // lateral line scutes
+      return mix(C(0xeef4f0), C(0x6aa7b4), sm(-0.2, 0.8, s));
+    }, 0.9, 0.3, 0.046),
+    fin: (u, part) => (part === 'tail' || part === 'anal' ? C(0xf0cf4c) : C(0xdcd890)),
+  },
+  swim: { freq: 7, amp: 0.65 }, metal: 0.5,
+});
+registerLook('slimymackerel', {
+  // Scomber australasicus: a torpedo of a fish with a big eye, wavy dark lines over a blue-green back, a silver belly and a forked tail with finlets behind the fins.
+  length: 0.32, depth: 0.2, width: 0.11, peak: 0.5, snout: 0.9, tailFrac: 0.2, tail: 'forked', tailSpan: 1.3, pectoral: 0.1,
+  dorsal: { from: 0.3, to: 0.62, height: 0.06, shape: 'tri' }, anal: { from: 0.18, to: 0.4, height: 0.045 },
+  paint: {
+    body: withEye((u, s) => {
+      const back = mix(C(0xeef2f0), C(0x5f9fae), sm(-0.15, 0.7, s));
+      return s > 0.12 && u > 0.12 && u < 0.84 && Math.sin(u * 62 + Math.sin(s * 22) * 2.2) > 0.4 ? mix(back, C(0x2f5f70), 0.7) : back;   // wavy dark lines on the back
+    }, 0.89, 0.25, 0.062),
+    fin: (u, part) => (part === 'tail' ? C(0x6f8f9a) : C(0xb8cdd0)),
+  },
+  swim: { freq: 7, amp: 0.65 }, metal: 0.55,
 });
 registerLook('shortfineel', {
   length: 0.7, depth: 0.05, width: 0.05, peak: 0.45, snout: 0.7, tailFrac: 0.05, tail: 'round', tailSpan: 0.45, pectoral: 0.025, peduncle: 0.6,

@@ -171,7 +171,7 @@ export function fishTopDown(id, w = 1100) {
   const key = `${id}|top|${w}`;
   if (pictures.has(key)) return pictures.get(key);
   // A flat fish's tail lies spread on the mat.
-  const m = fishModel(id, { flatTail: SPECIES_BY_ID[id]?.feat?.body === 'flattened' }), s = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
+  const m = fishModel(id, { flatTail: ['flattened', 'tentacles'].includes(SPECIES_BY_ID[id]?.feat?.body) }), s = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
   // Frame the body, not the wide pectoral wings of a flat fish (they are cropped): only the length matters on the mat.
   const look = LOOKS[id], zExt = Math.min(s.z, (look.width ?? 0.2) * look.length * 1.5);
   const aspect = Math.max(0.1, (zExt * 1.08) / s.x), h = Math.round(w * aspect);
@@ -188,7 +188,7 @@ let photoRig = null;
  *  null if the browser cannot make one. */
 export function fishPhoto(id, { w = 360, h = 225, flat = null } = {}) {
   try {
-    const onBelly = flat ?? SPECIES_BY_ID[id]?.feat?.body === 'flattened';
+    const onBelly = flat ?? ['flattened', 'tentacles'].includes(SPECIES_BY_ID[id]?.feat?.body);   // flat fish and squid lie on their bellies
     const m = fishModel(id, { flatTail: onBelly });
     const size = m.bbox.getSize(new THREE.Vector3()), c = m.bbox.getCenter(new THREE.Vector3());
     const L = size.x;

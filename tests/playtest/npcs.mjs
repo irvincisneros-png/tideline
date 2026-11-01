@@ -187,11 +187,11 @@ await session('seagrass', '', async H => {
   await ev(() => window.__game.npcs.onCatch({ id: 'duskyflathead', length: 30, keep: true, legal: false, kind: 'undersize' })); await t.wait(200);
   check(await ev(() => document.querySelectorAll('.npc-bubble.show').length === 0 || [...document.querySelectorAll('.npc-bubble.show')].every(b => !/undersize/.test(b.textContent)) || window.__game.npcs.nearestTo(window.__game.walker.pos, 15) !== null), 'nobody near enough to comment far from everyone (15 m)');
 
-  // --- the day moves on: dusk, then night. Mitra goes home, Tam goes fishing at the jetty end, Mika heads home
+  // --- the day moves on: dusk, then night. Mitra goes home, Mika heads home, and Old Tam walks up to the Belmore Basin wharf for the squid (phase 5: he is away from the lake at night)
   await ev(() => { window.__game.cond.minutes = 21 * 60; });
   await t.wait(1500);
   const night = await ev(() => window.__game.npcs.npcs.map(n => `${n.id}:${n.away ? 'away' : n.act}`).sort().join(' '));
-  check(/mitra:away/.test(night) && /tam:fishing/.test(night) && /mika:away/.test(night) && /priya:away/.test(night), `at night: ${night}`);
+  check(/mitra:away/.test(night) && /tam:away/.test(night) && /mika:away/.test(night) && /priya:away/.test(night), `at night: ${night}`);
   await ev(() => { window.__game.cond.minutes = 6.3 * 60; }); await t.wait(1500);
   const dawn = await ev(() => window.__game.npcs.npcs.map(n => `${n.id}:${n.away ? 'away' : n.act}`).sort().join(' '));
   check(/mitra:standing/.test(dawn) && /tam:fishing/.test(dawn) && /mika:fishing/.test(dawn), `at dawn: ${dawn}`);

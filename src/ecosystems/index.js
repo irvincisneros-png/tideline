@@ -2,6 +2,7 @@
 // To add a site: write src/ecosystems/<id>.js exporting it, import it here and add it to ECOSYSTEMS.
 import { rocky } from './rocky.js';
 import { seagrass } from './seagrass.js';
+import { harbour } from './harbour.js';
 
-export const ECOSYSTEMS = [rocky, seagrass];
+export const ECOSYSTEMS = [rocky, seagrass, harbour];
 export const ecoById = id => ECOSYSTEMS.find(e => e.id === id);

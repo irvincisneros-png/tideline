@@ -25,6 +25,8 @@ export const ITEMS = {
   'hat-research': { kind: 'hat', name: 'Research cap', hat: { hatStyle: 'cap', hat: 0x2f5496 }, blurb: 'A navy cap for citizen scientists.', from: 'priya', ask: 'Dr Priya at the dinghy landing' },
   'hat-mika': { kind: 'hat', name: "Mika's beanie", hat: { hatStyle: 'beanie', hat: 0xf4c84a }, blurb: 'Sunny yellow, a bit chewed.', from: 'mika', ask: 'Mika, the kid with the rod' },
   'hat-club': { kind: 'hat', name: 'Fishing club cap', hat: { hatStyle: 'cap', hat: 0x35b3ad }, blurb: 'Teal, with the club badge.', from: 'bev', ask: 'Bev at the club board on the beach path' },
+  'hat-coop': { kind: 'hat', name: 'Co-op beanie', hat: { hatStyle: 'beanie', hat: 0xf0715a }, blurb: 'Coral red, worn on the trawlers out of Belmore Basin.', from: 'nell', ask: 'Nell at the co-op, Belmore Basin' },
+  'hat-oilskin': { kind: 'hat', name: 'Oilskin hat', hat: { hatStyle: 'wide', hat: 0xf4c84a }, blurb: 'A bright yellow sou\'wester for wet days on the water.', from: 'nell', ask: 'Nell at the co-op, Belmore Basin' },
   'hat-greenteam': { kind: 'hat', name: 'Green Team sun hat', hat: { hatStyle: 'wide', hat: 0x8fbf8a }, blurb: 'A sage wide-brim for beach clean-ups.', from: 'fatima', ask: 'Fatima, the clean-up volunteer on Bellambi beach' },
 };
 

@@ -85,6 +85,13 @@ const BUILDERS = {
     const m = new THREE.Mesh(geo, propMat); m.scale.setScalar(0.7); m.position.set(0.7, 0, 0.2);
     return [{ parent: 'root', obj: m }];
   },
+  crate(b) {
+    // A blue fish crate by the feet, with a fish tail poking out.
+    const g = new THREE.Group();
+    g.add(box(0.5, 0.3, 0.36, 0x3d86c4, 0, 0.15, 0), box(0.54, 0.05, 0.4, 0x2d6f9c, 0, 0.31, 0), box(0.12, 0.05, 0.1, 0xc9d6dc, 0.1, 0.35, 0.02));
+    g.position.set(0.62, 0, 0.18);
+    return [{ parent: 'root', obj: g }];
+  },
   stool(b) {
     // Shown only while sitting (set in NPC): a little folding stool under the hips.
     const g = new THREE.Group();

@@ -21,8 +21,22 @@ export function lureMod(colour, clarity, time) {
 }
 
 // ------------------------------------------------------------------ release survival
-/** Survival of released fish by species: the middle of the DPIRD range (dataset C13). Anything else: 90%. */
-export const SURVIVAL = { duskyflathead: 0.93, luderick: 0.99, mulloway: 0.77, sandwhiting: 0.93, snapper: 0.8, tailor: 0.92, yellowfinbream: 0.85, kingfish: 0.85 };
+/**
+ * Release survival by species, % when handled well (dataset C13, DPIRD): flathead 91-96, luderick 99, mulloway 73-81, sand whiting 93, snapper 67-92,
+ * tailor 92, bream 72-97, kingfish 85. A single figure is [n, n]. The estimate uses the MIDPOINT of the range (bream 84.5, snapper 79.5), and the card says so.
+ * Anything else: 90 (no figure in the dataset). The 12% to over 85% for a DEEPLY HOOKED bream is a different thing (C15, cut the line): see CUT_LINE.
+ */
+export const SURVIVAL_RANGE = { duskyflathead: [91, 96], luderick: [99, 99], mulloway: [73, 81], sandwhiting: [93, 93], snapper: [67, 92], tailor: [92, 92], yellowfinbream: [72, 97], kingfish: [85, 85] };
+export const SURVIVAL = Object.fromEntries(Object.entries(SURVIVAL_RANGE).map(([id, [lo, hi]]) => [id, (lo + hi) / 200]));
+/** The cut-the-line lesson (C15, DPIRD and worksheet 2.1.12): separate from the survival range above. */
+export const CUT_LINE = { id: 'yellowfinbream', pulled: 12, cut: 85, text: 'If a bream is hooked deeply, cut the line close to the mouth: survival jumps from 12% (hook ripped out) to over 85% (line cut).' };
+/** The wording for the release card: { range, mid, text } for a species with a published range, or null. */
+export function survivalNote(id) {
+  const r = SURVIVAL_RANGE[id];
+  if (!r) return null;
+  const mid = (r[0] + r[1]) / 2, single = r[0] === r[1];
+  return { range: r, mid, single, text: single ? `about ${r[0]}%` : `between ${r[0]} and ${r[1]}%, depending on how they are hooked and handled` };
+}
 export const AIR_LIMIT = 10;
 /**
  * The estimated survival of a fish you release, and why. h = { wet, air (seconds out of the water), weighted, tagged, net }.
@@ -43,5 +57,5 @@ export function releaseSurvival(id, h = {}) {
     if (h.weighted) { weightHelped = Math.round(base * 0.3 * 100); bayBonus = 1; parts.push({ label: 'Release weight returned it to depth (no barotrauma)', good: true, delta: weightHelped }); }
     else { s *= 0.7; parts.push({ label: 'Pulled from deep water: swollen gas bladder (barotrauma), no release weight', good: false, delta: -Math.round(base * 30) }); }
   }
-  return { pct: Math.max(5, Math.min(99, Math.round(s * 100))), base: Math.round(base * 100), parts, weightHelped, bayBonus, deep };
+  return { pct: Math.max(5, Math.min(99, Math.round(s * 100))), base: Math.round(base * 100), range: SURVIVAL_RANGE[id] ?? null, parts, weightHelped, bayBonus, deep };
 }

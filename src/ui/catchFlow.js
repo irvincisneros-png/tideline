@@ -3,7 +3,7 @@
 // hands-on step (wet hands, hold to unhook, 10 s air time). Everything is written to the logbook, the Fish Guide and the esky.
 //   new CatchFlow(game).run(landed, spot, done)      landed = { id, length, gear, ctx }
 import { SPECIES_BY_ID, SPOT_INFO } from '../fishing/species.js';
-import { judge, RULES, adjustStock } from '../fishing/catches.js';
+import { judge, RULES, adjustStock, bagGroupIds } from '../fishing/catches.js';
 import * as G from '../fishing/guide.js';
 import { esc } from './panels.js';
 import { mountKey } from './keyUI.js';
@@ -11,7 +11,7 @@ import { fishOnMat, fishPhoto } from './fishView.js';
 import { nameOf } from '../core/anglerData.js';
 import { hasItem } from '../npc/inventory.js';
 import { payRecord, payTag } from '../economy/coins.js';
-import { releaseSurvival } from '../economy/effects.js';
+import { releaseSurvival, survivalNote, CUT_LINE } from '../economy/effects.js';
 import { RATES } from '../content/shop.js';
 
 const AIR_LIMIT = 10; // seconds out of the water before it counts as too long
@@ -26,6 +26,14 @@ export const WHY = {
   protected: 'Protected species are too vulnerable to take. They must be released straight away with the least harm.',
   ok: 'Size, bag and possession limits keep fishing sustainable: enough fish are left to breed.',
 };
+
+/** "Yellowfin bream survive release between 72 and 97% of the time (DPIRD); the bar uses the middle, 85%." A single published figure is said plainly. */
+export function survivalLine(name, id, sv) {
+  const n = survivalNote(id);
+  if (!n) return `${esc(name)} usually survive release about ${sv.base}% of the time when handled well`;
+  return n.single ? `${esc(name)} usually survive release ${n.text} of the time when handled well (DPIRD)`
+    : `${esc(name)} usually survive release ${n.text} (DPIRD). The estimate starts from the middle of that range: ${n.mid}%`;
+}
 
 export class CatchFlow {
   constructor(game) { this.game = game; this.keyView = null; }
@@ -80,7 +88,7 @@ export class CatchFlow {
     const g = this.game, p = this.p, len = this.c.length;
     const first = !p.tips?.measure, fine = g.gearStats().fineMat, unit = fine ? 0.5 : 1;   // the fine mat has half-centimetre marks
     const matCm = Math.max(30, Math.ceil((len + 6) / 10) * 10);
-    const top = fishOnMat(this.id, this.sp.feat?.body === 'flattened');
+    const top = fishOnMat(this.id, ['flattened', 'tentacles'].includes(this.sp.feat?.body));   // flat fish and squid lie flat, seen from above
     this.show(`<div class="flow measure">
       <h2>Measure it</h2>
       <p class="sub">Nice catch, ${esc(nameOf(p))}! ${esc(this.nameNow())}. Mouth closed, snout on the 0 stop, read the tip of the tail.</p>
@@ -190,7 +198,7 @@ export class CatchFlow {
   commit(keep) {
     const g = this.game, p = this.p, id = this.id, c = this.c, rule = RULES[id];
     const today = new Date().toDateString();
-    const kept = (p.catches ?? []).filter(x => x.id === id && x.kept);
+    const group = bagGroupIds(id), kept = (p.catches ?? []).filter(x => group.includes(x.id) && x.kept);   // squid and cuttlefish share one bag of 20
     this.keptToday = kept.filter(x => new Date(x.time).toDateString() === today).length;
     const inPossession = kept.filter(x => Date.now() - x.time < 3 * 864e5).length;
     this.verdict = judge(id, c.length, this.keptToday, inPossession);
@@ -211,7 +219,7 @@ export class CatchFlow {
       ${!legal ? `<div class="rule-card bad"><b>This fish</b>${esc(v.reason)}</div>` : ''}
       <div class="rule-card why"><b>Why the rule exists</b>${esc(why)}</div>
       ${flipped ? `<div class="rule-card"><b>Measuring matters</b>Your reading of ${this.measured} cm would have given a different answer from its true ${c.length} cm. One cm under is still undersize.</div>` : ''}
-      <p class="muted">Kept today of this species: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>
+      <p class="muted">Kept today ${rule?.bagLabel ? `(${esc(rule.bagLabel)})` : 'of this species'}: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>
       ${keep ? this.payHTML() : ''}
       <p><button class="btn primary" id="v-next">${keep ? 'Continue' : 'Release it now'}</button></p>
     </div>`);
@@ -273,9 +281,10 @@ export class CatchFlow {
         <h2>${ok ? '✔ Back in the water' : '⚠ Released, but it was rough'}</h2>
         <p class="sub">${secs.toFixed(1)} s out of the water · hands ${wet ? 'wet' : 'DRY'}${net ? ' · landing net' : ''}</p>
         <p>${wet ? '' : 'You handled it with dry hands, which strips its protective slime. '}${secs > AIR_LIMIT ? `That was over ${AIR_LIMIT} seconds out of the water: fish cannot breathe in air, and every second counts. ` : ''}${ok ? 'Wet hands and a quick return give it the best chance to swim away strongly. (Most released fish survive when handled well.)' : 'Next time: wet your hands first and be back in the water in under 10 seconds.'}</p>
-        <div class="surv"><div class="surv-top"><b>Estimated survival: ${sv.pct}%</b><small>${esc(this.sp.name)} usually survive release about ${sv.base}% of the time when handled well (DPIRD)</small></div>
+        <div class="surv"><div class="surv-top"><b>Estimated survival: ${sv.pct}%</b><small>${survivalLine(this.sp.name, this.id, sv)}</small></div>
           <div class="surv-bar" role="img" aria-label="Survival ${sv.pct} percent"><i class="${sv.pct >= 80 ? 'hi' : sv.pct >= 60 ? 'mid' : 'lo'}" style="width:${sv.pct}%"></i></div>
           <ul class="surv-parts">${sv.parts.map(x => `<li class="${x.good ? 'yes' : 'no'}">${x.good ? '✔' : '✖'} ${esc(x.label)}${x.delta ? ` <em>${x.delta > 0 ? '+' : '−'}${Math.abs(x.delta)}%</em>` : ''}</li>`).join('')}</ul>
+          ${this.id === CUT_LINE.id ? `<p class="surv-cut">✂ <b>Deeply hooked?</b> ${esc(CUT_LINE.text)} (DPIRD.) This is a separate lesson from the range above.</p>` : ''}
           ${sv.bayBonus ? `<p class="surv-bay">⚖ <b>Bay Health bonus:</b> returning a ${esc(this.sp.name.toLowerCase())} to depth with the release weight saved a fish that would otherwise be lost (+${sv.bayBonus} stock point${sv.bayBonus > 1 ? 's' : ''} for the species here).</p>` : ''}
           ${deep && !sv.bayBonus ? `<p class="surv-bay">${weightKit ? 'You did not clip on the release weight, so the gas bladder swelled.' : 'A release weight would have returned this fish to depth (buy one at Mitra\'s shop, or earn one from Dr Priya).'}</p>` : ''}
         </div>

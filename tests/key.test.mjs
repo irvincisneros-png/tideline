@@ -24,10 +24,10 @@ test('every species reaches its own unique leaf, by the answers its own features
     assert.ok(!leaves.has(end.leaf)); leaves.add(end.leaf);
   }
   assert.equal(leaves.size, SPECIES.length);
-  // 19 species need 18 couplets; no path is longer than 7 couplets and the key is not trivially shallow.
+  // N species need N-1 couplets (the key grows by exactly one couplet per species); no path is longer than 8 couplets and the key is not trivially shallow.
   assert.equal(Object.keys(KEY.couplets).length, SPECIES.length - 1);
-  for (const [id, d] of Object.entries(KEY.leaves)) assert.ok(d >= 3 && d <= 7, `${id} is ${d} couplets deep`);
-  assert.ok(KEY.depth <= 7 && KEY.depth >= 4);
+  for (const [id, d] of Object.entries(KEY.leaves)) assert.ok(d >= 3 && d <= 8, `${id} is ${d} couplets deep`);
+  assert.ok(KEY.depth <= 8 && KEY.depth >= 4);
 });
 
 test('the key is deterministic and numbered in reading order', () => {
@@ -53,9 +53,10 @@ test('a wrong answer ends at a different leaf (a wrong key names a wrong species
   assert.ok(end.leaf && end.leaf !== 'tailor');
 });
 
-test('regions: Lake Illawarra and Bellambi both list species, and together cover every species', () => {
-  const lake = speciesInRegion('lake'), bel = speciesInRegion('bellambi');
-  assert.ok(lake.length >= 10 && bel.length >= 10);
-  assert.equal(new Set([...lake, ...bel].map(s => s.id)).size, SPECIES.length);
+test('regions: Lake Illawarra, Bellambi and Belmore Basin all list species, and together cover every species', () => {
+  const lake = speciesInRegion('lake'), bel = speciesInRegion('bellambi'), har = speciesInRegion('harbour');
+  assert.ok(lake.length >= 10 && bel.length >= 10 && har.length >= 14);
+  assert.equal(new Set([...lake, ...bel, ...har].map(s => s.id)).size, SPECIES.length);
+  for (const id of ['yakka', 'slimymackerel', 'cuttlefish', 'squid']) assert.ok(har.some(s => s.id === id), `${id} is a harbour species`);
   assert.ok(REGIONS.lake.label === 'Lake Illawarra');
 });
