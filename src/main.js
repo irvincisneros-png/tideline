@@ -36,6 +36,7 @@ import { siteLock } from './ecosystems/unlock.js';
 import { NPCManager } from './npc/manager.js';
 import { rigUnlocked, baitUnlocked, lockHint } from './npc/inventory.js';
 import { openQuestLog } from './ui/questLog.js';
+import { runBoatTrip } from './ui/boatTrip.js';
 import { openShop, showRecaptureLetter } from './ui/shop.js';
 import { gearStats, baitCount, useBait, collect } from './economy/store.js';
 import { lureMod } from './economy/effects.js';
@@ -44,7 +45,7 @@ import { COIN, COLLECT } from './content/shop.js';
 
 const $ = s => document.querySelector(s);
 /** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
-const REGION_OF = { rocky: 'bellambi', seagrass: 'lake', harbour: 'harbour' };
+const REGION_OF = { rocky: 'bellambi', seagrass: 'lake', harbour: 'harbour', reef: 'reef', river: 'river' };
 const params = new URLSearchParams(location.search);
 
 class Game {
@@ -84,7 +85,7 @@ class Game {
     this.focus = new THREE.Vector3(); // what the camera looks at (the sun's shadow box follows it)
     this.fishing = new Fishing(this);
     // The day: tide, time, season and swell cycle with in-game time (?season=winter&time=dusk&tide=low&swell=1.5 for testing).
-    this.cond = new DayConditions({ season: params.get('season') ?? undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
+    this.cond = new DayConditions({ season: params.get('season') ?? undefined, month: params.has('month') ? Number(params.get('month')) - 1 : undefined, time: params.get('time') ?? undefined, tide: params.get('tide') ?? undefined, swell: params.has('swell') ? Number(params.get('swell')) : undefined });
     this.gear = { rig: 'runningsinker', bait: 'prawn', ...this.progress.gear };
     if (!RIGS[this.gear.rig] || !rigUnlocked(this.progress, this.gear.rig)) this.gear.rig = 'runningsinker';   // a rig you have not earned yet is not in your box
     if (!RIGS[this.gear.rig].lure && (!BAITS[this.gear.bait] || !baitUnlocked(this.progress, this.gear.bait))) this.gear.bait = 'prawn';
@@ -187,15 +188,17 @@ class Game {
     const rc = Object.fromEntries(G.regionCounts(this.progress).map(c => [c.key, c])), regionOf = REGION_OF;
     return ECOSYSTEMS.map(e => {
       const c = rc[regionOf[e.id]], lock = siteLock(this.progress, e);
-      const chip = lock.locked ? `🔒 ${lock.text} (${lock.have} of ${lock.need})` : c ? `${c.label} ${c.done}/${c.total}` : '';
+      const chip = lock.locked ? `🔒 ${lock.detail}` : c ? `${c.label} ${c.done}/${c.total}` : '';
       return `<button class="eco-card ${e.id === this.eco.id ? 'sel' : ''} ${lock.locked ? 'locked' : ''}" data-id="${e.id}" ${lock.locked ? 'aria-disabled="true"' : ''}>
       <b>${esc(e.name)}</b><small>${esc(e.place)} — ${esc(e.blurb)}</small>${chip ? `<span class="chip">${esc(chip)}</span>` : ''}</button>`;
     }).join('');
   }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
   beginPlay() {
-    if (!this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) });
-    else this.startLand(null);
+    const go = () => { if (!this.progress.angler) this.creator.open({ first: true, onDone: () => this.startLand(null) }); else this.startLand(null); };
+    // A site you reach by boat (the offshore reef) starts with the safety beat (lifejacket, trip log) and the run out of the harbour; a ?play deep link skips it.
+    if (this.eco.travel && !params.has('play')) runBoatTrip(this).then(trip => { if (trip) { this.pendingTrip = trip; go(); } });
+    else go();
   }
   /** Done in the character creator: save { name, ...look } and dress the angler in the world. */
   applyAngler(a) {
@@ -208,7 +211,7 @@ class Game {
   async switchEco(id, fromPicker = false) {
     if (id === this.eco.id || this.loading) return;
     const lock = siteLock(this.progress, ecoById(id));
-    if (fromPicker && lock.locked) { this.toast(`${ecoById(id).name} opens when you ${lock.text.charAt(0).toLowerCase()}${lock.text.slice(1)} (${lock.have} of ${lock.need} so far). Catch fish and solve the key to get there.`, 'warn'); return; }
+    if (fromPicker && lock.locked) { this.toast(`${ecoById(id).name} opens when you ${lock.text.charAt(0).toLowerCase()}${lock.text.slice(1)} (${lock.progressText} so far). Catch fish and solve the key to get there.`, 'warn'); return; }
     this.loading = true; // the frame loop idles while the old site is torn down and the new one built
     this.eco = ecoById(id);
     $('#loading').classList.add('show'); $('#menu').classList.remove('show');
@@ -242,7 +245,7 @@ class Game {
     document.querySelectorAll('.eco-card').forEach(card => {
       const e = ecoById(card.dataset.id), c = rc[REGION_OF[card.dataset.id]], lock = siteLock(p, e), chip = card.querySelector('.chip');
       card.classList.toggle('locked', lock.locked); if (lock.locked) card.setAttribute('aria-disabled', 'true'); else card.removeAttribute('aria-disabled');
-      if (chip) chip.textContent = lock.locked ? `🔒 ${lock.text} (${lock.have} of ${lock.need})` : c ? `${c.label} ${c.done}/${c.total}` : '';
+      if (chip) chip.textContent = lock.locked ? `🔒 ${lock.detail}` : c ? `${c.label} ${c.done}/${c.total}` : '';
     });
     $('#progress-sum').textContent = `Fish Guide ${G.completion(p)}% · Steward ${st.value.toFixed(1)}★ · Bay Health ${Math.round(bay)}%`;
   }
@@ -272,6 +275,7 @@ class Game {
       if (c === 'KeyL') openLogbook(this);
       if (c === 'KeyH') this.outing.ask();
       if (c === 'KeyE') this.npcs.talkNearest();
+      if (c === 'KeyB' && this.eco.toggleAnchor) this.eco.toggleAnchor(this);
       if (c === 'KeyQ') this.questLog();
     });
   }
@@ -345,10 +349,12 @@ class Game {
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ['E', 'talk'], ['Q', 'quests'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
+    if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
     this.updateStats();
     this.toast(L.intro);
+    this.eco.onStart?.(this);   // a site's opening card (the river's freshwater licence note)
     // A tag recapture letter, now and then, from a fish you tagged on an earlier day.
     const letter = recaptureLetter(this.progress);
     if (letter) { this.persist(); this.updateStats(); setTimeout(() => { if (this.mode === 'land' && !this.panels.isOpen && !this.dialogue.isOpen) showRecaptureLetter(this, letter); }, 2500); }
@@ -370,6 +376,7 @@ class Game {
   }
   updateLand(dt, paused) {
     const w = this.walker, f = this.fishing;
+    this.eco.tick?.(this, paused ? 0 : dt);   // a site with moving parts (the offshore reef's drifting boat and fish finder)
     if (!paused) {
       w.viewYaw = this.rig.yaw;
       w.update(dt, this.world, this.eco.land.bounds);
@@ -423,7 +430,8 @@ class Game {
   /** The tackle and conditions the bite model uses (catches.js pickCatch). */
   biteContext(target) {
     const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink', t = target ?? this.walker.pos;
-    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time), lit: this.eco.litAt?.(t.x, t.z) ?? 0 });
+    return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time), lit: this.eco.litAt?.(t.x, t.z) ?? 0,
+      depth: this.eco.depthAt?.(t.x, t.z), arch: this.eco.archAt?.(t.x, t.z, this.eco.state?.t ?? this.time)?.id });   // the reef: how deep the bait is (barotrauma) and the fish finder's mark under it
   }
   /** What your rod, line and tools do (economy/store.js): the catch bar and the bite model read these, nothing is hard-coded in fishing.js. */
   gearStats() { return gearStats(this.progress); }
@@ -454,7 +462,7 @@ class Game {
     const chip = $('#cond-chip');
     if (!chip) return;
     const r = RIGS[this.gear.rig], b = RIGS[this.gear.rig].lure ? '' : ` + ${BAITS[this.gear.bait]?.name ?? 'no bait'}`;
-    const html = `<b>${this.cond.chip()}</b><span>Tackle: ${r.name}${b}</span>`;
+    const html = `<b>${this.cond.chip()}${this.eco.chipExtra?.(this) ?? ''}</b><span>Tackle: ${r.name}${b}</span>`;
     if (chip.dataset.v !== html) { chip.dataset.v = html; chip.innerHTML = html; }
   }
   /** T: open the tackle box (rig and bait). Not while a fish is on. */
@@ -608,7 +616,7 @@ class Game {
     const cam = this.camera.position;
     const surfaceY = this.world.surfaceAt(cam.x, cam.z);
     const depth = surfaceY - cam.y;
-    if (this.eco.daylight) this.env.setDaylight(this.cond.hour);   // dusk glow, the dark-blue night and the wharf lamps (ocean/daylight.js)
+    if (this.env.daylightOn) this.env.setDaylight(this.cond.hour);   // dusk glow, the dark-blue night and the wharf lamps (ocean/daylight.js)
     this.env.update(dt, this.camera, depth, this.mode === 'land' ? this.focus : null);
     globalUniforms.uPlayer.value.set(this.walker.pos.x, this.mode === 'land' ? this.walker.pos.y : -999, this.walker.pos.z);
     this.world.props?.update(dt, this.time);
@@ -624,6 +632,7 @@ class Game {
     this.listener.position.copy(this.mode === 'land' ? this.walker.pos : cam);
     this.audio.update(dt, { mode: this.mode, depth, camera: this.listener, roar: 0, life: this.world.life, eco: this.eco, reefHealth: 1 });
     $('#fx-uw').style.opacity = depth > 0 ? 1 : 0;
+    { const el = $('#fx-sunset'), v = this.env.daylightOn ? Math.min(1, this.env.glow * (1 - this.env.night * 0.5)) * 0.95 : 0; if (el && Math.abs((this.sunV ?? -1) - v) > 0.01) { this.sunV = v; el.style.opacity = v.toFixed(2); } }   // the sunset wash
     this.touch?.update();
     if (skipRender || this.creatorOpen) { this.input.endFrame(); return; }   // the creator covers the whole screen: no need to draw the world behind it
     if (this.gradePass) {
@@ -647,6 +656,7 @@ class Game {
     // Slide the picture so the angler sits to the right of the title panel (above it on a portrait phone).
     const w = innerWidth, h = innerHeight, wide = w > h * 1.1;
     this.camera.setViewOffset(w, h, wide ? -w * 0.2 : 0, wide ? 0 : h * 0.2, w, h); this.viewOffset = true;
+    this.eco.tick?.(this, 0);
     this.angler.place(p, this.walker.heading);
     this.angler.update(dt, this.time, { state: 'off' });
     this.world.waveMesh.update(null, this.time);

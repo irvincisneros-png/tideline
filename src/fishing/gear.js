@@ -1,6 +1,6 @@
 // Tackle and the day's conditions. Rigs, baits, a small labelled diagram of each rig, the tackle-box panel HTML,
 // and DayConditions (tide, time of day, season, swell) which cycle with in-game time.
-import { TIDES } from './catches.js';
+import { TIDES, SEASON_MONTH } from './catches.js';
 import { rigUnlocked, baitUnlocked, lockHint, hasItem, LURE_COLOURS } from '../npc/inventory.js';
 import { clarityOf, CLARITY_LABEL, LURE_FX, lureMod } from '../economy/effects.js';
 import { baitCount, gearStats } from '../economy/store.js';
@@ -122,14 +122,20 @@ const TIDE_LABEL = { rising: 'Rising tide', high: 'High tide', falling: 'Falling
 
 export function seasonFromDate(d = new Date()) {
   const m = d.getMonth();
-  return m === 11 || m < 2 ? 'summer' : m < 5 ? 'autumn' : m < 8 ? 'winter' : 'spring';
+  return seasonOfMonth(m);
 }
+/** The season a month (0 = January) is in: summer Dec-Feb, autumn Mar-May, winter Jun-Aug, spring Sep-Nov. */
+export const seasonOfMonth = m => (m === 11 || m < 2 ? 'summer' : m < 5 ? 'autumn' : m < 8 ? 'winter' : 'spring');
+/** The hour a day starts at: just after sunrise, so the scene is bright (the clock runs on to dusk and night in about 5 minutes). */
+export const START_HOUR = 7.6;
 
 export class DayConditions {
   /** opts: season, time ('dawn'|'day'|'dusk'|'night' or hour number), tide (phase name), swell (m). Defaults: this season, dawn, random tide/swell. */
   constructor(opts = {}, rnd = Math.random) {
-    this.season = opts.season ?? seasonFromDate();
-    const h = opts.time in TIME_HOURS ? TIME_HOURS[opts.time] : Number(opts.time) || TIME_HOURS.dawn;
+    const m0 = opts.month != null && opts.month !== '' && Number.isFinite(Number(opts.month)) ? ((Math.round(Number(opts.month)) % 12) + 12) % 12 : null;
+    this.season = opts.season ?? (m0 != null ? seasonOfMonth(m0) : seasonFromDate());
+    this.month = m0 ?? (opts.season ? SEASON_MONTH[opts.season] ?? new Date().getMonth() : new Date().getMonth());   // 0 = January
+    const h = opts.time in TIME_HOURS ? TIME_HOURS[opts.time] : Number(opts.time) || START_HOUR;
     this.minutes = h * 60;
     const phase = TIDES.includes(opts.tide) ? { low: 0, rising: 0.25, high: 0.5, falling: 0.75 }[opts.tide] : rnd();
     this.tideOffset = phase * TIDE_PERIOD - this.minutes;
@@ -147,6 +153,6 @@ export class DayConditions {
   /** Water clarity today (clear / stained / murky), from the swell: it decides which lure colour works (economy/effects.js). */
   get clarity() { return clarityOf(this.swell); }
   /** The bite-model context for the tackle the player has chosen. `extra` adds the gear modifiers (shy, lureMod). */
-  context(gear, stock, extra = {}) { return { rig: gear.rig, bait: gear.bait, tide: this.tide, time: this.time, season: this.season, stock, clarity: this.clarity, ...extra }; }
+  context(gear, stock, extra = {}) { return { rig: gear.rig, bait: gear.bait, tide: this.tide, time: this.time, season: this.season, month: this.month, stock, clarity: this.clarity, ...extra }; }
   chip() { return `${TIDE_LABEL[this.tide]} · ${this.clock} ${this.time} · ${this.season} · swell ${this.swell.toFixed(1)} m`; }
 }

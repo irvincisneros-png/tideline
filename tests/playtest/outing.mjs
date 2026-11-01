@@ -177,7 +177,7 @@ const tiers = await ev(async () => { const G = await import('/src/fishing/guide.
 check(tiers.tailor === 'mastered', `tailor mastered (got ${tiers.tailor})`);
 check(tiers.flat === 'identified', `flathead identified, not mastered (got ${tiers.flat})`);
 check(tiers.wob === 'caught' && /do not agree/i.test(tiers.flag ?? ''), 'wobbegong stays Caught and is flagged "re-key it"');
-check(await ev(async () => document.querySelectorAll('.gcell').length === (await import('/src/fishing/species.js')).SPECIES.length), 'the guide lists every species (22 with the Belmore Basin ones)');
+check(await ev(async () => document.querySelectorAll('.gcell').length === (await import('/src/fishing/species.js')).SPECIES.length), 'the guide lists every species (the count is derived from SPECIES, never hard-coded)');
 check(await ev(() => /Lake Illawarra \d+\/\d+/.test(document.querySelector('#modal-body').innerText)), 'per-spot completion counters ("Lake Illawarra n/N")');
 check(await ev(() => /bay health/i.test(document.querySelector('#modal-body').innerText)), 'Bay Health meter in the guide header');
 await page.click('.gcell[data-id="tailor"]'); await t.wait(900);

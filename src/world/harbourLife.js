@@ -14,6 +14,17 @@ function glowTexture() {
   glowTex = new THREE.CanvasTexture(c); glowTex.colorSpace = THREE.SRGBColorSpace;
   return glowTex;
 }
+let pinkTex = null;
+/** A soft, pale-pink ring-glow (the squid's chromatophore flush seen from above in the lamp light). */
+function pinkTexture() {
+  if (pinkTex) return pinkTex;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
+  g.addColorStop(0, 'rgba(255,232,236,0.95)'); g.addColorStop(0.32, 'rgba(255,170,190,0.6)'); g.addColorStop(0.62, 'rgba(255,140,170,0.16)'); g.addColorStop(1, 'rgba(255,130,160,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  pinkTex = new THREE.CanvasTexture(c); pinkTex.colorSpace = THREE.SRGBColorSpace;
+  return pinkTex;
+}
 /** A tiny flat fish (nose at +x) lying on the water plane, used for the baitfish. */
 function babyFish() {
   const s = new THREE.Shape();
@@ -49,6 +60,12 @@ export class HarbourLife {
     this.fd = Array.from({ length: total }, (_, i) => ({ pool: Math.floor(i / this.perPool), r: 0.5 + Math.random() * 3.0, a: Math.random() * 6.283, w: (0.5 + Math.random() * 0.7) * (Math.random() < 0.5 ? -1 : 1), y: 0.0 + Math.random() * 0.05, len: 0.2 + Math.random() * 0.1 }));
     this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.v = new THREE.Vector3(); this.sc = new THREE.Vector3(); this.zero = new THREE.Matrix4().makeScale(0, 0, 0);
     this.sprayT = 0; this.low = low;
+    // The squid and cuttlefish read from the top-down camera as a soft pink glow on the water (a chromatophore flush) that pulses in the lamp light, plus a brighter skin (see update).
+    this.cephs = (world.life?.agents ?? []).filter(a => a.id === 'squid' || a.id === 'cuttlefish');
+    this.halos = this.cephs.map(a => {
+      const m = new THREE.SpriteMaterial({ map: pinkTexture(), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, fog: false, opacity: 0 });
+      const sp = new THREE.Sprite(m); sp.scale.setScalar(a.id === 'squid' ? 2.4 : 1.8); sp.renderOrder = 16; sp.visible = false; this.group.add(sp); return sp;
+    });
   }
   update(dt, t, cond) {
     const on = globalUniforms.uLampOn.value, night = globalUniforms.uNight.value;
@@ -80,6 +97,14 @@ export class HarbourLife {
       a.target.set(L.head[0] + Math.cos(th) * ring, -0.36 + Math.sin(t * 0.7 + a.index) * 0.05, L.head[1] + Math.sin(th) * ring * 0.9);
       a.home.x = a.target.x; a.home.z = a.target.z;
     }
+    // Chromatophore pulse: the skin flushes bright pink and fades again in the lamp light (and glows faintly at night), and a soft pink halo marks each animal from above.
+    const kind = this.world.life?.kinds?.squid;
+    if (kind?.mesh?.material) kind.mesh.material.emissiveIntensity = 0.45 + night * 0.4 + on * 0.5 * (0.55 + 0.45 * Math.sin(t * 2.6));
+    this.cephs.forEach((a, i) => {
+      const h = this.halos[i], pulse = 0.5 + 0.5 * Math.sin(t * 2.3 + i * 1.7), lit = show ? 1 : 0;
+      h.visible = lit > 0 && a.visible !== false; h.position.set(a.pos.x, 0.12, a.pos.z);
+      h.material.opacity = lit * (0.3 + 0.4 * pulse) * (0.55 + 0.45 * Math.max(on, night));
+    });
     // Spray where a big swell breaks on the breakwall.
     const swell = cond?.swell ?? 0;
     if (swell >= 2.2 && (this.sprayT -= dt) <= 0) {

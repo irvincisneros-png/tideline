@@ -163,6 +163,7 @@ export const seagrass = {
     skyTop: 0x2f7fd8, skyHorizon: 0xd2e8f0, sun: [0.5, 0.64, -0.42], sunIntensity: 2.4, sunColor: 0xfff0d2,
     hemiSky: 0xd8ecf0, hemiGround: 0x6a7a4a,
   },
+  daylight: true,   // time of day: the sunset glow and the dark-blue night (ocean/daylight.js)
   sound: { wash: 0.3, wind: 0.2, shrimp: 0.2, gulls: 0.5, mangroveBirds: 1, mangroveAt: [-40, 36] },
   menuCam: { yaw: 0.55, swing: 0.3, pitch: 0.62, dist: 22, lift: 2.5 },
   // Stand on the bank or the jetty and cast. The spot is read where the float lands (tx, tz): off the jetty end, the mangrove edge, the channel, seagrass or the sand flat.

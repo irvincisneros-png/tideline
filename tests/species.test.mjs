@@ -14,7 +14,7 @@ const PROFILES = ['dart', 'shake', 'bolt', 'twitch', 'jet'];
 const seeded = seed => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 
 test('species data: every species has a look, valid rules, fight profile, sources and real spots', () => {
-  assert.ok(SPECIES.length >= 18 && SPECIES.length <= 24, `${SPECIES.length} species`);
+  assert.ok(SPECIES.length >= 22, `${SPECIES.length} species`);   // no upper bound: sites add species, and every count in the tests is derived from SPECIES
   const ids = new Set();
   for (const s of SPECIES) {
     assert.ok(!ids.has(s.id), `duplicate ${s.id}`); ids.add(s.id);

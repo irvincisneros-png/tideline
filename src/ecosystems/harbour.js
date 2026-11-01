@@ -13,6 +13,7 @@ import { rock } from '../world/coral.js';
 import { globalUniforms } from '../ocean/shaders.js';
 import { buildHarbourModels } from '../world/harbourProps.js';
 import { HarbourLife } from '../world/harbourLife.js';
+import { quayDecal } from '../world/quayPaint.js';
 import '../fishing/fishLooks.js';
 
 const noise = makeNoise(53);
@@ -87,7 +88,6 @@ export function colorAt(x, z, h) {
     c = mix3(c, [0.7, 0.67, 0.6], noise.fbm2(x * 0.15, z * 0.15, 2) * 0.5 + 0.1);
     c = mix3(c, [0.86, 0.83, 0.76], edge * 0.6);
     if (Math.abs(z - (QUAY_Z + 3.2)) < 0.22) c = [0.93, 0.75, 0.22];                                          // the painted yellow line along the quay edge
-    if (z > QUAY_Z + 3.6 && z < QUAY_Z + 24 && Math.abs(((z - QUAY_Z - 3.6) % 9) - 4.5) < 0.1 && Math.abs(((x + 2) % 6) - 3) < 1.1) c = mix3(c, [0.95, 0.93, 0.88], 0.7);   // dashed bay markings
     c = mix3(c, [0.5 + n, 0.64 + n, 0.38], smoothstep(70, 84, z + noise.n2(x * 0.1, 9) * 6));              // the grass behind
     return c;
   }
@@ -163,18 +163,30 @@ function decorate(world) {
     pr.place(m, x, z, { y: QY, rot: r });
   }
   // More working-quay clutter near the wharf base and along the road, so the big concrete apron does not read as empty.
-  for (const [m, x, z, r] of [['crate_stack', 2, 45.5, 0.2], ['fish_bin', 19.5, 46, 0.1], ['fish_bin', 21.2, 47.2, 0.3], ['net_pile', 23.5, 47.6, 0.9], ['buoys', 27.5, 49, 0.3], ['crate_stack', -1.5, 51, -0.4], ['ice_box', -12, 52.5, 0.2], ['fish_bin', -6.5, 53.5, 0.0], ['rope_coil', 19, 52, 0.5],
-    ['bench', 12, 60, Math.PI], ['net_pile', -39, 55, 0.5], ['crate_stack', -45.5, 53.5, 0.6], ['buoys', 37.5, 52.5, 0.4], ['fish_bin', 41, 56.5, 0.2], ['crate_stack', 33, 58, 1.1], ['ice_box', 6, 57, 0.4], ['rope_coil', -16, 58, 0.2], ['bucket', 3.2, 46, 0.2]]) {
+  for (const [m, x, z, r] of [['crate_stack', 2, 45.5, 0.2], ['crate_stack', -1.5, 51, -0.4], ['ice_box', -12, 52.5, 0.2], ['fish_bin', -6.5, 53.5, 0.0], ['bench', 12, 60, Math.PI], ['net_pile', -39, 55, 0.5], ['crate_stack', -45.5, 53.5, 0.6], ['buoys', 37.5, 52.5, 0.4], ['fish_bin', 41, 56.5, 0.2], ['ice_box', 6, 57, 0.4], ['rope_coil', -16, 58, 0.2], ['bucket', 3.2, 46, 0.2]]) {
     pr.place(m, x, z, { y: QY, rot: r });
   }
   world.addCollider(-50, QY + 0.6, 47, 1.7);
   const bol = pr.place('pelican', -4, QUAY_Z + 0.9, { y: QY + 0.62, rot: Math.PI + 0.4 }); if (bol) pr.idle(bol, 0.4);
   // The lighthouse at the end of the breakwall, and armour boulders along the crest edge of both arms.
   pr.place('lighthouse', EBW, NBW, { y: 2.6, shadow: 4, tall: 11 }); world.addCollider(EBW, 4, NBW, 3.1);
-  const warm = new THREE.Color(1.1, 0.98, 0.88);
-  const armour = (x, z, s) => { const y = T.heightAt(x, z); pr.place(['boulder_0', 'boulder_1', 'boulder_2'][Math.floor(rnd() * 3)], x, z, { rot: rnd() * 6, scale: s, sink: 0.3, color: warm, y: y - 0.45 }); };
-  for (let z = NBW + 7; z < QUAY_Z + 2; z += 2.9) for (const side of [-1, 1]) { armour(EBW + side * (3.1 + rnd() * 1.2), z + rnd() * 1.5, 1.5 + rnd() * 0.9); if (rnd() < 0.6) armour(EBW + side * (4.9 + rnd() * 1.5), z + rnd(), 1.8 + rnd() * 1.0); }
-  for (let x = ENTR + 1; x < EBW - 6; x += 2.9) for (const side of [-1, 1]) { armour(x + rnd() * 1.5, NBW + side * (3.1 + rnd() * 1.2), 1.5 + rnd() * 0.9); if (rnd() < 0.6) armour(x + rnd(), NBW + side * (4.9 + rnd() * 1.5), 1.8 + rnd() * 1.0); }
+  // Armour rock: angular, quarried grey-brown blocks (propKit armourRock) stacked along both sides of the crest, bigger toward the water, with only a trace of moss.
+  const armour = (x, z, s) => { const y = T.heightAt(x, z); pr.place(`armour_rock_${Math.floor(rnd() * 3)}`, x, z, { rot: rnd() * 6, scale: s, sink: 0.25, y: y - 0.35 }); };
+  for (let z = NBW + 7; z < QUAY_Z + 2; z += 2.4) for (const side of [-1, 1]) { armour(EBW + side * (3.0 + rnd() * 1.2), z + rnd() * 1.5, 1.2 + rnd() * 0.8); if (rnd() < 0.7) armour(EBW + side * (4.8 + rnd() * 1.5), z + rnd(), 1.5 + rnd() * 0.9); }
+  for (let x = ENTR + 1; x < EBW - 6; x += 2.4) for (const side of [-1, 1]) { armour(x + rnd() * 1.5, NBW + side * (3.0 + rnd() * 1.2), 1.2 + rnd() * 0.8); if (rnd() < 0.7) armour(x + rnd(), NBW + side * (4.8 + rnd() * 1.5), 1.5 + rnd() * 0.9); }
+  const decal = quayDecal(QY + 0.025); pr.group.add(decal); world.harbourDecal = decal;   // painted bays, the diesel bay, the loading zone and the café plaza (world/quayPaint.js)
+  // Working-waterfront furniture so the big concrete apron is a place, not a slab: fish-cleaning tables with buckets and eskies, a diesel bowser in its painted bay, a café kiosk with umbrella tables and
+  // planters, net-drying racks, crates and nets, painted bays, and planters along the road edge.
+  for (const [x, z, r] of [[-36, 44.4, Math.PI], [-17.5, 44.8, Math.PI + 0.1], [40, 44.6, Math.PI - 0.15], [-3, 48.5, Math.PI]]) { pr.place('cleaning_table', x, z, { y: QY, rot: r }); pr.place('bucket', x + 2.0, z + 0.2, { y: QY, rot: 0.4 }); pr.place('esky', x - 1.8, z + 0.9, { y: QY, rot: 0.8 }); world.addCollider(x + 0.2, QY + 0.6, z, 2.2); }
+  pr.place('fuel_bowser', -9, 47.5, { y: QY, rot: 0 }); world.addCollider(-9, QY + 1, 47.5, 1.1);
+  pr.place('sandwich_board', -5.2, 47.4, { y: QY, rot: 0.3 });
+  const kx = 26, kz = 56;
+  pr.place('kiosk', kx, kz, { y: QY, shadow: 3.4, tall: 3.6 }); world.addCollider(kx, QY + 1.2, kz, 2.6); world.addCollider(kx - 1.6, QY + 1.2, kz, 1.2); world.addCollider(kx + 1.6, QY + 1.2, kz, 1.2);
+  for (const [x, z, r] of [[19.5, 51.5, 0.3], [24.8, 50, 1.2], [31, 51, 2.1], [32.5, 56, 0.9]]) { pr.place('umbrella_table', x, z, { y: QY, rot: r, shadow: 2.0, tall: 2.5 }); world.addCollider(x, QY + 0.6, z, 0.6); }
+  pr.place('sandwich_board', 27.6, 52.2, { y: QY, rot: -0.2 });
+  for (const [x, z, r] of [[18.2, 55, 0.1], [34.4, 53.8, 0], [16.8, 60, Math.PI / 2], [36, 60.5, Math.PI / 2], [-37.5, 49.2, 0.05], [-33, 49.2, -0.05], [-22, 50.2, 0.1], [-12, 52.8, 0], [6.5, 52.5, 0.1], [16.5, 52.2, -0.1], [-56, 47.5, 0], [-0.5, 52.6, 0]]) pr.place('planter', x, z, { y: QY, rot: r });
+  for (const [m, x, z, r] of [['crab_pots', 14, 52.5, 0.3], ['crab_pots', -42, 61, 0.1], ['crab_pots', 43, 52, 0.6], ['wheelie_bins', -26.5, 58.6, 0.0], ['wheelie_bins', 38.5, 49, 0.1], ['wheelie_bins', 0.5, 62, 0.2], ['boat_trailer', -14, 69, Math.PI / 2], ['boat_trailer', -20, 69, Math.PI / 2 + 0.05], ['boat_trailer', -2, 69, Math.PI / 2 - 0.04], ['boat_trailer', 3, 60, 0.2]]) pr.place(m, x, z, { y: QY, rot: r });
+  for (const [x, z, r] of [[-46, 70, 0.2], [-19, 74, -0.15], [45.5, 71, 0.4], [14, 71, 0.1]]) { pr.place('net_rack', x, z, { y: QY, rot: r, shadow: 2.2, tall: 2 }); world.addCollider(x, QY + 1, z, 1.8); }
   // Norfolk pines and casuarinas along the road behind the quay.
   for (const [x, dz, m, s] of [[-50, 26, 'norfolk_pine_0', 1.1], [-34, 30, 'casuarina_0', 1.0], [-6, 27, 'norfolk_pine_1', 1.05], [14, 30, 'casuarina_1', 1.0], [34, 26, 'norfolk_pine_0', 1.05], [-18, 31, 'casuarina_1', 0.95]]) {
     const z = QUAY_Z + dz, y = T.heightAt(x, z);

@@ -38,13 +38,15 @@ export function survivalNote(id) {
   return { range: r, mid, single, text: single ? `about ${r[0]}%` : `between ${r[0]} and ${r[1]}%, depending on how they are hooked and handled` };
 }
 export const AIR_LIMIT = 10;
+/** Barotrauma becomes a concern for fish brought up from about this depth (m), dataset C17. */
+export const BAROTRAUMA_DEPTH = 10;
 /**
  * The estimated survival of a fish you release, and why. h = { wet, air (seconds out of the water), weighted, tagged, net }.
  * A deep-water fish (snapper, kingfish, morwong: barotrauma, C17) loses about 30% unless it is returned to depth with a release weight.
  * Returns { pct, base, parts: [{ label, good, delta }], weightHelped (extra % points the weight gave), bayBonus (stock points) }.
  */
 export function releaseSurvival(id, h = {}) {
-  const sp = SPECIES_BY_ID[id], base = SURVIVAL[id] ?? 0.9, deep = !!sp?.deepWater;
+  const sp = SPECIES_BY_ID[id], base = SURVIVAL[id] ?? 0.9, deep = !!sp?.deepWater && (h.depth == null || h.depth >= BAROTRAUMA_DEPTH);   // h.depth (m): where it was caught; unknown = assume deep
   let s = base; const parts = [];
   if (h.wet === false) { s *= 0.88; parts.push({ label: 'Dry hands strip the protective slime', good: false, delta: -12 }); }
   else if (h.wet) parts.push({ label: 'Wet hands protect the slime', good: true, delta: 0 });

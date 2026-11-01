@@ -108,7 +108,7 @@ test('the squid fights with its own profile: a soft pull, a squeeze warning, the
 
 // ---------------------------------------------------------------- the harbour site
 test('the harbour site config is valid and registered', () => {
-  assert.equal(ecoById('harbour'), harbour); assert.ok(ECOSYSTEMS.includes(harbour) && ECOSYSTEMS.length === 3);
+  assert.equal(ecoById('harbour'), harbour); assert.ok(ECOSYSTEMS.includes(harbour) && ECOSYSTEMS.length >= 3);
   for (const k of ['id', 'name', 'place', 'blurb', 'heightAt', 'colorAt', 'reefiness', 'decorate', 'bounds', 'water', 'sound', 'land', 'fishing', 'menuCam', 'life', 'coral', 'speciesInfo', 'cosyModels']) assert.ok(harbour[k] != null, `harbour.${k}`);
   assert.equal(harbour.daylight, true); assert.equal(harbour.unlock.type, 'identifiedCount'); assert.equal(harbour.unlock.n, 5);
   const w = harbour.water; for (const k of ['absorb', 'fog', 'fogDeep', 'shallow', 'mid', 'deep', 'skyTop', 'skyHorizon', 'sun', 'sunColor', 'hemiSky', 'hemiGround']) assert.ok(w[k] != null, `water.${k}`);

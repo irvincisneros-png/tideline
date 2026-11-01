@@ -3,6 +3,8 @@
 import { rocky } from './rocky.js';
 import { seagrass } from './seagrass.js';
 import { harbour } from './harbour.js';
+import { reef } from './reef.js';
+import { river } from './river.js';
 
-export const ECOSYSTEMS = [rocky, seagrass, harbour];
+export const ECOSYSTEMS = [rocky, seagrass, harbour, reef, river];
 export const ecoById = id => ECOSYSTEMS.find(e => e.id === id);

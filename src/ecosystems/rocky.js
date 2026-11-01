@@ -247,6 +247,7 @@ export const rocky = {
     skyTop: 0x3a78c0, skyHorizon: 0xc0d8e2, sun: [0.55, 0.62, -0.3], sunColor: 0xfff0dc, sunIntensity: 2.3,
     hemiSky: 0xbfe0e8, hemiGround: 0x3a5a4a,
   },
+  daylight: true,   // time of day: the sunset glow and the dark-blue night (ocean/daylight.js)
   sound: { wash: 1.2, wind: 0.4, shrimp: 0.6, gulls: 1 },
   island: { x: 0, z: 560, r: 420, h: 34 }, islandKind: 'headland', // the Illawarra escarpment behind the coastal plain
   // Rod fishing: rock platform to the east, surf beach elsewhere (keys of SPOTS in fishing/catches.js).

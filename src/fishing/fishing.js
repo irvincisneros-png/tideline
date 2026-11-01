@@ -80,6 +80,8 @@ export class Fishing {
     const tipW = this.tipW;
     let prompt = '';
     const surf = (x, z) => world.surfaceAt(x, z);
+    // On a drifting boat the bait drifts with it: carry the float and the cast target along (g.carry is set each frame by the site, eco.tick).
+    if (g.carry && (g.carry.x || g.carry.z) && ['flying', 'wait', 'bite'].includes(this.state)) { this.float.position.x += g.carry.x; this.float.position.z += g.carry.z; this.target.x += g.carry.x; this.target.z += g.carry.z; if (this.from) { this.from.x += g.carry.x; this.from.z += g.carry.z; } }
     w.frozen = ['charge', 'bite', 'fight', 'landed'].includes(this.state);
     if (this.state === 'ready' || this.state === 'charge') g.aimAtCursor(dt); // desktop: face the pointer while the rod is out
     this.aim.visible = this.aimLine.visible = this.state === 'charge';

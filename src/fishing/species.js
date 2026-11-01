@@ -5,6 +5,7 @@
 // Teacher note: limits change. Check FishSmart / DPIRD before fishing: https://www.dpi.nsw.gov.au/fishing/recreational/fishing-rules-and-regs
 
 /** Fishing spots. `habitat` is the plain-English description shown on the HUD. */
+const PEST_NOTE = 'An introduced pest fish: no size or bag limit in NSW. Best practice is to keep it out of the water: dispatch it humanely and bin it, and never move live carp between waters.';   // = fishing/pest.js PEST_RULE (tested)
 export const SPOT_INFO = {
   beach: { label: 'Surf beach', blurb: 'Bellambi surf beach: gutters and sand.' },
   rock: { label: 'Rock platform', blurb: 'Bellambi rock platform: wash zone and deeper ledges.' },
@@ -16,6 +17,12 @@ export const SPOT_INFO = {
   wharf: { label: 'Belmore wharf', blurb: 'Pylons, lamp light and baitfish under the wharf.' },
   breakwall: { label: 'Belmore breakwall', blurb: 'Stone blocks and weedy rocks. Waves wash over it in a big swell.' },
   basin: { label: 'Belmore basin', blurb: 'Calm, sandy harbour water between the wharf and the breakwall.' },
+  reef: { label: 'Offshore reef', blurb: 'Hard bottom: ledges and bommies rising off the sand. Reef fish live here and bolt for cover.' },
+  reefedge: { label: 'Reef edge', blurb: 'Where the reef meets the sand: ledges, gutters and rubble.' },
+  reefsand: { label: 'Sand beside the reef', blurb: 'Soft, open sand next to the reef. Quieter, but a few fish cruise through.' },
+  pool: { label: 'Rocky pool', blurb: 'A deep, still pool among boulders on the river.' },
+  weir: { label: 'Below the weir', blurb: 'Fast, oxygen-rich water spilling off the weir wall.' },
+  snags: { label: 'Casuarina snags', blurb: 'Undercut banks, roots and fallen branches under the river she-oaks.' },
 };
 
 /** Stock health (0-100) a species starts at, by NSW stock status (SAFS). */
@@ -31,7 +38,7 @@ export const STOCK_SEED = { sustainable: 80, depleting: 55, depleted: 30, recove
 export const SPECIES = [
   {
     id: 'australiansalmon', name: 'Australian salmon', sci: 'Arripis trutta', habitat: 'pelagic',
-    spots: { beach: 4, rock: 1.5 , breakwall: 1.5},
+    spots: { beach: 4, rock: 1.5 , breakwall: 1.5, reef: 1.2, reefedge: 0.8, reefsand: 0.6},
     rig: { metalslug: 1, paternoster: 0.6, softplastic: 0.5, runningsinker: 0.4, float: 0.3 },
     bait: { pilchard: 1, squidstrip: 0.4, prawn: 0.3 },
     tide: ['rising'], time: ['dawn', 'dusk'], season: ['autumn', 'winter'],
@@ -45,7 +52,7 @@ export const SPECIES = [
   },
   {
     id: 'tailor', name: 'Tailor', sci: 'Pomatomus saltatrix', habitat: 'pelagic',
-    spots: { beach: 3, rock: 2, channel: 2, jetty: 2, flats: 0.4, seagrass: 0.5 , wharf: 2.5, breakwall: 1, basin: 0.6},
+    spots: { beach: 3, rock: 2, channel: 2, jetty: 2, flats: 0.4, seagrass: 0.5 , wharf: 2.5, breakwall: 1, basin: 0.6, reef: 0.8, reefedge: 0.8, reefsand: 0.5},
     rig: { metalslug: 1, runningsinker: 0.9, float: 0.8, softplastic: 0.6, paternoster: 0.5 },
     bait: { pilchard: 1, squidstrip: 0.5, prawn: 0.3 },
     tide: ['rising', 'falling'], time: ['dawn', 'dusk', 'night'], season: ['autumn', 'winter'],
@@ -101,7 +108,7 @@ export const SPECIES = [
   },
   {
     id: 'snapper', name: 'Snapper', sci: 'Chrysophrys auratus', habitat: 'reef',
-    spots: { rock: 1 , breakwall: 0.6},
+    spots: { rock: 1 , breakwall: 0.6, reef: 4, reefedge: 3.2, reefsand: 1.4},
     rig: { paternoster: 1, runningsinker: 0.8, softplastic: 0.6, float: 0.2 },
     bait: { pilchard: 1, squidstrip: 1, prawn: 0.5 },
     tide: [], time: ['dawn', 'dusk'], season: ['spring', 'summer'],
@@ -115,7 +122,7 @@ export const SPECIES = [
   },
   {
     id: 'kingfish', name: 'Yellowtail kingfish', sci: 'Seriola lalandi', habitat: 'pelagic',
-    spots: { rock: 0.7, jetty: 0.3 , wharf: 0.5, breakwall: 0.8},
+    spots: { rock: 0.7, jetty: 0.3 , wharf: 0.5, breakwall: 0.8, reef: 3, reefedge: 1.4},
     rig: { metalslug: 0.9, softplastic: 0.7, runningsinker: 0.35, squidjig: 0.3, paternoster: 0.2 },
     bait: { squidstrip: 0.9, pilchard: 0.5, prawn: 0.2 },
     tide: ['rising', 'falling'], time: ['dawn', 'dusk'], season: ['summer', 'autumn'],
@@ -129,7 +136,7 @@ export const SPECIES = [
   },
   {
     id: 'bluegroper', name: 'Eastern blue groper', sci: 'Achoerodus viridis', habitat: 'reef',
-    spots: { rock: 0.8 , breakwall: 0.6},
+    spots: { rock: 0.8 , breakwall: 0.6, reef: 0.5},
     rig: { paternoster: 0.8, runningsinker: 0.8, float: 0.3, softplastic: 0.1 },
     bait: { prawn: 0.8, squidstrip: 0.6, nipper: 0.5, pilchard: 0.3 },
     tide: [], time: ['day'], season: [],
@@ -157,7 +164,7 @@ export const SPECIES = [
   },
   {
     id: 'mulloway', name: 'Mulloway (jewfish)', sci: 'Argyrosomus japonicus', habitat: 'demersal',
-    spots: { channel: 1, beach: 0.4, jetty: 0.6 , wharf: 0.8},
+    spots: { channel: 1, beach: 0.4, jetty: 0.6 , wharf: 0.8, reef: 0.3, reefedge: 0.4, reefsand: 0.4},
     rig: { runningsinker: 1, softplastic: 0.6, paternoster: 0.4, float: 0.15 },
     bait: { squidstrip: 1, pilchard: 0.8, prawn: 0.3 },
     tide: ['rising', 'falling'], time: ['night', 'dusk'], season: ['spring', 'summer'],
@@ -185,7 +192,7 @@ export const SPECIES = [
   },
   {
     id: 'silvertrevally', name: 'Silver trevally', sci: 'Pseudocaranx georgianus', habitat: 'demersal',
-    spots: { rock: 1.5, jetty: 1.5, channel: 1, seagrass: 0.4 , wharf: 2, breakwall: 1},
+    spots: { rock: 1.5, jetty: 1.5, channel: 1, seagrass: 0.4 , wharf: 2, breakwall: 1, reef: 1.5, reefedge: 2, reefsand: 0.5},
     rig: { runningsinker: 1, float: 0.5, paternoster: 0.5, unweighted: 0.3, softplastic: 0.2 },
     bait: { prawn: 1, pilchard: 0.8, squidstrip: 0.4, nipper: 0.4 },
     tide: ['rising', 'falling'], time: ['dusk', 'day'], season: ['summer'],
@@ -199,7 +206,7 @@ export const SPECIES = [
   },
   {
     id: 'redmorwong', name: 'Red morwong', sci: 'Cheilodactylus fuscus', habitat: 'reef',
-    spots: { rock: 1.5 , breakwall: 1},
+    spots: { rock: 1.5 , breakwall: 1, reef: 3.5, reefedge: 1.2},
     rig: { paternoster: 1, runningsinker: 0.6, float: 0.2 },
     bait: { prawn: 1, squidstrip: 0.9, nipper: 0.4, pilchard: 0.3 },
     tide: [], time: [], season: [],
@@ -241,7 +248,7 @@ export const SPECIES = [
   },
   {
     id: 'bonito', name: 'Australian bonito', sci: 'Sarda australis', habitat: 'pelagic',
-    spots: { rock: 0.6 , breakwall: 0.5},
+    spots: { rock: 0.6 , breakwall: 0.5, reef: 1.5, reefedge: 1},
     rig: { metalslug: 1, softplastic: 0.6, runningsinker: 0.2 },
     bait: { pilchard: 0.4, squidstrip: 0.2 },
     tide: [], time: ['dawn', 'dusk'], season: ['summer', 'autumn'],
@@ -255,7 +262,7 @@ export const SPECIES = [
   },
   {
     id: 'wobbegong', name: 'Wobbegong shark', sci: 'Orectolobus spp.', habitat: 'reef',
-    spots: { rock: 0.35 , breakwall: 0.3},
+    spots: { rock: 0.35 , breakwall: 0.3, reef: 0.5, reefedge: 0.4},
     rig: { runningsinker: 0.8, paternoster: 0.6, float: 0.1 },
     bait: { pilchard: 1, squidstrip: 0.8, prawn: 0.2 },
     tide: [], time: ['night', 'dusk'], season: [],
@@ -300,7 +307,7 @@ export const SPECIES = [
   },
   {
     id: 'shortfineel', name: 'Shortfin eel', sci: 'Anguilla australis', habitat: 'estuarine',
-    spots: { channel: 0.5, mangrove: 1, flats: 0.4 },
+    spots: { channel: 0.5, mangrove: 1, flats: 0.4, pool: 1, snags: 1.6, weir: 0.5},
     rig: { runningsinker: 1, paternoster: 0.5, unweighted: 0.3 },
     bait: { beachworm: 1, pilchard: 0.8, squidstrip: 0.7, prawn: 0.6 },
     tide: [], time: ['night', 'dusk'], season: ['summer', 'autumn'],
@@ -313,8 +320,51 @@ export const SPECIES = [
     src: { rules: 'DPIRD', status: 'SAFS', id: 'dataset A3 [unverified]', fact: 'DPIRD', biology: 'unverified' },
   },
   {
+    id: 'jackassmorwong', name: 'Jackass morwong', sci: 'Nemadactylus douglasii', habitat: 'reef',
+    spots: { reef: 1.6, reefedge: 3, reefsand: 1.4 },
+    rig: { paternoster: 1, runningsinker: 0.6, float: 0.08 },
+    bait: { squidstrip: 1, pilchard: 0.9, prawn: 0.5 },
+    tide: [], time: [], season: ['autumn', 'winter'],
+    length: [26, 55], fight: 'bolt', power: 0.55,
+    rules: { min: 30, slotMax: null, bag: 10, possession: 10, protected: false, note: 'Legal length 30 cm; daily bag limit 10.' },
+    status: 'depleted', statusNote: 'Depleted (Eastern stock, 6th edition of the national stock report). It was rated sustainable before.',
+    idFeature: 'A deep silvery-grey body with a dark band at the shoulder, a very long pectoral fin and a small "kissing" mouth with thick lips.',
+    fact: 'The Eastern stock of jackass morwong is now rated DEPLETED. Snapper or kingfish on the same reef are both sustainable stocks.',
+    swap: { id: 'snapper', reason: 'Jackass morwong are DEPLETED in the Eastern stock (6th edition national stock report). Snapper (NSW) and Eastern kingfish are both sustainable, and they bite on the same reef with the same paternoster rig.' },
+    src: { rules: 'DPIRD', status: 'SAFS', id: 'dataset A3 [unverified]', fact: 'SAFS', swap: 'dataset B1 [SAFS]', biology: 'unverified' },
+  },
+  {
+    id: 'australianbass', name: 'Australian bass', sci: 'Macquaria novemaculeata', habitat: 'estuarine',
+    spots: { pool: 2.5, weir: 2.2, snags: 3.2 },
+    rig: { softplastic: 1, metalslug: 0.55, float: 0.4, unweighted: 0.3, runningsinker: 0.25 },
+    bait: { prawn: 0.8, nipper: 0.6, beachworm: 0.4 },
+    tide: [], time: ['dawn', 'dusk', 'night'], season: ['spring', 'summer', 'autumn'],
+    length: [20, 46], fight: 'bolt', power: 0.7,
+    rules: { min: null, slotMax: null, bag: 2, possession: 4, maxOver: { cm: 35, n: 1 }, closed: { months: [4, 5, 6, 7], label: 'May to August', where: 'rivers and estuaries' }, protected: false,
+      note: 'No legal minimum length. Daily bag limit 2 (bass and estuary perch in total), possession 4, and only 1 may be over 35 cm. Closed season in rivers and estuaries from May to August: catch and release only.' },
+    status: 'undefined', statusNote: 'Not in the national stock report list.',
+    idFeature: 'A dark golden-olive perch with a forked tail and a lower jaw that sticks out past the upper one.',
+    fact: 'Bass are closed to keeping in rivers and estuaries from May to August, so the fish can spawn. Only 1 over 35 cm may be kept.',
+    swap: null,
+    src: { rules: 'DPIRD (bag 2 with estuary perch, possession 4, one over 35 cm, May-Aug closed season)', status: 'dataset: not in SAFS list [unverified]', id: 'dataset A3 [unverified]', fact: 'DPIRD', biology: 'unverified' },
+  },
+  {
+    id: 'carp', name: 'Common carp (pest)', sci: 'Cyprinus carpio', habitat: 'demersal',
+    spots: { pool: 2.5, weir: 1.2, snags: 2 },
+    rig: { runningsinker: 1, unweighted: 0.5, float: 0.5, paternoster: 0.3 },
+    bait: { beachworm: 0.8, greenweed: 0.7, prawn: 0.5, nipper: 0.5 },
+    tide: [], time: [], season: ['spring', 'summer', 'autumn'],
+    length: [30, 80], fight: 'bolt', power: 0.75,
+    rules: { min: null, slotMax: null, bag: 999, possession: 999, protected: false, pest: true, note: PEST_NOTE },
+    status: 'undefined', statusNote: 'An introduced pest, so it is not assessed as a stock.',
+    idFeature: 'A golden-olive body with big scales, a sucker-like mouth with whisker barbels, and one long dorsal fin.',
+    fact: 'Carp muddy the water and eat the plants native fish need. Best practice: dispatch it humanely and bin it, and never move live carp.',
+    swap: null,
+    src: { rules: 'DPIRD (no limits for non-native finfish); best practice [DPIRD-search], flagged for checking', status: 'n/a (introduced)', id: 'dataset A3 [unverified]', fact: 'DPIRD-search', biology: 'unverified' },
+  },
+  {
     id: 'yakka', name: 'Yellowtail scad (yakka)', sci: 'Trachurus novaezelandiae', habitat: 'pelagic',
-    spots: { wharf: 4, breakwall: 1.5, basin: 1.2 },
+    spots: { wharf: 4, breakwall: 1.5, basin: 1.2, reef: 2, reefedge: 1.2},
     rig: { unweighted: 1, paternoster: 0.9, float: 0.8, runningsinker: 0.3 },
     bait: { prawn: 0.8, pilchard: 0.5, squidstrip: 0.4, nipper: 0.4 },
     tide: [], time: ['dusk', 'night'], season: ['summer', 'autumn'], lamp: 1.4,
@@ -377,10 +427,13 @@ export const FEATURES = {
   cuttlefish: { body: 'tentacles', tail: 'none', yellow: 'none', markings: 'bars', colour: 'brown', jaw: 'tentacles', closer: 'A chalky cuttlebone inside the body, and a W-shaped pupil.' },
   yakka: { body: 'torpedo', tail: 'forked', yellow: 'tail', markings: 'blotch', colour: 'silver', jaw: 'small', closer: 'A row of bony scutes (plates) along the lateral line.' },
   slimymackerel: { body: 'torpedo', tail: 'forked', yellow: 'none', markings: 'stripes', colour: 'silver', jaw: 'small', closer: 'Two dorsal fins well apart and a row of finlets behind them.' },
+  jackassmorwong: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'none', colour: 'silver', jaw: 'thick-lips', closer: 'A very long, trailing pectoral fin, and a dark band behind the head.' },
+  australianbass: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'none', colour: 'brown', jaw: 'large', closer: 'The lower jaw sticks out past the upper jaw.' },
+  carp: { body: 'deep', tail: 'forked', yellow: 'none', markings: 'none', colour: 'brown', jaw: 'small', closer: 'Two pairs of whisker-like barbels on the sucker-like mouth, and a long dorsal fin.' },
   shortfineel: { body: 'snake', tail: 'rounded', yellow: 'none', markings: 'none', colour: 'brown', jaw: 'small' },
 };
 /** Deep-water fish: pulled up from about 10 m or more, they can suffer barotrauma and need a release weight to return to depth (content C17). */
-export const DEEP_WATER = new Set(['snapper', 'kingfish', 'redmorwong']);
+export const DEEP_WATER = new Set(['snapper', 'kingfish', 'redmorwong', 'jackassmorwong']);
 for (const s of SPECIES) { s.feat = FEATURES[s.id]; s.deepWater = DEEP_WATER.has(s.id); }
 
 /** The two regions in the Illawarra Fish Guide, and the fishing spots each one covers. */
@@ -388,6 +441,8 @@ export const REGIONS = {
   lake: { label: 'Lake Illawarra', spots: ['flats', 'seagrass', 'channel', 'jetty', 'mangrove'] },
   bellambi: { label: 'Bellambi beach & rocks', spots: ['beach', 'rock'] },
   harbour: { label: 'Belmore Basin harbour', spots: ['wharf', 'breakwall', 'basin'] },
+  reef: { label: 'Offshore reef', spots: ['reef', 'reefedge', 'reefsand'] },
+  river: { label: 'Freshwater river', spots: ['pool', 'weir', 'snags'] },
 };
 export const speciesInRegion = region => SPECIES.filter(s => REGIONS[region].spots.some(k => s.spots[k]));
 

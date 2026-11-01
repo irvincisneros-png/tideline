@@ -4,7 +4,7 @@ import { readdirSync } from 'node:fs';
 
 const FIELDS = ['id', 'common', 'sci', 'group', 'feeding', 'trophic', 'size', 'depth', 'status', 'statusCode', 'role', 'interactions', 'didYouKnow', 'fieldNotes', 'spot', 'threats', 'sources'];
 // Species cards only: npcs.js, items.js and quiz.js are the coast's people, rewards and worksheet quiz (tests/npc.test.mjs); shop.js is the economy data (tests/economy.test.mjs).
-const files = readdirSync(new URL('../src/content/', import.meta.url)).filter(f => f.endsWith('.js') && !['npcs.js', 'items.js', 'quiz.js', 'shop.js'].includes(f));
+const files = readdirSync(new URL('../src/content/', import.meta.url)).filter(f => f.endsWith('.js') && !['npcs.js', 'items.js', 'quiz.js', 'shop.js', 'cards.js'].includes(f));
 
 for (const f of files) {
   test(`content ${f}: every species card is complete`, async () => {

@@ -126,21 +126,23 @@ export function buildCephalopod(look, opts = {}) {
     else finSheet(side, 0.06, 0.64, k => 0.17 * (k < 0.5 ? Math.pow(k / 0.5, 0.9) : Math.pow((1 - k) / 0.5, 0.9)) + 0.004, 0.1, 22);
   }
 
-  // ---- eyes: a gold iris ball, a black pupil bead and a white highlight, on each side of the head
-  const ball = (cx, cy, cz, r, u, f, segW = 14, segH = 9) => {
+  // ---- eyes: flush with the head, set into it like a lens in a socket (a dark rim, a flat gold-silver iris, a black pupil and a small white highlight), not bug-eyes on stalks.
+  // Each is a flattened ball (`fz` squashes it across the head) whose outer face barely clears the skin.
+  const ball = (cx, cy, cz, r, u, f, fz = 1, segW = 16, segH = 10) => {
     const start = pos.length / 3;
     for (let a = 0; a <= segH; a++) for (let b = 0; b <= segW; b++) {
       const pa = (a / segH) * Math.PI, pb = (b / segW) * TAU;
-      vert(V(cx + Math.cos(pa) * r * 0.9, cy + Math.sin(pa) * Math.cos(pb) * r, cz + Math.sin(pa) * Math.sin(pb) * r), u, f, 0, -2);
+      vert(V(cx + Math.cos(pa) * r * 0.95, cy + Math.sin(pa) * Math.cos(pb) * r, cz + Math.sin(pa) * Math.sin(pb) * r * fz), u, f, 0, -2);
     }
     for (let a = 0; a < segH; a++) for (let b = 0; b < segW; b++) { const p0 = start + a * (segW + 1) + b, p1 = p0 + segW + 1; idx.push(p0, p1, p0 + 1, p0 + 1, p1, p1 + 1); }
   };
-  const re = Math.max(headRy, headRz) * (cuttle ? 0.5 : 0.46), ex = rowX(headU) + 0.004 * L;
+  const re = Math.max(headRy, headRz) * (cuttle ? 0.5 : 0.42), ex = rowX(headU) + 0.004 * L, ey = headRy * 0.12;
   for (const side of [-1, 1]) {
-    const ez = side * (headRz * 0.78 + re * 0.2);
-    ball(ex, headRy * 0.12, ez, re, 0.5, 0.97);                                     // iris (blue-silver)
-    ball(ex + re * 0.3, headRy * 0.12, ez + side * re * 0.45, re * 0.66, 0.16, 0.97); // pupil
-    ball(ex + re * 0.42, headRy * 0.12 + re * 0.28, ez + side * re * 0.55, re * 0.2, 0.84, 0.97, 8, 5); // highlight
+    const ez = side * headRz * 0.9;
+    ball(ex, ey, ez, re * 0.98, 0.16, 0.97, 0.32);                                                  // the socket: a dark rim round the eye
+    ball(ex, ey, ez + side * re * 0.05, re * 0.8, 0.5, 0.97, 0.42);                                // the iris, a flat disc
+    ball(ex + re * 0.1, ey, ez + side * re * 0.23, re * 0.5, 0.16, 0.97, 0.4);                     // the pupil
+    ball(ex + re * 0.28, ey + re * 0.24, ez + side * re * 0.42, re * 0.14, 0.84, 0.97, 0.4, 8, 5); // the highlight
   }
 
   const geo = new THREE.BufferGeometry();

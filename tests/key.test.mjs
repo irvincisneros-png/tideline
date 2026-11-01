@@ -53,10 +53,27 @@ test('a wrong answer ends at a different leaf (a wrong key names a wrong species
   assert.ok(end.leaf && end.leaf !== 'tailor');
 });
 
-test('regions: Lake Illawarra, Bellambi and Belmore Basin all list species, and together cover every species', () => {
-  const lake = speciesInRegion('lake'), bel = speciesInRegion('bellambi'), har = speciesInRegion('harbour');
-  assert.ok(lake.length >= 10 && bel.length >= 10 && har.length >= 14);
-  assert.equal(new Set([...lake, ...bel, ...har].map(s => s.id)).size, SPECIES.length);
+test('regions: every site lists species, and together they cover every species', () => {
+  const lake = speciesInRegion('lake'), bel = speciesInRegion('bellambi'), har = speciesInRegion('harbour'), reef = speciesInRegion('reef'), river = speciesInRegion('river');
+  assert.ok(lake.length >= 10 && bel.length >= 10 && har.length >= 14 && reef.length >= 8 && river.length >= 3);
+  assert.equal(new Set(Object.keys(REGIONS).flatMap(k => speciesInRegion(k).map(s => s.id))).size, SPECIES.length);
+  assert.deepEqual(Object.keys(REGIONS), ['lake', 'bellambi', 'harbour', 'reef', 'river']);
   for (const id of ['yakka', 'slimymackerel', 'cuttlefish', 'squid']) assert.ok(har.some(s => s.id === id), `${id} is a harbour species`);
   assert.ok(REGIONS.lake.label === 'Lake Illawarra');
+});
+
+test('phase 6 species (jackass morwong, Australian bass, carp) each reach their own leaf, and nothing else shares it', () => {
+  for (const id of ['jackassmorwong', 'australianbass', 'carp']) {
+    const s = SPECIES.find(x => x.id === id); assert.ok(s, id);
+    const end = walk(KEY, pathTo(KEY, s)); assert.equal(end.leaf, id);
+    assert.equal(Object.values(KEY.couplets).flatMap(c => [c.a.to.leaf, c.b.to.leaf]).filter(l => l === id).length, 1, `${id} appears at exactly one leaf`);
+    assert.ok(KEY.leaves[id] <= 8, `${id} is ${KEY.leaves[id]} couplets deep`);
+  }
+  // the look-alike pair differ by a visible jaw feature: a big mouth against a small mouth with barbels you only check in the hand
+  assert.notEqual(FEATURES.australianbass.jaw, FEATURES.carp.jaw);
+  assert.match(FEATURES.carp.closer, /barbels/); assert.match(FEATURES.jackassmorwong.closer, /pectoral/);
+  // every species is reachable, every leaf is a species, and the key grows by exactly one couplet per species (derived from SPECIES, never hard-coded)
+  const leaves = new Set(Object.values(KEY.couplets).flatMap(c => [c.a.to.leaf, c.b.to.leaf]).filter(Boolean));
+  assert.deepEqual([...leaves].sort(), SPECIES.map(s => s.id).sort());
+  assert.equal(Object.keys(KEY.couplets).length, SPECIES.length - 1);
 });

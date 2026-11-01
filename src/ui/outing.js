@@ -123,6 +123,8 @@ export class Outing {
         <div><span>Steward rating</span><b class="stars">${G.starsText(o.st1)} <em>${o.st1.toFixed(1)}</em> <i class="${dSt >= 0 ? 'up' : 'down'}">${sgn(dSt)}</i></b></div>
         <div><span>Bay Health</span><b>${o.bay0.toFixed(2)}% → ${o.bay1.toFixed(2)}% <i class="${dBay >= 0 ? 'up' : 'down'}">${sgn(dBay, 2)}</i></b></div>
         <div><span>Fisheries Officer</span><b>${esc(offTxt)}</b></div>
+        ${o.pests ? `<div><span>Pest fish taken out</span><b>🌿 ${o.pests} <i class="up">best practice for the river</i></b></div>` : ''}
+        ${o.trip ? `<div><span>Trip log</span><b>⚓ ${esc(o.trip)}</b></div>` : ''}
         <div><span>${COIN.name} earned</span><b>${COIN.icon} +${o.credits ?? 0} <i class="up">${p.coins} in hand</i></b></div>
         ${o.comp ? `<div><span>Club comp</span><b>${esc(o.comp.title)}: ${o.comp.score} ${esc(o.comp.unit)}, ${['', '1st', '2nd', '3rd'][o.comp.place] ?? o.comp.place + 'th'}${o.comp.prize ? ` (+${o.comp.prize})` : ' (no score, no prize)'}</b></div>` : ''}
       </div>

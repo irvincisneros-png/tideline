@@ -345,7 +345,7 @@ body.touch #catchbar { right: calc(118px + env(safe-area-inset-right)); padding:
 .rule-card b { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: #c2570a; margin-bottom: 2px; }
 .rule-card.bad { border-left-color: var(--tomato); background: #fff0e6; }
 .rule-card.why { border-left-color: var(--sun); background: #fff6dc; }
-.verdict.good h2 { color: var(--leaf-deep); } .verdict.bad h2 { color: #c2410c; }
+.verdict.good h2 { color: var(--leaf-deep); } .verdict.bad h2 { color: #c2410c; } .verdict.warn h2 { color: #a15c07; }
 .air-bar { height: 28px; border: 3px solid var(--teal-ink); border-radius: 99px; background: #f3e3b8; overflow: hidden; padding: 2px; }
 .air-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(180deg, #5fe3d4, var(--turq2)); }
 .air-bar i.late { background: linear-gradient(180deg, #ff9a6a, var(--tomato)); }
@@ -644,3 +644,28 @@ body.creator-open #npc-labels { display: none; }
 #ink-splash.show { animation: inksplash 2.8s ease-out forwards; }
 @keyframes inksplash { 0% { opacity: 0; transform: scale(0.7); } 8% { opacity: 1; transform: scale(1); } 55% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { #ink-splash.show { animation-duration: 1.2s; } }
+
+/* ---- phase 6: the offshore reef (fish finder, boat trip, anchor) and the river */
+.sonar { position: absolute; left: 14px; bottom: 14px; width: 330px; z-index: 6; background: var(--cream); border: 4px solid var(--teal-ink); border-radius: 18px; box-shadow: var(--shadow); padding: 8px 10px 8px; color: var(--teal-ink); pointer-events: auto; }
+.sonar-head, .sonar-foot { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; }
+.sonar-head b { font-family: var(--font-display); font-size: 14px; } .sn-depth { margin-left: auto; font-family: var(--font-display); font-size: 17px; color: var(--accent2); }
+.sonar canvas { display: block; width: 100%; height: auto; border-radius: 10px; border: 3px solid var(--teal-deep); background: #082a45; margin: 6px 0; image-rendering: pixelated; }
+.sonar-foot { justify-content: space-between; font-size: 12px; } .sonar-foot .btn { margin-left: auto; padding: 2px 10px; font-size: 12px; }
+.sn-bottom { font-weight: 800; } .sn-marks { color: #8a4a08; }
+.sonar .btn.on { background: var(--leaf-pale); border-color: var(--leaf-deep); }
+.sn-help { max-width: 560px; } .sn-diagram { width: 100%; height: auto; border-radius: 12px; margin: 6px 0; }
+.sn-read li { margin: 4px 0; line-height: 1.4; } .sn-help ol { padding-left: 20px; line-height: 1.45; }
+.fade-blink { position: fixed; inset: 0; z-index: 9; background: #0d3a5c; opacity: 0; pointer-events: none; transition: opacity 0.4s; } .fade-blink.on { opacity: 1; }
+.trip-step { background: var(--cream3); border: 3px solid var(--teal-ink); border-radius: 16px; padding: 8px 12px; margin: 8px 0; } .trip-step b { font-family: var(--font-display); }
+.trip-step p { margin: 6px 0; line-height: 1.45; } .trip-step.done { background: var(--leaf-pale); border-color: var(--leaf-deep); } .trip-step.warn { background: #ffe9c2; }
+.trip-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .trip-form select { font: inherit; padding: 2px 8px; border: 3px solid var(--teal-ink); border-radius: 10px; background: #fff; color: var(--teal-ink); }
+.trip-logged { font-size: 13.5px; } .trip-actions .btn[aria-disabled="true"] { opacity: 0.55; }
+#trip-scene { position: fixed; inset: 0; z-index: 40; background: #0f5aa8; transition: opacity 0.26s; } #trip-scene.out { opacity: 0; }
+#trip-scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.trip-cap { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); max-width: 86vw; background: var(--cream); color: var(--teal-ink); border: 4px solid var(--teal-ink); border-radius: 18px; padding: 8px 18px; font-family: var(--font-display); font-size: clamp(14px, 2vw, 20px); text-align: center; box-shadow: var(--shadow); }
+#trip-skip { position: absolute; right: 16px; top: 16px; background: var(--cream); }
+@media (max-width: 700px) { .sonar { left: 8px; bottom: 8px; top: auto; width: 200px; padding: 5px 6px; border-width: 3px; } .sonar-head b { font-size: 12px; } .sn-depth { font-size: 14px; } .sonar canvas { margin: 3px 0; } .sonar-foot { font-size: 10.5px; } .sonar-foot .btn { font-size: 11px; padding: 1px 6px; } .sonar-foot kbd { display: none; } }
+body.touch .sonar { left: 10px; bottom: auto; top: 118px; width: 210px; }
+
+/* a warm sunrise / sunset wash over the whole picture (set each frame from the Environment's glow: ocean/daylight.js), cheap on every graphics tier */
+#fx-sunset { opacity: 0; mix-blend-mode: multiply; background: radial-gradient(ellipse at 50% 55%, rgb(255, 214, 160) 0%, rgb(255, 188, 128) 60%, rgb(236, 140, 112) 100%); }

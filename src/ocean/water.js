@@ -48,7 +48,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
     uTime: globalUniforms.uTime, uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon,
     uDeepTint: globalUniforms.uDeepTint, uShallowTint: globalUniforms.uShallowTint, uWaterTint: globalUniforms.uWaterTint,
     uFogColor: globalUniforms.uFogColor, uFogDensity: globalUniforms.uFogDensity, uUnderwater: globalUniforms.uUnderwater, uStyle: globalUniforms.uStyle,
-    uNight: globalUniforms.uNight, uLamps: globalUniforms.uLamps, uLampCol: globalUniforms.uLampCol, uLampOn: globalUniforms.uLampOn,
+    uNight: globalUniforms.uNight, uLamps: globalUniforms.uLamps, uLampCol: globalUniforms.uLampCol, uLampOn: globalUniforms.uLampOn, uClear: globalUniforms.uClear,
     uDetail: { value: detail }, uDepth: { value: depthTex }, uDepthBox: { value: depthBox },
     uCalm: { value: 1 }, uHole: { value: new THREE.Vector4(0, 0, 0, 0) }, uHoleOn: { value: 0 }, uWaveH: { value: 2.4 },
   };
@@ -77,7 +77,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
     ${noiseGLSL}
     uniform float uTime; uniform sampler2D uDetail; uniform sampler2D uDepth; uniform vec4 uDepthBox;
     uniform vec3 uDeepTint; uniform vec3 uShallowTint; uniform vec3 uWaterTint; uniform vec3 uFogColor; uniform float uFogDensity;
-    uniform float uUnderwater; uniform vec4 uHole; uniform float uHoleOn; uniform float uWaveH; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn;
+    uniform float uUnderwater; uniform vec4 uHole; uniform float uHoleOn; uniform float uWaveH; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn; uniform float uClear;
     varying vec3 vWPos; varying vec3 vN; varying float vFoam; varying float vH;
     void main() {
       ${waveMesh ? '' : `
@@ -186,7 +186,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
         float hz = 1.0 - exp(-length(cameraPosition - vWPos) * (uStyle > 0.5 ? 0.0032 : 0.0016)); // cosy: softer, hazier horizon
         col = mix(col, skyColor(normalize(vec3(-V.x, 0.02, -V.z))), hz);
         // Clear tropical water: see the reef when looking down into the shallows.
-        alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) : 0.42) + fres * 1.3 + smoothstep(3.0, 26.0, wdepth) * 0.6 + foam + hz + lampGlow * uLampOn * 0.16, 0.0, 1.0);
+        alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) - min(0.27, uClear * 0.0125) : 0.42) + fres * 1.3 + smoothstep(3.0 + uClear, 26.0 + uClear * 2.2, wdepth) * 0.6 + foam + hz + lampGlow * uLampOn * 0.16, 0.0, 1.0);
         ${waveMesh ? 'alpha = mix(alpha, 1.0, smoothstep(uStyle > 0.5 ? 0.3 : 0.12, uStyle > 0.5 ? 0.85 : 0.45, thick));' : ''}
       } else {
         // Looking up from below: Snell's window shows the sky, outside it total internal reflection.

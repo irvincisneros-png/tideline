@@ -163,3 +163,38 @@ registerLook('shortfineel', {
   paint: { body: withEye((u, s) => mix(C(0xe8e0c0), C(0x6e6a42), sm(-0.4, 0.5, s)), 0.95, 0.3, 0.03, 0x101010, 0xe0d070), fin: () => C(0x8a8458) },
   swim: { freq: 3.5, amp: 0.4 }, waveK: 3,
 });
+// ---- Phase 6: the offshore reef and the freshwater river.
+registerLook('jackassmorwong', {
+  // Nemadactylus douglasii: a deep, silvery-grey body with a dark band over the shoulder, one long trailing pectoral fin, a small "kissing" mouth with thick lips and a forked tail.
+  length: 0.45, depth: 0.38, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.17, tail: 'forked', tailSpan: 1.1, pectoral: 0.24, pecAt: 0.7, lips: true,
+  dorsal: { from: 0.18, to: 0.82, height: 0.075 }, anal: { from: 0.2, to: 0.42, height: 0.06 },
+  paint: {
+    body: withEye((u, s) => {
+      const base = mix(C(0xeaeceb), C(0x8e9aa0), sm(-0.4, 0.8, s));
+      return Math.abs(u - 0.7) < 0.045 && s > -0.1 ? mix(base, C(0x4c5a62), 0.7) : base;      // the dark shoulder band
+    }, 0.9, 0.25, 0.048, 0x101010, 0xe6d8a0),
+    fin: (u, part) => (part === 'pectoral' ? C(0xd8dcdc) : part === 'tail' ? C(0x6f7e86) : C(0x9aa6ac)),
+  },
+  swim: { freq: 4, amp: 0.55 }, metal: 0.3,
+});
+registerLook('australianbass', {
+  // Macquaria novemaculeata: a dark golden-olive perch with a paler belly, a pointed head with a lower jaw that juts out, spiny-fronted dorsal and a forked tail.
+  length: 0.35, depth: 0.3, width: 0.12, peak: 0.55, snout: 0.85, tailFrac: 0.17, tail: 'forked', tailSpan: 1.0, pectoral: 0.12,
+  dorsal: { from: 0.2, to: 0.78, height: 0.075 }, anal: { from: 0.18, to: 0.38, height: 0.055 },
+  paint: { body: withEye((u, s) => mix(C(0xe2d6a6), C(0x7d6a3a), sm(-0.35, 0.8, s)), 0.9, 0.3, 0.05, 0x101010, 0xd8b050), fin: (u, part) => (part === 'tail' ? C(0x6a5a34) : C(0x8d7a4a)) },
+  swim: { freq: 5, amp: 0.6 },
+});
+registerLook('carp', {
+  // Cyprinus carpio: a stout golden-olive body with big scales (a pattern of scale edges), a sucker-like downturned mouth with two pairs of barbels, one long dorsal fin and a forked red-brown tail.
+  length: 0.45, depth: 0.34, width: 0.15, peak: 0.5, snout: 0.5, tailFrac: 0.17, tail: 'forked', tailSpan: 0.95, pectoral: 0.11,
+  dorsal: { from: 0.12, to: 0.78, height: 0.07 }, anal: { from: 0.18, to: 0.32, height: 0.05 },
+  paint: {
+    body: withEye((u, s) => {
+      const base = mix(C(0xe9dca2), C(0x8a7a3e), sm(-0.35, 0.8, s));
+      const row = Math.floor((s + 1) * 6), off = (row % 2) * 0.5, edge = Math.abs(((u * 26 + off) % 1) - 0.5) > 0.44 || Math.abs((((s + 1) * 6) % 1) - 0.5) > 0.46;
+      return edge && u > 0.12 && u < 0.8 ? mix(base, C(0x6a5a2a), 0.4) : base;                                  // the big scale edges
+    }, 0.88, 0.28, 0.04, 0x101010, 0xd8b050),
+    fin: (u, part) => (part === 'tail' || part === 'anal' ? C(0xb0664a) : C(0x9a8a52)),
+  },
+  swim: { freq: 3.5, amp: 0.5 },
+});

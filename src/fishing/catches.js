@@ -24,6 +24,15 @@ export const LURE_RIGS = new Set(['softplastic', 'metalslug', 'squidjig']);
 export const TIDES = ['rising', 'high', 'falling', 'low'];
 export const TIMES = ['dawn', 'day', 'dusk', 'night'];
 export const SEASONS = ['summer', 'autumn', 'winter', 'spring'];
+/** A month (0 = January) to stand for a season when only ?season= is given (the middle of it): the bass closed season (May to August) is read from this, so winter is closed. */
+export const SEASON_MONTH = { summer: 0, autumn: 3, winter: 6, spring: 9 };
+export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** Is this species' closed season on? ctx = { month (0-11) or season }. Closed-season fish are catch and release only. */
+export function closedNow(rule, ctx = {}) {
+  if (!rule?.closed) return false;
+  const m = ctx.month ?? (ctx.season ? SEASON_MONTH[ctx.season] : null);
+  return m != null && rule.closed.months.includes(m);
+}
 
 export const MISMATCH_RIG = 0.12; // rig match for a rig the species is not listed for
 export const MISMATCH_BAIT = 0.2;
@@ -73,7 +82,8 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const rigM = rigMatch(sp, ctx.rig), baitM = baitMatch(sp, ctx.rig, ctx.bait);
     const condM = cond(sp.tide, ctx.tide) * cond(sp.time, ctx.time) * cond(sp.season, ctx.season);
     const stock = stockOf(ctx.stock, spot, sp.id);
-    const lampM = 1 + (sp.lamp ?? 0) * (ctx.lit ?? 0);   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light
+    const archM = ctx.arch && ctx.arch === sp.id ? 2.4 : 1;   // the fish finder showed this fish right under your bait
+    const lampM = (1 + (sp.lamp ?? 0) * (ctx.lit ?? 0)) * archM;   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light
     const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1);
     const open = gateOpen(sp, ctx);
     out.push({ sp, base, rigM, baitM, condM, stock, gearM, lampM, open, w: open ? base * rigM * baitM * condM * (stock / 100) * gearM * lampM : 0, ideal: !sp.gate?.time || !ctx.time || sp.gate.time.includes(ctx.time) ? base * condM * (stock / 100) * lampM : 0 });
@@ -120,12 +130,15 @@ export function pickCatch(spot, ctx = DEFAULT_CTX, rnd = Math.random) {
  * inPossession = how many you have in your possession now (fridge and freezer included), defaults to keptToday.
  * Returns { legal, kind, reason } where kind is ok | protected | oversize | undersize | bag | possession.
  */
-export function judge(id, length, keptToday, inPossession = keptToday) {
+export function judge(id, length, keptToday, inPossession = keptToday, ctx = {}) {
   const r = RULES[id];
   if (!r) return { legal: true, kind: 'ok', reason: '' };
+  if (r.pest) return { legal: true, kind: 'pest', reason: r.note };
   if (r.protected) return { legal: false, kind: 'protected', reason: r.note };
+  if (closedNow(r, ctx)) return { legal: false, kind: 'closed', reason: `Closed season (${r.closed.label}) in ${r.closed.where}: catch and release only. You may fish for them, but they must go back.` };
   if (r.slotMax && length > r.slotMax) return { legal: false, kind: 'oversize', reason: `Over the slot: ${length} cm is longer than ${r.slotMax} cm. Big fish are the best breeders, so release it.` };
   if (r.min && length < r.min) return { legal: false, kind: 'undersize', reason: `Undersize: ${length} cm is under the ${r.min} cm legal length. Release it so it can grow and breed.` };
+  if (r.maxOver && length > r.maxOver.cm && (ctx.keptOver ?? 0) >= r.maxOver.n) return { legal: false, kind: 'bigbag', reason: `Only ${r.maxOver.n} may be over ${r.maxOver.cm} cm, and you have already kept it today. Release this one.` };
   if (keptToday >= r.bag) return { legal: false, kind: 'bag', reason: `Bag limit reached: you may keep only ${r.bag} per day.` };
   if (inPossession >= r.possession) return { legal: false, kind: 'possession', reason: `Possession limit reached: you may have only ${r.possession} at any time, fridge and freezer included.` };
   return { legal: true, kind: 'ok', reason: r.note };

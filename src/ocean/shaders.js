@@ -29,6 +29,8 @@ export const globalUniforms = {
   uNight: { value: 0 },
   uLamps: { value: Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, 0, 0)) },
   uLampCol: { value: new THREE.Color(1.0, 0.72, 0.38) },
+  uClear: { value: 0 },   // extra metres of see-through water (the offshore reef: you can see the reef from the surface)
+  uHaze: { value: 0.06 }, // how fast the seabed fades to water colour with depth
   uLampOn: { value: 0 }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
 };
 
@@ -150,7 +152,7 @@ export function patchUnderwater(material, opts = {}) {
   material.onBeforeCompile = (shader, renderer) => {
     if (prev) prev(shader, renderer);
     shader.uniforms.uWaterCol = globalUniforms.uWaterTint;
-    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull', 'uLamps', 'uLampCol', 'uLampOn']) shader.uniforms[k] = globalUniforms[k];
+    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull', 'uLamps', 'uLampCol', 'uLampOn', 'uHaze']) shader.uniforms[k] = globalUniforms[k];
     if (opts.cutaway) shader.uniforms.uPlayer = globalUniforms.uPlayer;
     shader.uniforms.uSwimLen = { value: opts.swimLength ?? 1 };
     shader.uniforms.uSway = { value: opts.sway ?? 0 };
@@ -212,7 +214,7 @@ export function patchUnderwater(material, opts = {}) {
       #endif
       vWPos = (modelMatrix * wpw).xyz;`);
 
-    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn;\n` + causticGLSL + uwFogGLSL + paintGLSL;
+    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn; uniform float uHaze;\n` + causticGLSL + uwFogGLSL + paintGLSL;
     if (opts.coral) fHead += 'varying float vBleach;\n';
     if (opts.detail) fHead += `varying vec3 vLocal;
       float dHash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -340,7 +342,7 @@ export function patchUnderwater(material, opts = {}) {
             vec3 Vw = normalize(cameraPosition - vWPos);
             float path = depth / max(0.12, Vw.y);
             outgoingLight *= exp(-uAbsorb * path * 0.8);
-            outgoingLight = mix(outgoingLight, uWaterCol, 1.0 - exp(-path * 0.06));
+            outgoingLight = mix(outgoingLight, uWaterCol, 1.0 - exp(-path * uHaze));
           }
         }
       }

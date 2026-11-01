@@ -11,8 +11,9 @@ import { fishOnMat, fishPhoto } from './fishView.js';
 import { nameOf } from '../core/anglerData.js';
 import { hasItem } from '../npc/inventory.js';
 import { payRecord, payTag } from '../economy/coins.js';
-import { releaseSurvival, survivalNote, CUT_LINE } from '../economy/effects.js';
+import { releaseSurvival, survivalNote, CUT_LINE, BAROTRAUMA_DEPTH } from '../economy/effects.js';
 import { RATES } from '../content/shop.js';
+import { pestVerdict, recordPest } from '../fishing/pest.js';
 
 const AIR_LIMIT = 10; // seconds out of the water before it counts as too long
 const HOLD_S = 1.4;   // seconds to hold the unhook button
@@ -24,13 +25,16 @@ export const WHY = {
   bag: 'A bag limit stops too many fish being taken, so there are fish left for everyone.',
   possession: 'The possession limit counts everything you have at any time, fridge and freezer included, so you cannot beat the bag limit by stocking up.',
   protected: 'Protected species are too vulnerable to take. They must be released straight away with the least harm.',
+  closed: 'A closed season protects fish while they spawn, so there are more fish next year. Bass and estuary perch may not be kept in rivers and estuaries from May to August.',
+  bigbag: 'The biggest fish are the best breeders, so only a few big ones may be kept each day.',
+  pest: 'Carp are an introduced pest: they stir up the mud, cloud the water and eat the plants that native fish and their young need. Taking one out of the water helps the river.',
   ok: 'Size, bag and possession limits keep fishing sustainable: enough fish are left to breed.',
 };
 
 /** "Yellowfin bream survive release between 72 and 97% of the time (DPIRD); the bar uses the middle, 85%." A single published figure is said plainly. */
 export function survivalLine(name, id, sv) {
   const n = survivalNote(id);
-  if (!n) return `${esc(name)} usually survive release about ${sv.base}% of the time when handled well`;
+  if (!n) return `There is no published DPIRD survival figure for ${esc(name.toLowerCase())} in our sources, so the game starts from a standard ${sv.base}% (an estimate, not a measured value)`;
   return n.single ? `${esc(name)} usually survive release ${n.text} of the time when handled well (DPIRD)`
     : `${esc(name)} usually survive release ${n.text} (DPIRD). The estimate starts from the middle of that range: ${n.mid}%`;
 }
@@ -201,12 +205,18 @@ export class CatchFlow {
     const group = bagGroupIds(id), kept = (p.catches ?? []).filter(x => group.includes(x.id) && x.kept);   // squid and cuttlefish share one bag of 20
     this.keptToday = kept.filter(x => new Date(x.time).toDateString() === today).length;
     const inPossession = kept.filter(x => Date.now() - x.time < 3 * 864e5).length;
-    this.verdict = judge(id, c.length, this.keptToday, inPossession);
+    const cx = c.ctx ?? {}, over = rule?.maxOver ? kept.filter(x => new Date(x.time).toDateString() === today && x.length > rule.maxOver.cm).length : 0;
+    this.jctx = { month: cx.month, season: cx.season, keptOver: over };   // the closed season and the "only one over 35 cm" rule need the date and what you have kept
+    this.verdict = judge(id, c.length, this.keptToday, inPossession, this.jctx);
     const v = this.verdict, legal = v.legal;
-    this.keep = keep; this.correct = keep ? legal : true;
+    this.keep = keep; this.correct = keep ? legal : !rule?.pest;   // returning a pest fish is allowed but is not best practice (a small Steward cost)
     const kind = v.kind, why = WHY[kind] ?? WHY.ok;
-    const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPossession).legal !== legal;
-    const head = keep
+    const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPossession, this.jctx).legal !== legal;
+    const pest = !!rule?.pest;
+    const pv = pest ? pestVerdict(keep) : null;
+    const head = pest
+      ? { cls: pv.cls, t: pv.title, d: pv.text }
+      : keep
       ? (legal ? { cls: 'good', t: '✔ A legal keep', d: 'It goes in the esky.' } : { cls: 'bad', t: '✖ That fish is not legal to keep', d: 'It goes in the esky marked ILLEGAL. The right call was to release it. A Fisheries Officer who checks your esky would fine you.' })
       : (legal ? { cls: 'good', t: '✔ Released: always allowed', d: 'Catch and release is always allowed. You could also have kept this one. (A legal fish released is neutral: Mastery needs a legal keep, or a correct release of a fish you couldn\'t keep.)' } : { cls: 'good', t: '✔ Right call: it had to go back', d: 'It was not legal to keep.' });
     g.audio.play(head.cls === 'good' ? 'correct' : 'wrong');
@@ -219,18 +229,18 @@ export class CatchFlow {
       ${!legal ? `<div class="rule-card bad"><b>This fish</b>${esc(v.reason)}</div>` : ''}
       <div class="rule-card why"><b>Why the rule exists</b>${esc(why)}</div>
       ${flipped ? `<div class="rule-card"><b>Measuring matters</b>Your reading of ${this.measured} cm would have given a different answer from its true ${c.length} cm. One cm under is still undersize.</div>` : ''}
-      <p class="muted">Kept today ${rule?.bagLabel ? `(${esc(rule.bagLabel)})` : 'of this species'}: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>
+      ${pest ? `<p class="muted">Pest fish taken out of the river so far: ${p.pest?.removed ?? 0}.</p>` : `<p class="muted">Kept today ${rule?.bagLabel ? `(${esc(rule.bagLabel)})` : 'of this species'}: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>`}
       ${keep ? this.payHTML() : ''}
-      <p><button class="btn primary" id="v-next">${keep ? 'Continue' : 'Release it now'}</button></p>
+      <p><button class="btn primary" id="v-next">${keep ? 'Continue' : pest ? 'Put it back' : 'Release it now'}</button></p>
     </div>`);
     const next = this.panel.body.querySelector('#v-next');
-    next.onclick = () => (keep ? this.closeFlow() : this.stepRelease());
+    next.onclick = () => { if (!keep && pest) { this.record({}); this.closeFlow(); } else if (keep) this.closeFlow(); else this.stepRelease(); };   // a pest fish that goes back needs no survival card
     next.focus();
   }
 
   // ---------------------------------------------------------------- 4. the quick release
   stepRelease() {
-    const g = this.game, deep = this.sp.deepWater, tagKit = hasItem(this.p, 'tool-tagkit'), weightKit = deep && hasItem(this.p, 'tool-releaseweight');
+    const g = this.game, depthM = this.c.ctx?.depth, deep = this.sp.deepWater && (depthM == null || depthM >= BAROTRAUMA_DEPTH), tagKit = hasItem(this.p, 'tool-tagkit'), weightKit = deep && hasItem(this.p, 'tool-releaseweight');
     const net = g.gearStats().net, airMul = net ? 0.65 : 1;   // a knotless landing net keeps the fish in the water while you unhook it: the clock runs slower
     this.show(`<div class="flow release">
       <h2>Quick release</h2>
@@ -243,7 +253,8 @@ export class CatchFlow {
         <button class="hold" id="rel-hold" aria-label="Hold to unhook the fish"><i id="hold-fill"></i><span>Hold to unhook</span></button>
       </div>
       <p class="muted" id="rel-hint">Dry hands rub off the slime that protects a fish from disease. Wet them first.${net ? ' Your landing net keeps the fish in the water while you unhook it, so the clock runs about a third slower.' : ''}</p>
-      ${deep ? `<div class="rule-card"><b>Deep-water fish</b>${esc(this.sp.name)} come from deep water, where the pressure is much higher. Pulled up fast, their gas bladder can swell (barotrauma). ${weightKit ? 'You have a release weight: clip it on so the fish sinks back to depth.' : 'A release weight returns them to depth (Dr Priya at the dinghy landing has one for a good citizen scientist). For now: unhook gently and be quick.'}</div>` : ''}
+      ${!deep && this.sp.deepWater && depthM != null ? `<div class="rule-card"><b>Caught at ${depthM.toFixed(1)} m</b>${esc(this.sp.name)} is a deep-water fish, but barotrauma is a concern from about ${BAROTRAUMA_DEPTH} m. Here it is shallower than that, so the gas bladder is unlikely to have swollen and no release weight is needed. Fish deeper and it matters.</div>` : ''}
+      ${deep ? `<div class="rule-card"><b>Deep-water fish${depthM != null ? ` · caught at ${depthM.toFixed(1)} m` : ''}</b>${esc(this.sp.name)} come from deep water, where the pressure is much higher. Pulled up fast, their gas bladder can swell (barotrauma). ${weightKit ? 'You have a release weight: clip it on so the fish sinks back to depth.' : 'A release weight returns them to depth (Dr Priya at the dinghy landing has one for a good citizen scientist). For now: unhook gently and be quick.'}</div>` : ''}
     </div>`);
     const b = this.panel.body, wetBtn = b.querySelector('#rel-wet'), hold = b.querySelector('#rel-hold'), fill = b.querySelector('#hold-fill');
     const air = b.querySelector('#air-fill'), airT = b.querySelector('#air-t');
@@ -306,19 +317,22 @@ export class CatchFlow {
     const identified = G.atLeast(G.tierOf(p, id), 'identified');
     const label = identified ? this.sp.name : `Unknown fish #${e.caught.n}`;
     p.catches ??= [];
-    const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net });
+    const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net, depth: ctx.depth });
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: this.sp.deepWater || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
+      time: Date.now(), spot: this.spot, tide: ctx.tide, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
     p.catches.push(row);
     adjustStock(p, this.spot, id, keep ? (v.legal ? -1 : -4) : 1 + (surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));
-    if (keep) (p.esky ??= []).push({ id, label, length: c.length, legal: v.legal, kind: v.kind, reason: v.reason, time: row.time });
+    if (this.sp.rules.pest) recordPest(p, keep);                                                                        // a pest fish goes in the bin, not the esky
+    else if (keep) (p.esky ??= []).push({ id, label, length: c.length, legal: v.legal, kind: v.kind, reason: v.reason, time: row.time });
     // Credits: a complete accurate record, and a tag-and-release. Never for the fish itself: a kept fish pays the same as a released one.
     const rec = payRecord(p, row, identified), tag = payTag(p, row), total = rec.amount + tag.amount;
     this.result = { rec, tag, surv, total };
     const o = p.outing;
     if (o) {
-      o.caught++; if (keep) { o.kept++; if (v.legal) o.keptLegal++; else o.keptIllegal++; } else o.released++;
+      o.caught++;
+      if (keep && this.sp.rules.pest) o.pests = (o.pests ?? 0) + 1;                         // a pest fish taken out of the river is its own tally, not an esky fish
+      else if (keep) { o.kept++; if (v.legal) o.keptLegal++; else o.keptIllegal++; } else o.released++;
       if (this.measured != null) { o.meas++; if (this.accurate) o.acc++; }
       o.credits = (o.credits ?? 0) + total;
       const tier = G.tierOf(p, id);
