@@ -41,7 +41,7 @@ registerLook('duskyflathead', {
   dorsal: { from: 0.66, to: 0.74, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.28, to: 0.62, height: 0.03, shape: 'low' }, anal: { from: 0.26, to: 0.55, height: 0.035 },
   paint: {
     body: withEye(spots((u, s) => mix(C(0xeee2c4), C(0x8d7852), sm(-0.3, 0.3, s)), 0x3a2e20, 30, 0.14, (u, s) => s > -0.2), 0.86, 0.96, 0.02, 0x222222, 0xd0b060),
-    fin: (u, part, f) => (part === 'tail' ? (f > 0.88 ? C(0xe9dfa8) : mix(C(0x8d7852), C(0x4e3d28), 1 - sm(0.1, 0.26, Math.hypot(f - 0.64, (u - 0.052) * 9)))) : part === 'pectoral' ? mix(C(0xe8dcb8), C(0x8d7852), f) : C(0x8d7852)),
+    fin: (u, part, f) => (part === 'tail' ? mix(mix(C(0x9a8660), C(0xdcd0a8), sm(0.55, 0.95, f) * 0.6), C(0x3a2c1c), 0.85 * (1 - sm(0.07, 0.15, Math.hypot(f - 0.72, (u - 0.044) * 8)))) : part === 'pectoral' ? mix(C(0xe8dcb8), C(0x8d7852), f) : C(0x8d7852)),
   }, swim: { freq: 2.5, amp: 0.5 },
 });
 registerLook('seamullet', {

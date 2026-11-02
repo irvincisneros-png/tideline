@@ -42,7 +42,10 @@ const res = await t.page.evaluate(async ([only, cosy]) => {
       const { mesh, bb } = mk(id); scene.add(mesh);
       const s = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
       let cam;
-      if (mode === 'side') {
+      if (mode === 'top') {
+        let hw = s.x / 2 * 1.08, hh = hw * TH / TW; if (s.z / 2 * 1.25 > hh) { hh = s.z / 2 * 1.25; hw = hh * TW / TH; }
+        cam = new THREE.OrthographicCamera(-hw, hw, hh, -hh, 0.1, 20); cam.position.set(c.x, 5, c.z); cam.up.set(0, 0, -1); cam.lookAt(c.x, 0, c.z);
+      } else if (mode === 'side') {
         let hw = s.x / 2 * 1.08, hh = hw * TH / TW; if (s.y / 2 * 1.25 > hh) { hh = s.y / 2 * 1.25; hw = hh * TW / TH; }
         cam = new THREE.OrthographicCamera(-hw, hw, hh, -hh, 0.1, 20); cam.position.set(c.x, c.y, -5); cam.lookAt(c.x, c.y, 0);
       } else {
@@ -60,10 +63,11 @@ const res = await t.page.evaluate(async ([only, cosy]) => {
     });
     return cv.toDataURL('image/png');
   };
-  const sides = sheet('side'), heads = sheet('head');
-  return { sides, heads, tris };
+  const sides = sheet('side'), heads = sheet('head'), tops = sheet('top');
+  return { sides, heads, tops, tris };
 }, [only, cosy]);
 writeFileSync(`${out}/${label}-sides.png`, Buffer.from(res.sides.split(',')[1], 'base64'));
+writeFileSync(`${out}/${label}-tops.png`, Buffer.from(res.tops.split(',')[1], 'base64'));
 writeFileSync(`${out}/${label}-heads.png`, Buffer.from(res.heads.split(',')[1], 'base64'));
 console.log('tris', JSON.stringify(res.tris));
 console.log('errors', t.errors.slice(0, 5));

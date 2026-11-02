@@ -167,10 +167,16 @@ const { C, mix, sm, withEye, bars, spots, counter, hash } = P;
 /** Smooth value noise (0..1): big soft blotches for patterned skins. */
 const vnoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, f = t => t * t * (3 - 2 * t), a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1); return (a + (b - a) * f(fx)) * (1 - f(fy)) + (c + (d - c) * f(fx)) * f(fy); };
 const looks = {
-  bluegroper: { length: 0.9, top: [.36,.52,.72,.88,.98,.94,.82,.62,.34], bot: [.36,.5,.7,.88,.98,.88,.7,.5,.3], topShare: 0.52, tailRound: 0.3, depth: 0.32, width: 0.2, peak: 0.55, snout: 0.45, tailFrac: 0.15, tail: 'round', tailSpan: 0.6, peduncle: 0.32, pectoral: 0.14, belly: 0.3, lips: true, hump: { at: 0.84, h: 0.28, w: 0.13 }, mouth: { len: 0.05, s: -0.15 }, // the male's bulbous forehead hump
-    dorsal: { from: 0.12, to: 0.8, height: 0.06, shape: 'dual' }, anal: { from: 0.12, to: 0.45, height: 0.06 },
-    // Eastern blue groper (male): a bright cornflower blue, paler on the belly, a big ROUNDED tail, thick lips, a smallish eye set low on the head.
-    paint: { body: withEye((u, s) => mix(C(0xb4d6f4), C(0x62a0e0), sm(-0.55, 0.55, s)).map(v => v * (0.97 + 0.04 * Math.sin(u * 90 + s * 4))), 0.9, 0.3, 0.019, 0x111111, 0xd8a050), fin: () => C(0x74aae6) }, swim: { freq: 3, amp: 0.4 } },
+  bluegroper: { length: 0.9, top: [.44,.58,.78,.94,1,.96,.84,.62,.3], bot: [.44,.56,.74,.9,.97,.9,.74,.5,.24], topShare: 0.54, tailRound: 0.22, tailCurve: 2.2, depth: 0.29, width: 0.15, peak: 0.55, snout: 0.45, tailFrac: 0.16, tail: 'truncate', tailSpan: 0.75, pectoral: 0.13, pecY: -0.05, lips: true, throat: 0.1, hump: { at: 0.86, h: 0.07, w: 0.1 }, mouth: { len: 0.05, s: -0.15 },
+    scales: { nU: 30, nR: 34, strength: 0.16 },   // a wrasse: big, plain scales
+    dorsal: { from: 0.14, to: 0.8, height: 0.055, shape: 'dual' }, anal: { from: 0.14, to: 0.44, height: 0.06 },
+    // Eastern blue groper (Achoerodus viridis, male): a big, sturdy, elongated wrasse, cobalt to cornflower blue (darker on the back), a large blunt head with thick fleshy lips and a small eye,
+    // a little fleshy rise on the forehead, one long low dorsal, broad rounded pectorals and a squarish, softly rounded tail. Each big scale has a darker rear edge; fine darker squiggles on the cheek.
+    paint: { body: withEye((u, s) => {
+      let c = mix(C(0xb8d4f0), C(0x2f6fc4), sm(-0.6, 0.75, s));
+      if (u > 0.8 && u < 0.92 && Math.abs(s + 0.1) < 0.5 && Math.sin(u * 160 + s * 26) > 0.82) c = mix(c, C(0x24508e), 0.4);   // cheek squiggles
+      return c;
+    }, 0.9, 0.36, 0.017, 0x111111, 0xd88a40), fin: (u, part, f) => (part === 'tail' || part === 'dorsal' || part === 'anal' ? mix(C(0x3f7ccc), C(0x6aa0e0), f) : C(0x8ab8ec)) }, swim: { freq: 3, amp: 0.4 } },
   redmorwong: { length: 0.5, top: [.32,.48,.7,.92,1,.92,.76,.54,.26], bot: [.32,.46,.64,.86,.96,.82,.6,.36,.14], fork: 0.55, depth: 0.36, width: 0.16, peak: 0.6, snout: 0.6, tailFrac: 0.18, tail: 'forked', tailSpan: 0.55, pectoral: 0.16, hump: { at: 0.86, h: 0.035, w: 0.1 }, mouth: { len: 0.04, s: -0.2 },
     dorsal: { from: 0.15, to: 0.8, height: 0.09, shape: 'dual' }, anal: { from: 0.15, to: 0.4, height: 0.075 }, lips: true,
     // Cheilodactylus fuscus: a deep pinkish-red body, two dark bands, thick lips, a steep head, one long dorsal (very tall at the front) and long pectorals.
@@ -202,10 +208,20 @@ const looks = {
   portjackson: { length: 1.1, depth: 0.2, width: 0.2, peak: 0.75, snout: 0.35, tailFrac: 0.22, tail: 'heterocercal', tailSpan: 1.1, pectoral: 0.16, pecWing: 0.6,
     dorsal: { from: 0.55, to: 0.65, height: 0.08, shape: 'tri' }, anal: { from: 0.2, to: 0.28, height: 0.05 },
     paint: { body: withEye((u, s) => { const harness = Math.abs(u - 0.66 + Math.abs(s) * 0.15) < 0.03 || Math.abs(u - 0.42 + Math.abs(s) * 0.1) < 0.03; return harness && s > -0.3 ? C(0x2a2018) : mix(C(0xe0d4c0), C(0xa89880), sm(-0.4, 0.5, s)); }, 0.88, 0.45, 0.025), fin: () => C(0x9a8a70) }, swim: { freq: 1.8, amp: 0.5 } },
-  wobbegong: { length: 1.6, top: [.5,.6,.76,.9,1,1,.92,.65,.25], bot: [.5,.58,.72,.88,.96,.96,.88,.6,.22], wpts: [.4,.5,.62,.76,.88,1,1,.9,.4], fork: 0.4, tailRound: 0.25, lowerLobe: 0.3, tailSpan: 0.8, depth: 0.1, width: 0.28, peak: 0.7, snout: 0.25, tailFrac: 0.17, tail: 'round', pectoral: 0.17, pecWing: 0.55, boxy: 3, tassels: 8, pelvic: 0.1, mouth: { len: 0.1, s: -0.3 }, noLateral: true,
-    dorsal: { from: 0.3, to: 0.4, height: 0.055 }, dorsal2: { from: 0.17, to: 0.26, height: 0.045 }, anal: { from: 0.1, to: 0.16, height: 0.035 },
-    // Orectolobus: a flat shark with a fringe of branching tassels round the wide mouth and head, small eyes on top, two similar dorsals set far back, in a patchwork: pale cream blotches and saddles on olive-brown, outlined darker.
-    paint: { body: withEye((u, s) => { const n = vnoise(u * 9, s * 3.4), base = mix(C(0xd6c8a0), C(0x7d6c44), sm(-0.3, 0.3, s)); if (s < -0.25) return base; return n > 0.62 ? C(0xefe2b6) : n > 0.54 ? C(0x6a5a38) : base; }, 0.86, 0.96, 0.012, 0x222222, 0xd8c060), fin: (u, part, f) => (f > 0.8 ? C(0xe6d8a8) : C(0x8a7850)) }, swim: { freq: 1.5, amp: 0.4 } },
+  wobbegong: { length: 1.6, top: [.3,.42,.6,.8,.95,1,.92,.68,.3], bot: [.3,.4,.58,.78,.94,.98,.9,.66,.26], wpts: [.18,.3,.46,.64,.82,.96,1,.92,.45], tailRound: 0.2, lowerLobe: 0.22, tailSpan: 0.5, depth: 0.1, width: 0.27, peak: 0.7, snout: 0.25, tailFrac: 0.26, tail: 'round', pectoral: 0.17, pecWing: 0.6, pecAt: 0.72, boxy: 3, tassels: 9, pelvic: 0.11, pelAt: 0.5, mouth: { len: 0.1, s: -0.3 }, noLateral: true,
+    dorsal: { from: 0.4, to: 0.47, height: 0.05 }, dorsal2: { from: 0.27, to: 0.34, height: 0.042 }, anal: { from: 0.2, to: 0.25, height: 0.03 },
+    // Spotted wobbegong (Orectolobus maculatus): a flat carpet shark, broad flat head with a fringe of branching tassels round the mouth, small eyes on top, two similar dorsals set far back,
+    // a long tail with a low upper lobe. Camouflage: soft dark saddles across a sandy-olive back, scattered with pale O-shaped rings; pale underneath.
+    paint: { body: withEye((u, s) => {
+      const base = mix(C(0xe2d6b4), C(0x8a7a50), sm(-0.35, 0.25, s));
+      if (s < -0.3) return base;
+      const sad = sm(0.35, 0.75, Math.sin(u * 30 + 0.6 * Math.sin(s * 3))) * sm(-0.1, 0.4, s), n = vnoise(u * 7, s * 2.6);
+      let c = mix(base, C(0x5a4a2c), 0.55 * sad + 0.2 * sm(0.55, 0.8, n));
+      const gu = u * 34, gs = (s + 1) * 6, iu = Math.floor(gu), is = Math.floor(gs);
+      const cu = iu + 0.5 + 0.35 * (hash(iu, is) - 0.5), cs = is + 0.5 + 0.35 * (hash(is, iu) - 0.5), r = Math.hypot(gu - cu, (gs - cs) * 1.1);
+      if (hash(iu + 3, is + 7) > 0.35 && s > -0.15) c = mix(c, C(0xf2e8c8), 0.85 * (1 - sm(0.06, 0.1, Math.abs(r - 0.24))));   // pale rings
+      return c;
+    }, 0.86, 0.96, 0.012, 0x222222, 0xd8c060), fin: (u, part, f) => mix(C(0x7a6a44), C(0xcfc096), 0.3 * f) }, swim: { freq: 1.5, amp: 0.4 } },
   fiddlerray: { kind: 'stingray', length: 0.9, span: 0.55, thick: 0.18, tail: 0.9,
     paint: (u, v, top) => { if (!top) return C(0xf0ece4); const line = Math.abs(Math.sin((u * 6 + Math.abs(v - 0.5) * 8))) < 0.18; return line ? C(0x3a3020) : mix(C(0xa89870), C(0x7a6a48), v); }, swim: { freq: 2.5, amp: 0.4 } },
 };

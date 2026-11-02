@@ -222,7 +222,7 @@ export function patchUnderwater(material, opts = {}) {
         return mix(mix(mix(dHash(i), dHash(i+vec3(1,0,0)), f.x), mix(dHash(i+vec3(0,1,0)), dHash(i+vec3(1,1,0)), f.x), f.y),
                    mix(mix(dHash(i+vec3(0,0,1)), dHash(i+vec3(1,0,1)), f.x), mix(dHash(i+vec3(0,1,1)), dHash(i+vec3(1,1,1)), f.x), f.y), f.z); }
     `;
-    if (opts.fish) fHead += 'varying vec2 vFin;\n';
+    if (opts.fish) fHead += '#define TL_FISH\nvarying vec2 vFin;\n';
     if (opts.cutaway) fHead += 'uniform vec3 uPlayer;\n';
     shader.fragmentShader = fHead + shader.fragmentShader;
     if (opts.cutaway) {
@@ -297,7 +297,9 @@ export function patchUnderwater(material, opts = {}) {
         // Painted layer: lighter top-facing surfaces, darker undersides, soft brush mottling, fine speckles.
         float brush = uFull > 0.5 ? pNoise(vWPos * 1.3) * 0.6 + pNoise(vWPos * 3.7 + 11.0) * 0.4 : pNoise(vWPos * 1.6);
         diffuseColor.rgb *= (0.86 + 0.22 * (nP.y * 0.5 + 0.5)) * (0.9 + 0.2 * brush);
-        diffuseColor.rgb += 0.06 * step(0.985, pHash(floor(vWPos * 28.0)));
+        #ifndef TL_FISH
+        diffuseColor.rgb += 0.06 * step(0.985, pHash(floor(vWPos * 28.0)));   // speckles (their 3.6 cm cells read as squares on a fish, so fish skip them)
+        #endif
         float lit = smoothstep(0.06, 0.32, direct);                       // soft terminator (cosy diorama look)
         float hi = smoothstep(0.45, 0.75, direct) * 0.12;                 // gentle lift where light is strongest
         vec3 nS = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
