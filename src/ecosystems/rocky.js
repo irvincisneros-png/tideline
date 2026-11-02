@@ -167,7 +167,7 @@ const { C, mix, sm, withEye, bars, spots, counter, hash } = P;
 /** Smooth value noise (0..1): big soft blotches for patterned skins. */
 const vnoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, f = t => t * t * (3 - 2 * t), a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1); return (a + (b - a) * f(fx)) * (1 - f(fy)) + (c + (d - c) * f(fx)) * f(fy); };
 const looks = {
-  bluegroper: { length: 0.9, top: [.44,.58,.78,.94,1,.96,.84,.62,.3], bot: [.44,.56,.74,.9,.97,.9,.74,.5,.24], topShare: 0.54, tailRound: 0.22, tailCurve: 2.2, depth: 0.29, width: 0.15, peak: 0.55, snout: 0.45, tailFrac: 0.16, tail: 'truncate', tailSpan: 0.75, pectoral: 0.13, pecY: -0.05, lips: true, throat: 0.1, hump: { at: 0.86, h: 0.07, w: 0.1 }, mouth: { len: 0.05, s: -0.15 },
+  bluegroper: { length: 0.9, top: [.44,.58,.78,.94,1,.96,.84,.62,.3], bot: [.44,.56,.74,.9,.97,.9,.74,.5,.24], topShare: 0.54, tailRound: 0.22, depth: 0.29, width: 0.15, peak: 0.55, snout: 0.45, tailFrac: 0.16, tail: 'round', tailSpan: 0.75, pectoral: 0.13, pecY: -0.05, lips: true, throat: 0.1, hump: { at: 0.86, h: 0.11, w: 0.09 }, mouth: { len: 0.05, s: -0.15 },
     scales: { nU: 30, nR: 34, strength: 0.16 },   // a wrasse: big, plain scales
     dorsal: { from: 0.14, to: 0.8, height: 0.055, shape: 'dual' }, anal: { from: 0.14, to: 0.44, height: 0.06 },
     // Eastern blue groper (Achoerodus viridis, male): a big, sturdy, elongated wrasse, cobalt to cornflower blue (darker on the back), a large blunt head with thick fleshy lips and a small eye,
