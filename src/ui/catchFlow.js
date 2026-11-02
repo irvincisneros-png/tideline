@@ -9,6 +9,7 @@ import * as G from '../fishing/guide.js';
 import { esc } from './panels.js';
 import { mountKey } from './keyUI.js';
 import { fishOnMat, fishPhoto } from './fishView.js';
+import { matFishBox } from './matMath.js';
 import { nameOf } from '../core/anglerData.js';
 import { hasItem } from '../npc/inventory.js';
 import { payRecord, payTag } from '../economy/coins.js';
@@ -124,8 +125,8 @@ export class CatchFlow {
       pxcm = Math.min((avail - padL - padR) / matCm, Math.max(150, Math.min(260, innerHeight * 0.32)) / (len * top.aspect));
       const W = Math.round(padL + padR + matCm * pxcm);
       const matEl = b.querySelector('#mat'); matEl.style.width = `${W}px`; matEl.style.margin = '0 auto';
-      const imgH = len * pxcm * top.aspect, boardH = Math.max(112, Math.round(imgH + 36));
-      img.style.left = `${padL}px`; img.style.width = `${len * pxcm}px`; img.style.height = `${imgH}px`;
+      const fb = matFishBox(len, pxcm, top.aspect, padL), imgH = fb.height, boardH = Math.max(112, Math.round(imgH + 36));
+      img.style.left = `${fb.left}px`; img.style.width = `${fb.width}px`; img.style.height = `${imgH}px`;
       board.style.height = `${boardH}px`; img.style.top = `${(boardH - imgH) / 2}px`;
       // Ruler: a tick every cm (every 2 cm when tight), a longer one at 5, the longest with a number every 10.
       const step = pxcm >= 3 ? 1 : 2;

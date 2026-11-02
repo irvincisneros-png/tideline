@@ -243,6 +243,12 @@ export function patchUnderwater(material, opts = {}) {
       // Fins: bony rays from base to edge, thinning to a ragged, see-through margin (alpha-to-coverage with MSAA).
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         if (vFin.y < -2.5) diffuseColor.rgb = vec3(1.0); // eye highlight dot (cosy style)
+        if (vFin.y >= 0.0 && uStyle > 0.5) {
+          // Cosy style: fine rays fanning from the root (subtle stripes) and a paler, thinner-looking margin.
+          float rayC = abs(sin(vFin.x * 13.0 * 3.14159));
+          diffuseColor.rgb *= 1.0 - 0.1 * smoothstep(0.5, 1.0, rayC) * (0.25 + 0.75 * vFin.y);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.14 + 0.025, smoothstep(0.8, 1.0, vFin.y) * 0.6);
+        }
         if (vFin.y >= 0.0 && uStyle < 0.5) {
           float nr = 16.0;
           float ray = smoothstep(0.55, 1.0, abs(sin(vFin.x * nr * 3.14159)));

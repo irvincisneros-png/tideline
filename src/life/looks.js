@@ -2,7 +2,8 @@
 // u = 0 tail .. 1 snout, s = +1 dorsal .. -1 belly. Colours are linear-ish 0..1 RGB.
 import * as THREE from 'three';
 
-const C = h => { const c = new THREE.Color(h); return [c.r, c.g, c.b]; };
+const colourCache = new Map();   // painters call C() for every texel: convert each hex once (callers never mutate the arrays)
+const C = h => { let a = colourCache.get(h); if (!a) { const c = new THREE.Color(h); a = [c.r, c.g, c.b]; colourCache.set(h, a); } return a; };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
