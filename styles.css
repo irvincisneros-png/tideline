@@ -794,11 +794,19 @@ body[data-mode="ceremony"] .npc-tag { padding: 1px 8px; } body[data-mode="ceremo
 
 /* Map (key M) */
 .panel[data-flow="map"] { width: min(980px, 100%); }
-.map-tabs { display: flex; gap: 8px; margin: 6px 0 8px; }
+.map-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 8px; }
 .map-tabs .btn.on { background: var(--turq); color: #fff; }
-#map-cv { display: block; width: auto; height: auto; max-width: 100%; max-height: 58vh; margin: 0 auto; border-radius: 16px; background: var(--sky); }
+#map-cv { display: block; border-radius: 16px; background: #2a8bb2; touch-action: pan-y; }
+.map-stage { position: relative; margin: 0 auto; max-width: 100%; }
+.map-zoom { display: flex; gap: 6px; margin-left: auto; padding-right: 4px; }
+.map-zoom button { width: 34px; height: 34px; border-radius: 12px; border: 3px solid var(--teal-ink); background: var(--cream); color: var(--teal-deep); font: 800 18px/1 var(--font-display, inherit); cursor: pointer; padding: 0; }
+.map-zoom button.on { background: var(--turq); color: #fff; }
+.map-zoom button:hover, .map-zoom button:focus-visible { background: #fff; }
+@media (max-width: 560px) { .map-zoom { gap: 4px; } .map-zoom button { width: 30px; height: 30px; font-size: 16px; border-width: 2.5px; } }
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 4px; font-size: 13px; font-weight: 800; }
 .map-legend .dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid var(--teal-ink); vertical-align: -2px; margin-right: 3px; background: #5fcf7a; }
+.map-legend .lg-ic { display: inline-block; min-width: 1.2em; text-align: center; }
+.map-legend .dot.hatch { background: repeating-linear-gradient(135deg, #e8553d 0 2px, #fff0c4 2px 5px); }
 .map-legend .dot.ppl { background: #ff8a5c; } .map-legend .dot.q { background: #ffb347; width: 16px; height: 16px; font-size: 10px; line-height: 11px; text-align: center; font-style: normal; }
 .map-spots { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 16px; }
 .map-spots li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.35; }
@@ -818,5 +826,8 @@ body[data-mode="ceremony"] .npc-tag { padding: 1px 8px; } body[data-mode="ceremo
 body.touch #minimap { left: calc(12px + env(safe-area-inset-left)); top: calc(56px + env(safe-area-inset-top)); width: 150px; }
 @media (max-width: 760px) { .map-spots { grid-template-columns: 1fr; } #minimap { width: 150px; top: 100px; } }
 
-.map-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-@media (max-width: 560px) { #map-cv { max-width: none; max-height: none; margin: 0; } .map-scroll .region-wrap { width: 640px; max-width: none; margin: 0; } .map-scroll .region-svg { width: 100%; max-height: none; } }
+.region-wrap { margin: 0 auto; width: min(100%, calc((100vh - 250px) * 1.63)); min-width: min(100%, 300px); }
+.region-svg { width: 100%; }
+@media (max-height: 480px) { .region-box { display: flex; gap: 12px; align-items: flex-start; } .region-box .region-wrap { flex: none; margin: 0; width: min(58%, calc((100vh - 110px) * 1.63)); } .region-box .region-card { flex: 1; margin-top: 0; } }
+@media (max-width: 560px) { .region-svg .rg-pin text:last-child { font-size: 5.4px; } .map-legend { gap: 4px 12px; font-size: 12px; } }
+@media (max-height: 480px) { .panel[data-flow="map"] .sub { display: none; } .panel[data-flow="map"] h2 { display: inline-block; margin-right: 12px; } .map-tabs { display: inline-flex; margin: 0 0 6px; } }

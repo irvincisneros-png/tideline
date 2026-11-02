@@ -8,8 +8,9 @@ import { tierOf } from '../fishing/guide.js';
 import { NPCS } from '../content/npcs.js';
 import { platformMask } from '../ecosystems/rocky.js';
 import { JETTY, shoreZ } from '../ecosystems/seagrass.js';
-import { WHARF, EBW, NBW } from '../ecosystems/harbour.js';
+import { WHARF, EBW, NBW, QUAY_Z } from '../ecosystems/harbour.js';
 import { WEIR_X, centre } from '../ecosystems/river.js';
+import { PLACES, EXTRAS, HUT } from '../npc/places.js';
 
 /**
  * Per site: the world rectangle the map shows (x to the right, z down the page: the same way up as the game's default camera), the cell size, and the
@@ -21,47 +22,50 @@ export const VIEWS = {
     x0: -130, x1: 160, z0: 30, z1: 135, cell: 2.5, landSpots: ['rock'],
     safety: { id: 'platform', label: 'Rock platform', swell: 2.5, at: (x, z) => platformMask(x, z) > 0.3 && x > 20, note: 'Waves can sweep the platform in a big swell (2.5 m or more). Stay on the sand when the lifeguard warns you.' },
     pois: [
-      { id: 'tower', label: 'Lifeguard tower', x: -12, z: 99.5, icon: '🛟', kind: 'poi' },
-      { id: 'board', label: 'Club board', x: -5, z: 112.5, icon: '📋', kind: 'poi' },
-      { id: 'home', label: 'Beach access path (head home)', x: -3, z: 118, icon: '🏠', kind: 'home' },
-      { id: 'pools', label: 'Rock pools', x: 96, z: 90, icon: '🦀', kind: 'poi' },
-      { id: 'esky', label: 'Esky and bucket', x: 58.5, z: 79.5, icon: '🧊', kind: 'poi' },
+      { id: 'tower', short: 'Lifeguard', label: 'Lifeguard tower', x: PLACES.rocky.tower.x, z: PLACES.rocky.tower.z + 3.5, icon: '🛟', kind: 'tower', legend: 'Lifeguard tower' },
+      { id: 'board', short: 'Club board', label: 'Club board', x: EXTRAS.rocky.board.x, z: EXTRAS.rocky.board.z - 1, icon: '📋', kind: 'club', legend: 'Fishing club board' },
+      { short: 'Home', id: 'home', label: 'Beach access path (head home)', x: -3, z: 118, icon: '🏠', kind: 'home', legend: 'Head home' },
+      { id: 'pools', short: 'Rock pools', label: 'Rock pools', x: 96, z: 90, icon: '🦀', kind: 'poi', legend: 'Rock pools' },
+      { id: 'esky', short: 'Esky', label: 'Esky and bucket', x: 58.5, z: 79.5, icon: '🧊', kind: 'poi', legend: 'Esky and bucket' },
     ],
   },
   seagrass: {
     x0: -90, x1: 90, z0: -22, z1: 85, cell: 1.8,
     pois: [
-      { id: 'shop', label: "Mitra's bait and tackle shop (head home)", x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 10, icon: '🛒', kind: 'shop', home: true },
-      { id: 'jettyBase', label: 'Jetty', x: JETTY.x, z: JETTY.z0 + 1, icon: '⚓', kind: 'poi' },
-      { id: 'ramp', label: 'Boat ramp', x: 29.5, z: shoreZ(29.5) + 2, icon: '🛶', kind: 'poi' },
-      { id: 'table', label: 'Fish-cleaning table', x: JETTY.x + 7.5, z: shoreZ(JETTY.x + 7.5) + 9, icon: '🔪', kind: 'poi' },
+      { id: 'shop', short: 'Mitra\'s shop', label: "Mitra's bait and tackle shop (head home)", x: HUT.x, z: HUT.z - 1.5, icon: '🛒', kind: 'shop', home: true, legend: 'Bait and tackle shop' },
+      { id: 'jettyBase', short: '', label: 'Jetty', x: JETTY.x, z: JETTY.z0 + 1, icon: '⚓', kind: 'jetty', legend: 'Jetty' },
+      { id: 'ramp', label: 'Boat ramp', x: EXTRAS.seagrass.ramp.x, z: shoreZ(EXTRAS.seagrass.ramp.x) + 2, icon: '🛶', kind: 'ramp', legend: 'Boat ramp' },
+      { id: 'table', short: 'Cleaning table', label: 'Fish-cleaning table', x: JETTY.x + 7.5, z: shoreZ(JETTY.x + 7.5) + 9, icon: '🔪', kind: 'poi', legend: 'Fish-cleaning table' },
     ],
+    // decks drawn as planks on the map: [{ id, x1, z1, x2, z2, w }]
+    lines: [{ id: 'jetty', x1: JETTY.x, z1: JETTY.z0 + 0.4, x2: JETTY.x, z2: JETTY.z1 - 0.9, w: JETTY.w }],
   },
   harbour: {
     x0: -62, x1: 54, z0: -40, z1: 72, cell: 1.6,
     safety: { id: 'breakwall', label: 'Breakwall', swell: 2.5, at: (x, z) => !!ECOSYSTEMS.find(e => e.id === 'harbour')?.hazard.at(x, z), note: 'Waves wash over the breakwall in a big swell (2.5 m or more). Fish the wharf or the basin instead.' },
     pois: [
-      { id: 'lighthouse', label: 'Lighthouse', x: EBW, z: NBW, icon: '🗼', kind: 'poi' },
-      { id: 'wharf', label: 'Timber wharf and lamps', x: WHARF.x, z: 24, icon: '🏮', kind: 'poi' },
-      { id: 'coop', label: "Fishermen's co-op", x: -27, z: 45.8, icon: '🐟', kind: 'poi' },
-      { id: 'home', label: 'The harbour road (head home)', x: -8, z: 49, icon: '🏠', kind: 'home' },
+      { id: 'lighthouse', label: 'Lighthouse', x: EBW, z: NBW, icon: '🗼', kind: 'poi', legend: 'Lighthouse' },
+      { id: 'wharf', short: '', label: 'Timber wharf and lamps', x: WHARF.x, z: 24, icon: '🏮', kind: 'jetty', legend: 'Wharf' },
+      { id: 'coop', short: 'Co-op', label: "Fishermen's co-op", x: PLACES.harbour.coopDoor.x, z: PLACES.harbour.coopDoor.z, icon: '🐟', kind: 'coop', legend: "Fishermen's co-op" },
+      { short: 'Home', id: 'home', label: 'The harbour road (head home)', x: -8, z: 49, icon: '🏠', kind: 'home', legend: 'Head home' },
     ],
+    lines: [{ id: 'wharf', x1: WHARF.x, z1: QUAY_Z + 0.4, x2: WHARF.x, z2: WHARF.z1, w: WHARF.w }],
   },
   reef: {
     x0: -100, x1: 100, z0: -100, z1: 100, cell: 3.2,
     pois: [
-      { id: 'b1', label: 'Marker buoy', x: -36, z: -14, icon: '🔴', kind: 'poi' },
-      { id: 'b2', label: 'Marker buoy', x: 40, z: 8, icon: '🔴', kind: 'poi' },
-      { id: 'b3', label: 'Marker buoy', x: -6, z: 56, icon: '🔴', kind: 'poi' },
-      { id: 'b4', label: 'Marker buoy', x: 60, z: -20, icon: '🔴', kind: 'poi' },
+      { id: 'b1', label: 'Marker buoy', x: -36, z: -14, icon: '🔴', kind: 'poi', legend: 'Marker buoy' },
+      { id: 'b2', label: 'Marker buoy', x: 40, z: 8, icon: '🔴', kind: 'poi', legend: 'Marker buoy' },
+      { id: 'b3', label: 'Marker buoy', x: -6, z: 56, icon: '🔴', kind: 'poi', legend: 'Marker buoy' },
+      { id: 'b4', label: 'Marker buoy', x: 60, z: -20, icon: '🔴', kind: 'poi', legend: 'Marker buoy' },
     ],
   },
   river: {
     x0: -95, x1: 95, z0: -48, z1: 48, cell: 1.8,
     pois: [
-      { id: 'weir', label: 'Concrete weir', x: WEIR_X, z: centre(WEIR_X), icon: '🧱', kind: 'poi' },
-      { id: 'landing', label: 'Fishing landing', x: -30, z: centre(-30) + 16.6, icon: '🪵', kind: 'poi' },
-      { id: 'home', label: 'The car park by the bank (head home)', x: -30, z: centre(-30) + 26.6, icon: '🏠', kind: 'home' },
+      { id: 'weir', short: 'Weir', label: 'Concrete weir', x: WEIR_X, z: centre(WEIR_X), icon: '🧱', kind: 'poi', legend: 'Concrete weir' },
+      { id: 'landing', short: 'Landing', label: 'Fishing landing', x: -30, z: centre(-30) + 16.6, icon: '🪵', kind: 'ramp', legend: 'Fishing landing' },
+      { short: 'Home', id: 'home', label: 'The car park by the bank (head home)', x: -30, z: centre(-30) + 26.6, icon: '🏠', kind: 'home', legend: 'Head home' },
     ],
   },
 };
@@ -94,6 +98,8 @@ export function buildSiteMap(eco) {
   const cols = Math.round((x1 - x0) / cell), rows = Math.round((z1 - z0) / cell), n = cols * rows;
   const land = new Uint8Array(n), depth = new Float32Array(n), rgb = new Uint8ClampedArray(n * 3), spotIdx = new Int16Array(n).fill(-1), safe = new Uint8Array(n);
   const spotNames = [], cellSpot = new Array(n);
+  // a finer height grid (twice as fine) for the smooth coastline and depth contours
+  const hf = heightField(eco, view, 2);
   const open = eco.id === 'reef';   // the open sea: every cell is a place to drop a line
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const k = j * cols + i, x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell, h = eco.heightAt(x, z);
@@ -134,7 +140,15 @@ export function buildSiteMap(eco) {
       spots.push({ spot: sp, idx: spotNo, label: SPOT_INFO[sp]?.label ?? sp, x: x0 + ((best % cols) + 0.5) * cell, z: z0 + (((best / cols) | 0) + 0.5) * cell, cells: cells.length, comp: ci });
     });
   }
-  return { id: eco.id, view, cols, rows, land, depth, rgb, spotIdx, safe, spotNames, spots, pois: view.pois, safety: view.safety ? { ...view.safety, cells: safe.reduce((a, b) => a + b, 0) } : null };
+  return { id: eco.id, view, cols, rows, hf, land, depth, rgb, spotIdx, safe, spotNames, spots, pois: view.pois, safety: view.safety ? { ...view.safety, cells: safe.reduce((a, b) => a + b, 0) } : null };
+}
+
+/** Terrain height on a grid `k` times finer than the view's cell: { cols, rows, h (Float32, metres, sea level 0) }, sample (i, j) at the centre of its cell. */
+export function heightField(eco, view, k = 2) {
+  const { x0, x1, z0, z1, cell } = view, c = cell / k;
+  const cols = Math.round((x1 - x0) / c), rows = Math.round((z1 - z0) / c), h = new Float32Array(cols * rows);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) h[j * cols + i] = eco.heightAt(x0 + (i + 0.5) * c, z0 + (j + 0.5) * c);
+  return { cols, rows, h };
 }
 
 /** Is the site's danger zone live? (a big swell). Rivers have no swell. */
@@ -163,3 +177,136 @@ export const REGION_SITES = [
   { id: 'seagrass', short: 'Lake Illawarra', x: 44, y: 76, where: 'The Illawarra estuary at Windang: jetty, flats and seagrass', how: 'Walk out along the jetty.' },
   { id: 'river', short: 'River', x: 17, y: 56, where: 'A coastal river below the escarpment, running down to the lake', how: 'Park by the bank and walk to the pool.' },
 ];
+
+
+// ---------------------------------------------------------------- smooth shapes (pure geometry, no DOM)
+/** A box blur of a scalar grid (edges clamp), `passes` times. Returns a new Float32Array. */
+export function blurField(f, cols, rows, passes = 1) {
+  let a = Float32Array.from(f), b = new Float32Array(f.length);
+  for (let p = 0; p < passes; p++) {
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      let s = 0, w = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
+        const k = (di === 0 ? 2 : 1) * (dj === 0 ? 2 : 1); s += a[nj * cols + ni] * k; w += k;
+      }
+      b[j * cols + i] = s / w;
+    }
+    [a, b] = [b, a];
+  }
+  return a;
+}
+
+/**
+ * Marching squares: the outlines of the region where field >= level, as closed loops of [x, y] points in grid units (sample (i, j) sits at (i + 0.5, j + 0.5), so a loop
+ * lives in 0..cols x 0..rows; a region touching the edge is closed just outside it, so clip to the map). Loops are returned unsmoothed; see smoothLoop.
+ */
+export function contourLoops(field, cols, rows, level) {
+  const pw = cols + 2, ph = rows + 2, g = new Float32Array(pw * ph).fill(level - 1);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) g[(j + 1) * pw + i + 1] = field[j * cols + i];
+  const at = (i, j) => g[j * pw + i];
+  // a crossing is named by its edge: 'h' (between (i,j) and (i+1,j)) or 'v' (between (i,j) and (i,j+1))
+  const pt = new Map();
+  const cross = (kind, i, j) => {
+    const key = `${kind}${i},${j}`; let p = pt.get(key);
+    if (!p) {
+      const a = at(i, j), b = kind === 'h' ? at(i + 1, j) : at(i, j + 1), t = (level - a) / (b - a);
+      p = { key, x: (kind === 'h' ? i + t : i) - 0.5, y: (kind === 'v' ? j + t : j) - 0.5, adj: [] }; pt.set(key, p);
+    }
+    return p;
+  };
+  const link = (a, b) => { a.adj.push(b); b.adj.push(a); };
+  for (let j = 0; j < ph - 1; j++) for (let i = 0; i < pw - 1; i++) {
+    const tl = at(i, j) >= level, tr = at(i + 1, j) >= level, br = at(i + 1, j + 1) >= level, bl = at(i, j + 1) >= level;
+    const code = (tl ? 8 : 0) | (tr ? 4 : 0) | (br ? 2 : 0) | (bl ? 1 : 0);
+    if (code === 0 || code === 15) continue;
+    const T = () => cross('h', i, j), B = () => cross('h', i, j + 1), Lf = () => cross('v', i, j), R = () => cross('v', i + 1, j);
+    switch (code) {
+      case 1: case 14: link(Lf(), B()); break;
+      case 2: case 13: link(B(), R()); break;
+      case 3: case 12: link(Lf(), R()); break;
+      case 4: case 11: link(T(), R()); break;
+      case 6: case 9: link(T(), B()); break;
+      case 7: case 8: link(Lf(), T()); break;
+      case 5: case 10: {   // saddle: join by the centre value
+        const mid = (at(i, j) + at(i + 1, j) + at(i + 1, j + 1) + at(i, j + 1)) / 4 >= level;
+        if ((code === 5) === mid) { link(Lf(), T()); link(B(), R()); } else { link(Lf(), B()); link(T(), R()); }
+        break;
+      }
+    }
+  }
+  const loops = [], used = new Set();
+  for (const start of pt.values()) {
+    if (used.has(start.key) || start.adj.length !== 2) continue;
+    const loop = []; let prev = null, cur = start;
+    while (cur && !used.has(cur.key)) {
+      used.add(cur.key); loop.push([cur.x, cur.y]);
+      const nxt = cur.adj.find(n => n !== prev && !used.has(n.key)) ?? null; prev = cur; cur = nxt;
+    }
+    if (loop.length > 3) loops.push(loop);
+  }
+  return loops;
+}
+
+/** Chaikin corner-cutting of a closed loop (rounds the outline), `iters` times. */
+export function smoothLoop(loop, iters = 2) {
+  let p = loop;
+  for (let it = 0; it < iters; it++) {
+    const q = [];
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], b = p[(i + 1) % p.length];
+      q.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    p = q;
+  }
+  return p;
+}
+
+/** The smoothed outlines of one level of a field, dropping tiny specks (fewer than `minLen` points). */
+export function smoothContours(field, cols, rows, level, { blur = 1, iters = 2, minLen = 5 } = {}) {
+  const f = blur ? blurField(field, cols, rows, blur) : field;
+  return contourLoops(f, cols, rows, level).filter(l => l.length >= minLen).map(l => smoothLoop(l, iters));
+}
+
+/** The depth-band levels (metres, negative below the surface) a site's water is shaded in, from the shallows out. */
+export function depthLevels(siteId) { return DEPTH_LEVELS[siteId] ?? [-0.7, -1.8, -3.6, -6.5]; }
+const DEPTH_LEVELS = { reef: [-9, -12, -15, -18], river: [-0.6, -1.4, -2.2, -3], seagrass: [-0.4, -1, -1.8, -2.6], harbour: [-0.7, -1.6, -2.6, -3.6], rocky: [-0.5, -1.1, -1.8, -2.4] };   // from the shallows out; each site's own depth range
+
+// ---------------------------------------------------------------- labels and the legend
+const overlap = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+/**
+ * Collision-avoiding label placement (pure). `items` = [{ id, x, y, r, w, h, priority, keep? }]: a marker at (x, y) with radius r and a label box w x h.
+ * `obstacles` = [{ id?, x, y, w, h }] boxes labels must not cover (the markers themselves; an item's own marker is ignored by id). Higher priority is placed first;
+ * each label tries the sides of its marker in turn (right, left, above, below, then the diagonals) and takes the first free spot inside `bounds` ({ w, h }).
+ * A label with no free spot is dropped unless `keep` is set (then it takes its first in-bounds spot even if it overlaps).
+ * Returns { placed: [{ id, x, y, w, h, side }], dropped: [id] }, x/y being the top-left of the label box.
+ */
+export function placeLabels(items, bounds, obstacles = [], gap = 3) {
+  const placed = [], dropped = [];
+  const order = items.map((it, n) => ({ it, n })).sort((a, b) => (b.it.priority ?? 0) - (a.it.priority ?? 0) || a.n - b.n);
+  for (const { it } of order) {
+    const { x, y, r = 0, w, h } = it, g = r + gap;
+    const cands = [
+      ['right', x + g, y - h / 2], ['left', x - g - w, y - h / 2], ['above', x - w / 2, y - g - h], ['below', x - w / 2, y + g],
+      ['up-right', x + g * 0.7, y - g * 0.7 - h], ['down-right', x + g * 0.7, y + g * 0.7], ['up-left', x - g * 0.7 - w, y - g * 0.7 - h], ['down-left', x - g * 0.7 - w, y + g * 0.7],
+    ];
+    const inside = c => c[1] >= 1 && c[2] >= 1 && c[1] + w <= bounds.w - 1 && c[2] + h <= bounds.h - 1;
+    const free = c => inside(c) && !placed.some(p => overlap({ x: c[1], y: c[2], w, h }, p)) && !obstacles.some(o => o.id !== it.id && overlap({ x: c[1], y: c[2], w, h }, o));
+    let pick = cands.find(free);
+    if (!pick && it.keep) pick = cands.find(inside) ?? [cands[0][0], Math.max(1, Math.min(bounds.w - w - 1, cands[0][1])), Math.max(1, Math.min(bounds.h - h - 1, cands[0][2]))];
+    if (pick) placed.push({ id: it.id, x: pick[1], y: pick[2], w, h, side: pick[0] }); else dropped.push(it.id);
+  }
+  return { placed, dropped };
+}
+
+/** The legend entries for a site: [{ icon, label, key }] from the markers it actually has (you, people, fishing spots, each landmark kind, the danger zone, the boat). */
+export function legendFor(map, { npcs = [], boat = false } = {}) {
+  const out = [{ key: 'you', icon: 'you', label: 'You (the arrow points the way you face)' }];
+  if (boat) out.push({ key: 'boat', icon: '⛵', label: 'Your boat' });
+  if (npcs.length) out.push({ key: 'people', icon: 'people', label: 'People' });
+  if (map.spots.length) { out.push({ key: 'spot', icon: '🎣', label: 'Fishing spot' }); out.push({ key: 'q', icon: 'q', label: "Fish you haven't caught" }); }
+  const seen = new Set();
+  for (const p of map.pois) { const label = p.legend ?? p.label, k = `${p.icon}|${label}`; if (seen.has(k)) continue; seen.add(k); out.push({ key: p.id, icon: p.icon, label }); }
+  if (map.safety) out.push({ key: 'danger', icon: 'danger', label: `Danger in a big swell: ${map.safety.label.toLowerCase()}` });
+  return out;
+}

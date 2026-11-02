@@ -5,7 +5,7 @@ import { shoreZ, JETTY } from '../ecosystems/seagrass.js';
 
 const lakeMud = x => smoothstep(-26, -46, x);
 const lakeShoreAt = x => shoreZ(x) - lakeMud(x) * 9;   // the waterline (the mud bank pushes the mangrove edge out into the lake)
-const HUT = { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 13 };   // the bait-shop hut (seagrass.js decorate)
+export const HUT = { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 13 };   // the bait-shop hut (seagrass.js decorate)
 
 export const PLACES = {
   seagrass: {
