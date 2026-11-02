@@ -4,26 +4,28 @@
 import { launch } from './harness.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 const label = process.argv[2] ?? 'after';
-const only = process.argv[3]?.split(',');
+const only = process.argv[3]?.split(',').filter(Boolean);
+const cosy = process.env.COSY !== '0';   // the game's default art style (set COSY=0 for the realistic style)
 const out = 'playtest-shots/fishpass';
 mkdirSync(out, { recursive: true });
 const t = await launch({ query: 'eco=harbour&quality=high&play=1&time=day&swell=1', outDir: out, width: 900, height: 600 });
 await t.wait(1000);
-const res = await t.page.evaluate(async (only) => {
+const res = await t.page.evaluate(async ([only, cosy]) => {
   const THREE = await import('three');
   const { SPECIES } = await import('/src/fishing/species.js');
   await import('/src/fishing/catches.js'); await import('/src/ecosystems/index.js');
   const { LOOKS } = await import('/src/life/looks.js');
   const { buildFish } = await import('/src/life/fishModel.js');
-  const { patchUnderwater } = await import('/src/ocean/shaders.js');
+  const { patchUnderwater, globalUniforms } = await import('/src/ocean/shaders.js');
+  globalUniforms.uStyle.value = cosy ? 1 : 0;
   const ids = only ?? SPECIES.map(s => s.id);
   const TW = 440, TH = 270, COLS = 5;
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
-  renderer.setSize(TW, TH, false); renderer.toneMapping = THREE.NeutralToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setSize(TW, TH, false); renderer.setPixelRatio(1); renderer.toneMapping = THREE.NeutralToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
   const tris = {};
   const mk = id => {
     const look = LOOKS[id], b = buildFish(look);
-    const mat = new THREE.MeshStandardMaterial({ map: b.texture, roughness: look.metal ? 0.3 : (look.rough ?? 0.42), metalness: look.metal ?? 0.05, side: THREE.DoubleSide });
+    const mat = new THREE.MeshStandardMaterial({ map: b.texture, roughness: look.metal ? 0.3 : (look.rough ?? 0.42), metalness: look.metal ?? 0.05, side: THREE.DoubleSide, alphaToCoverage: true });
     if (look.emissive != null) { mat.emissive = new THREE.Color(look.emissive); mat.emissiveIntensity = look.emissiveIntensity ?? 0.3; }
     patchUnderwater(mat, { fish: true, swim: false, swimLength: b.length });
     b.geometry.computeBoundingBox();
@@ -60,7 +62,7 @@ const res = await t.page.evaluate(async (only) => {
   };
   const sides = sheet('side'), heads = sheet('head');
   return { sides, heads, tris };
-}, only);
+}, [only, cosy]);
 writeFileSync(`${out}/${label}-sides.png`, Buffer.from(res.sides.split(',')[1], 'base64'));
 writeFileSync(`${out}/${label}-heads.png`, Buffer.from(res.heads.split(',')[1], 'base64'));
 console.log('tris', JSON.stringify(res.tris));

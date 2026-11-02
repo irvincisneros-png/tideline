@@ -28,7 +28,7 @@ registerLook('sandwhiting', {
 });
 registerLook('yellowfinbream', {
   // Acanthopagrus australis: a deep, oval, silvery-olive body, steep rounded forehead, a small low mouth, ONE long dorsal (tall spines at the front, soft behind) and yellow pelvic and anal fins.
-  length: 0.3, top: [.34,.5,.68,.88,1,.95,.82,.6,.22], bot: [.34,.46,.62,.82,.98,.97,.86,.6,.12], fork: 0.76, topShare: 0.55, depth: 0.4, width: 0.13, peak: 0.55, snout: 0.7, tailFrac: 0.16, tail: 'forked', tailSpan: 0.6, pectoral: 0.13, mouth: { len: 0.05, s: -0.2 },
+  length: 0.3, top: [.32,.46,.68,.9,1,.9,.7,.44,.14], bot: [.32,.45,.64,.86,.97,.82,.56,.3,.08], fork: 0.76, topShare: 0.55, depth: 0.4, width: 0.13, peak: 0.55, snout: 0.7, tailFrac: 0.16, tail: 'forked', tailSpan: 0.6, pectoral: 0.13, mouth: { len: 0.05, s: -0.2 },
   dorsal: { from: 0.2, to: 0.76, height: 0.075, shape: 'dual' }, anal: { from: 0.22, to: 0.4, height: 0.065 },
   paint: { body: withEye((u, s) => mix(C(0xdcdad0), C(0x8a8a6a), sm(-0.3, 0.9, s)), 0.88, 0.25, 0.026, 0x101010, 0xd8c070), fin: (u, part) => part === 'anal' || part === 'pectoral' ? C(0xf0d040) : C(0x9a9a7a) },
   swim: { freq: 5, amp: 0.6 }, metal: 0.4,
@@ -59,7 +59,7 @@ registerLook('mulloway', {
 });
 registerLook('silvertrevally', {
   // Pseudocaranx georgianus: a deep, flat-sided silver fish with a steep head, a small mouth, a black spot at the top of the gill cover, a short spiny dorsal then a long soft one, and a yellow-tinged deeply forked tail.
-  length: 0.35, top: [.22,.38,.62,.86,1,.97,.8,.5,.12], bot: [.22,.36,.6,.84,.98,.96,.76,.4,.06], fork: 0.3, depth: 0.36, width: 0.11, peak: 0.55, snout: 0.7, tailFrac: 0.19, tail: 'forked', tailSpan: 0.8, pectoral: 0.14, mouth: { len: 0.05, s: -0.2 },
+  length: 0.35, top: [.2,.36,.64,.88,1,.9,.68,.42,.12], bot: [.2,.34,.6,.84,.96,.82,.56,.3,.08], fork: 0.3, depth: 0.36, width: 0.11, peak: 0.55, snout: 0.7, tailFrac: 0.19, tail: 'forked', tailSpan: 0.8, pectoral: 0.14, mouth: { len: 0.05, s: -0.2 },
   dorsal: { from: 0.5, to: 0.64, height: 0.07, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.5, height: 0.065 }, anal: { from: 0.2, to: 0.42, height: 0.06 },
   paint: {
     body: withEye((u, s) => (Math.hypot((u - 0.78) * 1.6, (s - 0.52) * 0.7) < 0.05 ? C(0x1c2024) : mix(C(0xeef2f4), C(0x86a0b0), sm(-0.2, 0.9, s))), 0.9, 0.3, 0.03, 0x101010, 0xe8e8d0),
@@ -69,7 +69,7 @@ registerLook('silvertrevally', {
 });
 registerLook('rockblackfish', {
   // Girella elevata: a deep, heavy, slate-grey body (paler than a luderick, no bars), a small blunt head and mouth, one long dorsal (stiff spines at the front, soft behind) and a squarish tail.
-  length: 0.4, top: [.36,.52,.72,.92,1,.96,.84,.62,.28], bot: [.36,.52,.72,.92,1,.97,.84,.6,.26], tailRound: 0.2, depth: 0.4, width: 0.15, peak: 0.5, snout: 0.55, tailFrac: 0.17, tail: 'truncate', tailSpan: 0.5, pectoral: 0.13, mouth: { len: 0.045, s: -0.15 },
+  length: 0.4, top: [.34,.5,.72,.92,1,.92,.76,.54,.24], bot: [.34,.5,.7,.9,1,.86,.64,.4,.16], tailRound: 0.2, depth: 0.4, width: 0.15, peak: 0.5, snout: 0.55, tailFrac: 0.17, tail: 'truncate', tailSpan: 0.5, pectoral: 0.13, mouth: { len: 0.045, s: -0.15 },
   dorsal: { from: 0.15, to: 0.8, height: 0.07, shape: 'dual' }, anal: { from: 0.2, to: 0.42, height: 0.065 },
   paint: { body: withEye((u, s) => mix(C(0xc0cacc), C(0x72828b), sm(-0.4, 0.7, s)), 0.88, 0.26, 0.025, 0x101010, 0xc8b878), fin: () => C(0x7e8c94) },
   swim: { freq: 4, amp: 0.55 },
@@ -178,7 +178,7 @@ registerLook('shortfineel', {
 // ---- Phase 6: the offshore reef and the freshwater river.
 registerLook('jackassmorwong', {
   // Nemadactylus douglasii: a deep, silvery-grey body with a dark band over the shoulder, one long trailing pectoral fin, a small "kissing" mouth with thick lips, a long dorsal (tall at the front) and a forked tail.
-  length: 0.45, top: [.32,.48,.68,.9,1,.96,.84,.62,.2], bot: [.32,.46,.64,.88,1,.97,.82,.5,.1], fork: 0.5, depth: 0.37, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.17, tail: 'forked', tailSpan: 0.55, pectoral: 0.24, pecAt: 0.7, lips: true, mouth: { len: 0.04, s: -0.2 },
+  length: 0.45, top: [.3,.46,.68,.9,1,.9,.72,.48,.18], bot: [.3,.44,.62,.84,.96,.82,.58,.34,.1], fork: 0.5, depth: 0.37, width: 0.12, peak: 0.55, snout: 0.7, tailFrac: 0.17, tail: 'forked', tailSpan: 0.55, pectoral: 0.24, pecAt: 0.7, lips: true, mouth: { len: 0.04, s: -0.2 },
   dorsal: { from: 0.18, to: 0.82, height: 0.065, shape: 'dual' }, anal: { from: 0.2, to: 0.42, height: 0.06 },
   paint: {
     body: withEye((u, s) => {
@@ -191,14 +191,14 @@ registerLook('jackassmorwong', {
 });
 registerLook('australianbass', {
   // Macquaria novemaculeata: a golden-olive perch with a paler belly, a pointed head with a big oblique mouth and a lower jaw that juts out, a spiny first dorsal joined (with a notch) to a rounded soft one, and a slightly forked tail.
-  length: 0.35, top: [.3,.46,.64,.86,1,.94,.8,.55,.15], bot: [.3,.44,.62,.82,.96,.95,.78,.45,.08], fork: 0.78, depth: 0.29, width: 0.12, peak: 0.55, snout: 0.85, tailFrac: 0.17, tail: 'forked', tailSpan: 0.7, pectoral: 0.12, mouth: { len: 0.1, s: -0.02 },
+  length: 0.35, top: [.3,.46,.66,.88,1,.9,.7,.44,.12], bot: [.3,.44,.62,.84,.96,.84,.6,.34,.08], fork: 0.78, depth: 0.29, width: 0.12, peak: 0.55, snout: 0.85, tailFrac: 0.17, tail: 'forked', tailSpan: 0.7, pectoral: 0.12, mouth: { len: 0.1, s: -0.02 },
   dorsal: { from: 0.5, to: 0.74, height: 0.08, shape: 'tri' }, dorsal2: { from: 0.22, to: 0.47, height: 0.06 }, anal: { from: 0.2, to: 0.36, height: 0.055 },
   paint: { body: withEye((u, s) => mix(C(0xe2d6a6), C(0x8a7646), sm(-0.35, 0.8, s)), 0.9, 0.3, 0.028, 0x101010, 0xd8b050), fin: (u, part) => (part === 'tail' ? C(0x7a6a40) : C(0x9a8656)) },
   swim: { freq: 5, amp: 0.6 },
 });
 registerLook('carp', {
   // Cyprinus carpio: a stout golden-olive body with big scales (a pattern of scale edges), a small eye, a sucker-like downturned mouth with two pairs of barbels, ONE long dorsal (tall at the front), a short anal and a forked red-brown tail.
-  length: 0.45, top: [.34,.5,.7,.9,1,.96,.84,.64,.28], bot: [.34,.5,.68,.88,.98,.94,.82,.64,.3], fork: 0.6, scales: { nU: 22, nR: 30, strength: 0.2 }, depth: 0.34, width: 0.15, peak: 0.5, snout: 0.5, tailFrac: 0.17, tail: 'forked', tailSpan: 0.55, pectoral: 0.11, barbels: 2, mouth: { len: 0.035, s: -0.3 }, noLateral: true,
+  length: 0.45, top: [.34,.5,.72,.92,1,.9,.72,.5,.22], bot: [.34,.5,.7,.9,.98,.86,.66,.44,.2], fork: 0.6, scales: { nU: 22, nR: 30, strength: 0.2 }, depth: 0.34, width: 0.15, peak: 0.5, snout: 0.5, tailFrac: 0.17, tail: 'forked', tailSpan: 0.55, pectoral: 0.11, barbels: 2, mouth: { len: 0.035, s: -0.3 }, noLateral: true,
   dorsal: { from: 0.12, to: 0.78, height: 0.06, shape: 'dual' }, anal: { from: 0.2, to: 0.31, height: 0.05 },
   paint: {
     body: withEye((u, s) => {

@@ -248,6 +248,9 @@ export function patchUnderwater(material, opts = {}) {
           float rayC = abs(sin(vFin.x * 13.0 * 3.14159));
           diffuseColor.rgb *= 1.0 - 0.1 * smoothstep(0.5, 1.0, rayC) * (0.25 + 0.75 * vFin.y);
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.14 + 0.025, smoothstep(0.8, 1.0, vFin.y) * 0.6);
+          // Thin membrane: lighter and see-through toward the margin (alpha-to-coverage with MSAA; opaque without it).
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.1 + 0.05, smoothstep(0.2, 1.0, vFin.y) * 0.5);
+          diffuseColor.a = 1.0 - 0.32 * smoothstep(0.3, 1.0, vFin.y) * (1.0 - 0.5 * smoothstep(0.5, 1.0, rayC));
         }
         if (vFin.y >= 0.0 && uStyle < 0.5) {
           float nr = 16.0;

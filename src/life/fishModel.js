@@ -79,11 +79,12 @@ function paintSkin(look, W = 512, H = 512) {
             if (m > 0) col = lum(col) > 0.4 ? mix3(col, INK, 0.2 * m) : mix3(col, [0.75, 0.82, 0.82], 0.15 * m);
           }
           // Gill cover: a curved edge (its rear margin bulges tail-ward at mid-height and curls forward top and bottom), the plate a touch paler, a fainter cheek arc ahead of it.
-          const gu = gill + 0.05 * s * s, cover = 1 - sstep(0.82, 0.96, Math.abs(s));
+          const gu = gill + 0.05 * s * s, cover = (1 - sstep(0.62, 0.86, s)) * (1 - sstep(0.5, 0.78, -s));   // the cover's edge runs down the flank; it fades out before the nape and the throat
           if (cover > 0 && Math.abs(u - gu) < 0.1) {
             const e = 1 - sstep(0.0025, 0.0065, Math.abs(u - gu)), e2 = 1 - sstep(0.002, 0.005, Math.abs(u - (gu + 0.04 + 0.03 * s * s)));
             if (u > gu) { const lt = 1 + 0.05 * cover; col = [col[0] * lt, col[1] * lt, col[2] * lt]; }
-            col = mix3(col, INK, 0.4 * e * cover + 0.1 * e2 * cover * sstep(gu, gu + 0.02, u));
+            if (u < gu && u > gu - 0.03) { const sh = 1 - 0.07 * cover * sstep(gu - 0.03, gu, u); col = [col[0] * sh, col[1] * sh, col[2] * sh]; }   // a soft shadow under the cover's rim
+            col = mix3(col, INK, 0.26 * e * cover + 0.08 * e2 * cover * sstep(gu, gu + 0.02, u));
           }
           // Mouth: a curved line from the snout back toward the cheek, rising as it goes.
           const mu = (1 - u) / mo.len;
@@ -95,9 +96,9 @@ function paintSkin(look, W = 512, H = 512) {
         const part = fv < 0.25 ? 'dorsal' : fv < 0.5 ? 'anal' : fv < 0.75 ? 'tail' : 'pectoral';
         const f = (fv % 0.25) / 0.25;
         col = p.fin ? p.fin(u, part, f) : p.body(u, 0.2, 1);
-        if (part === 'pectoral') col = mix3(col, [1, 1, 0.95], 0.16);   // paired fins read pale and glassy
+        if (part === 'pectoral') col = mix3(col, [1, 1, 0.95], 0.24);   // paired fins read pale and glassy
         // Root: start in the body's own colour (a fin grows out of the skin), then fade to the fin colour.
-        const root = (1 - sstep(0.1, 0.55, f)) * (part === 'pectoral' ? 0.6 : 0.85);
+        const root = (1 - sstep(0.1, 0.55, f)) * (part === 'pectoral' ? 0.3 : 0.85);
         if (root > 0.01) col = mix3(col, tone(p.body(Math.min(u, 0.8), part === 'dorsal' ? 0.85 : part === 'anal' ? -0.85 : part === 'tail' ? 0.1 : -0.1, 1)), root);
       }
       const i = (py * W + px) * 4;
@@ -160,7 +161,10 @@ export function buildFish(look, opts = {}) {
   const L = look.length;
   const tailFrac = look.tailFrac ?? 0.2;
   const C = cosy();
-  const depth = look.depth * L, width = look.width * L * (C ? 1.18 : 1);
+  const depth = look.depth * L, width = look.width * L * (C ? 1.06 : 1);
+  // Cross-section: a real fish narrows to a thin ridge along the back and a keel along the belly (not a round tube). Flat-bodied fish (look.boxy) keep their own section.
+  const ridgeK = look.ridge ?? (look.boxy ? 0 : 0.42), keelK = look.keel ?? (look.boxy ? 0 : 0.18);
+  const ridge = c => 1 - ridgeK * sstep(0.05, 1, c) - keelK * sstep(0.35, 1, -c);
   const RINGS = C ? 32 : 26, SEG = C ? 24 : 18;
   const pos = [], uv = [], idx = [], fin = []; // fin: (k along fin base, 0 base..1 edge); body (0,-1); eye (0,-2)
   const superE = look.boxy ?? 2; // cross-section superellipse exponent
@@ -177,7 +181,10 @@ export function buildFish(look, opts = {}) {
   if (look.top) {
     const tn = knots(look.top), bn = knots(look.bot ?? look.top), share = look.topShare ?? 0.55;
     const wn = look.wpts ? knots(look.wpts) : t => tn(t) * share + bn(t) * (1 - share);
-    topF = t => tn(t) * share * depth + hum(t); botF = t => bn(t) * (1 - share) * depth; wF = t => width * 0.5 * wn(t);
+    // The head narrows in plan view toward the snout faster than it shallows (a wedge, not a ball); flathead-like fish give their own width profile (look.wpts).
+    const ht = look.wpts ? 0 : (look.headTaper ?? 0.38);
+    const th = look.wpts ? 0 : (look.throat ?? 0.2);   // the throat rises toward the mouth (no deep, round chin)
+    topF = t => tn(t) * share * depth + hum(t); botF = t => bn(t) * (1 - share) * depth * (1 - th * sstep(0.68, 1, t)); wF = t => width * 0.5 * wn(t) * (1 - ht * sstep(0.62, 1, t));
   } else {
     topF = t => depth * 0.5 * bodyProfile(t, look) + hum(t);
     botF = t => depth * 0.5 * bodyProfile(t, look) + (look.belly ?? 0) * depth * bodyProfile(t, look) * 0.15;
@@ -185,7 +192,7 @@ export function buildFish(look, opts = {}) {
   }
   const cyF = t => (topF(t) - botF(t)) / 2, hhF = t => (topF(t) + botF(t)) / 2;
   /** z of the flank surface at height y (a point on the skin for fins, eyes and lips to sit on). */
-  const surfZ = (t, y) => { const u = (y - cyF(t)) / Math.max(1e-5, hhF(t)); return wF(t) * Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, Math.abs(u)), superE)), 1 / superE); };
+  const surfZ = (t, y) => { const u = (y - cyF(t)) / Math.max(1e-5, hhF(t)); return wF(t) * ridge(Math.max(-1, Math.min(1, u))) * Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, Math.abs(u)), superE)), 1 / superE); };
   // ---- body rings: the peduncle extension (thin, flattening to a knife edge for the tail fin), then t = 0..1
   const rings = [];
   const E = 4, T0 = topF(0), B0 = botF(0), W0 = wF(0);
@@ -201,7 +208,7 @@ export function buildFish(look, opts = {}) {
     const cy = (R.top - R.bot) / 2, hh = (R.top + R.bot) / 2 * R.close, ww = R.w * R.close;
     for (let s = 0; s <= SEG; s++) {
       const phi = (s / SEG) * TAU, c = Math.cos(phi), sn = Math.sin(phi);
-      pos.push(R.x, cy + Math.sign(c) * Math.pow(Math.abs(c), ex) * hh, Math.sign(sn) * Math.pow(Math.abs(sn), ex) * ww);
+      pos.push(R.x, cy + Math.sign(c) * Math.pow(Math.abs(c), ex) * hh, Math.sign(sn) * Math.pow(Math.abs(sn), ex) * ww * ridge(c));
       uv.push(R.t, 1 - (s / SEG) * 0.75); fin.push(0, -1);
     }
   }
@@ -374,7 +381,7 @@ export function buildFish(look, opts = {}) {
     for (const side of [1, -1]) {
       const phi0 = side > 0 ? Math.acos(Math.max(-1, Math.min(1, eye.s))) : TAU - Math.acos(Math.max(-1, Math.min(1, eye.s)));
       const c = Math.cos(phi0), sn = Math.sin(phi0);
-      const cy = cyE + Math.sign(c) * Math.pow(Math.abs(c), ex) * hh, cz = Math.sign(sn) * Math.pow(Math.abs(sn), ex) * ww;
+      const cy = cyE + Math.sign(c) * Math.pow(Math.abs(c), ex) * hh, cz = Math.sign(sn) * Math.pow(Math.abs(sn), ex) * ww * ridge(c);
       const nrm = new THREE.Vector3(0, (cy - cyE) / Math.max(1e-4, hh * hh), cz / Math.max(1e-4, ww * ww)).normalize();
       const tu = new THREE.Vector3(1, 0, 0), tv = new THREE.Vector3().crossVectors(nrm, tu).normalize();
       const centre = new THREE.Vector3(bodyX(t), cy, cz).addScaledVector(nrm, -(Rs - hgt + sink));

@@ -24,7 +24,7 @@ export function fishModel(id, opts = {}) {
 }
 const skin = (m, silhouette) => (silhouette
   ? new THREE.MeshBasicMaterial({ color: 0x1b5560, side: THREE.DoubleSide })
-  : new THREE.MeshStandardMaterial({ map: m.texture, roughness: 0.5, metalness: 0, side: THREE.DoubleSide }));
+  : Object.assign(new THREE.MeshStandardMaterial({ map: m.texture, roughness: 0.5, metalness: 0, side: THREE.DoubleSide }), { alphaToCoverage: true }));   // soft see-through fin margins
 function lights(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xbfe9f5, 1.5));
   const sun = new THREE.DirectionalLight(0xfff1d0, 2.1); sun.position.set(1.5, 3, 2); scene.add(sun);
