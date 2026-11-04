@@ -85,22 +85,71 @@ registerBehaviour('bonito', { type: 'school', speed: 1.2, flee: 3, groupSize: 8,
 registerBehaviour('australiansalmon', { type: 'school', speed: 0.9, flee: 3, groupSize: 10, at: [14, 6], spread: 60, y: -1.4 });
 addGenerator('reefrock', { fn: rock, variants: 3, scale: [1.4, 3.0], radius: 1.4, sink: 0.4, rough: 0.95, bleaches: false, as: 'boulder', soft: true });
 
-/** The Five Islands off Port Kembla, as faint blue humps on the horizon (they show from the low title camera and in the boat-trip scene). */
+/**
+ * The Five Islands off Port Kembla, and the Port Kembla coast behind them. The islands are a chain of small rocky islands running north-west to south-east about 1 to 2 km
+ * off the coast (Big Island, the largest, is flat-topped and grassy; the others are low rocky islets), each ringed by white surf. They are scaled in to a few hundred metres so
+ * the boat sits among them. The coast is to the WEST: Hill 60 and the beach, the steelworks (stacks and sheds), the long outer-harbour breakwater running out to the north-east,
+ * and the escarpment behind, all hazy with distance. Real arrangement from a satellite view (north up): see the notes in docs/specs.
+ * [x, z, radius, height, flat-topped]  (north is -z, west is -x)
+ */
+export const FIVE_ISLANDS = [
+  { name: 'Big Island', x: -230, z: -345, r: 78, h: 27, flat: true },
+  { name: 'Rabbit Island', x: -130, z: -268, r: 24, h: 12 },
+  { name: 'Martin Island', x: -62, z: -208, r: 19, h: 9 },
+  { name: 'Bass Rock', x: 22, z: -158, r: 11, h: 5.5 },
+  { name: 'Little Island', x: -318, z: -300, r: 15, h: 8 },
+];
 function makeIslands(scene) {
-  const grp = new THREE.Group(), noise2 = makeNoise(5);
-  // Big Island (the largest), then Rabbit, Martin, Bird and Flinders, in a rough line to the north-west.
-  for (const [x, z, r, h] of [[-420, -1500, 150, 55], [-120, -1560, 60, 26], [60, -1520, 70, 30], [210, -1600, 50, 22], [-300, -1620, 90, 36]]) {
-    const geo = new THREE.SphereGeometry(r, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2); geo.scale(1, h / r, 0.7);
-    const p = geo.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) * (0.85 + 0.3 * noise2.n2(p.getX(i) * 0.05, p.getZ(i) * 0.05)));
-    geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x4d7a8c, fog: true })); m.position.set(x, -1, z); m.userData.noShadow = true; grp.add(m);
+  const grp = new THREE.Group(), nz = makeNoise(5);
+  const std = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true, fog: true });
+  const flat = (r, c) => new THREE.MeshBasicMaterial({ color: c, fog: true });
+  const col = (geo, fn) => { const p = geo.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const k = fn(p.getX(i), p.getY(i), p.getZ(i)); c[i * 3] = k[0]; c[i * 3 + 1] = k[1]; c[i * 3 + 2] = k[2]; } geo.setAttribute('color', new THREE.BufferAttribute(c, 3)); return geo; };
+  for (const I of FIVE_ISLANDS) {
+    // a stepped, craggy lump: a tapering drum with a noisy outline, cliffs warm brown-grey, a grassy top, a darker wet band at the waterline
+    const geo = new THREE.CylinderGeometry(I.r * (I.flat ? 0.8 : 0.5), I.r * 1.25, I.h + 4, 30, 7);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), k = 1 + 0.22 * nz.n2(Math.cos(a) * 2.2 + I.x * 0.01, Math.sin(a) * 2.2 + I.z * 0.01) + 0.07 * nz.n2(x * 0.15, z * 0.15);
+      p.setXYZ(i, x * k, y + (I.flat ? 0 : nz.n2(x * 0.1, z * 0.1) * I.h * 0.15), z * k);
+    }
+    geo.translate(0, (I.h + 4) / 2 - 4, 0); geo.computeVertexNormals();
+    col(geo, (x, y, z) => {
+      const n = nz.n2(x * 0.2, z * 0.2) * 0.06, top = y > I.h * (I.flat ? 0.93 : 0.8), wet = y < 0.8;
+      if (top) return [0.5 + n, 0.62 + n, 0.3];                                       // grass and scrub
+      if (wet) return [0.28, 0.3, 0.3];                                               // dark, wet, weed-streaked rock
+      const t = Math.min(1, y / I.h);
+      return [0.62 - t * 0.08 + n, 0.5 - t * 0.04 + n, 0.38 + n];                     // sandstone cliffs, a little paler below
+    });
+    const m = new THREE.Mesh(geo, std); m.position.set(I.x, 0, I.z); m.userData.noShadow = true; grp.add(m);
+    // surf: a pale foam ring where the swell breaks on the rocks
+    const ring = new THREE.Mesh(new THREE.RingGeometry(I.r * 0.95, I.r * 1.55, 36, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2fbff, transparent: true, opacity: 0.38, depthWrite: false, fog: true }));
+    ring.position.set(0, 0.06, 0); ring.userData.noShadow = true; m.add(ring);
   }
+  // ---- the Port Kembla coast, far to the west: low land, Hill 60, the steelworks, the long breakwater, the escarpment (flat, hazy colours); its own group, S.coast
+  const coast = new THREE.Group();
+  const land = new THREE.Mesh(new THREE.BoxGeometry(700, 8, 2000), flat(1, 0x7d8f70)); land.position.set(-1360, -1, -150); coast.add(land);
+  const beach = new THREE.Mesh(new THREE.BoxGeometry(14, 3, 760), flat(1, 0xd9cfa8)); beach.position.set(-1006, 0.4, 70); coast.add(beach);
+  const hill = new THREE.Mesh(new THREE.SphereGeometry(150, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.26, 1), flat(1, 0x6f8a62)); hill.position.set(-1090, 2, -260); coast.add(hill);
+  const mount = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.13, 0.9), flat(1, 0x5f7a78)); mount.position.set(-1900, 0, -100); coast.add(mount);   // the escarpment
+  const works = new THREE.Group(); works.position.set(-1090, 3, -640); coast.add(works);
+  for (let i = 0; i < 7; i++) {   // sheds
+    const w = 60 + (i % 3) * 25, h = 22 + (i * 7) % 18, shed = new THREE.Mesh(new THREE.BoxGeometry(w, h, 34), flat(1, i % 2 ? 0x8a8f94 : 0x9a8b7e)); shed.position.set(-30 - (i % 3) * 20, h / 2, i * 52 - 150); works.add(shed);
+  }
+  for (const [x, z, r, h, c] of [[-44, -140, 4.5, 85, 0x8d8d90], [-30, -96, 5.5, 100, 0x9a9a9d], [-52, -40, 4, 70, 0x8d8d90], [-24, 6, 9, 55, 0x94836f], [-62, 44, 5, 80, 0x9a9a9d], [-40, 110, 3.6, 62, 0x8d8d90]]) {
+    const stack = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.75, r, h, 10), flat(1, c)); stack.position.set(x, h / 2, z); works.add(stack);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.78, r * 0.8, 5, 10), flat(1, 0xb8553c)); band.position.set(x, h - 8, z); works.add(band);
+  }
+  const bw = new THREE.Mesh(new THREE.BoxGeometry(14, 6, 560), flat(1, 0x8c8b84)); bw.position.set(-870, 0.5, -780); bw.rotation.y = -0.7; coast.add(bw);   // the outer-harbour breakwater, running out to the north-east
+  const bw2 = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 380), flat(1, 0x8c8b84)); bw2.position.set(-1010, 0.5, -500); bw2.rotation.y = 0.15; coast.add(bw2);
+  coast.traverse(o => { if (o.isMesh) o.userData.noShadow = true; });
+  scene.add(coast); S.coast = coast;
+  grp.traverse(o => { if (o.isMesh) o.userData.noShadow = true; });
   scene.add(grp); return grp;
 }
 
 function undecorate(world) {
   S.panel?.dispose(); S.panel = null;
-  if (S.islands) { S.islands.parent?.remove(S.islands); S.islands.traverse(o => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); S.islands = null; }
+  for (const k of ['islands', 'coast']) if (S[k]) { S[k].parent?.remove(S[k]); S[k].traverse(o => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); S[k] = null; }
   if (S.rope) { S.rope.parent?.remove(S.rope); S.rope.geometry.dispose(); S.rope.material.dispose(); S.rope = null; }
   S.fade?.remove(); S.fade = null; S.boat = null; S.game = null;
 }

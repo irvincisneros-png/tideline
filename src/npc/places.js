@@ -2,11 +2,15 @@
 // site's own landmarks (the jetty, the shoreline, the lifeguard tower) so they stay right if a site is reshaped.
 import { smoothstep } from '../core/noise.js';
 import { shoreZ, JETTY } from '../ecosystems/seagrass.js';
+import { BEACH_SPOTS, beachAt, S_TOWER, BOARD } from '../world/bellambi.js';
+import { T as quayT } from '../world/belmore.js';
+const qp = (a, b) => { const [x, z] = quayT(a, b); return { x, z }; };   // a spot on Belmore Basin's quay, in the quay frame (world/belmore.js)
 
 const lakeMud = x => smoothstep(-26, -46, x);
 const lakeShoreAt = x => shoreZ(x) - lakeMud(x) * 9;   // the waterline (the mud bank pushes the mangrove edge out into the lake)
 export const HUT = { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 13 };   // the bait-shop hut (seagrass.js decorate)
 
+const pt = b => ({ x: b.x, z: b.z });
 export const PLACES = {
   seagrass: {
     hutDoor: { x: HUT.x + 1.6, z: HUT.z - 4.6 },
@@ -23,21 +27,21 @@ export const PLACES = {
     patrolB: { x: 64, z: shoreZ(64) + 6 },
   },
   harbour: {
-    wharfEnd: { x: 11.6, z: 7.4 },
-    wharfBase: { x: 12, z: 44.4 },
-    coopDoor: { x: -27, z: 45.8 },
-    benchWest: { x: -4, z: 43.4 },
+    wharfEnd: qp(11.6, 14.4),
+    wharfBase: qp(12, 44.4),
+    coopDoor: qp(-27, 45.8),
+    benchWest: qp(-4, 43.4),
   },
-  rocky: {
-    tower: { x: -9.8, z: 95.6 },
-    board: { x: -4.4, z: 112.4 },
-    litterA: { x: -52, z: 95.8 }, litterB: { x: -20, z: 94.8 }, litterC: { x: 16, z: 95.4 }, litterD: { x: 44, z: 96.4 },
-    gutter: { x: 18, z: 87 }, gutter2: { x: -26, z: 87.2 },
-    patrolA: { x: -62, z: 92 }, patrolB: { x: 36, z: 92 },
+  rocky: {   // Bellambi: the lifeguard stands in front of the tower, the club board is at the back of the beach (world/bellambi.js)
+    tower: (() => { const b = beachAt(S_TOWER + 1.5, 4.8); return { x: b.x, z: b.z }; })(),
+    board: (() => { const b = beachAt(S_TOWER + 9, 23.8); return { x: b.x, z: b.z }; })(),
+    litterA: pt(BEACH_SPOTS.litterA), litterB: pt(BEACH_SPOTS.litterB), litterC: pt(BEACH_SPOTS.litterC), litterD: pt(BEACH_SPOTS.litterD),
+    gutter: pt(BEACH_SPOTS.gutter), gutter2: pt(BEACH_SPOTS.gutter2),
+    patrolA: pt(BEACH_SPOTS.patrolA), patrolB: pt(BEACH_SPOTS.patrolB),
   },
 };
 /** Props the NPC system adds to a site (not done by the site's own decorate): where the boat ramp and the club board go. */
 export const EXTRAS = {
   seagrass: { ramp: { x: 29.2, z: shoreZ(29.2), len: 7, w: 3.2 } },
-  rocky: { board: { x: -6.6, z: 113.6 } },
+  rocky: { board: { x: BOARD.x, z: BOARD.z } },
 };

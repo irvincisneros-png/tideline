@@ -8,7 +8,7 @@ const t = await launch({ query: `eco=seagrass&quality=${quality}&play=1&time=day
 let ok = true;
 const fail = m => { ok = false; console.log('FAIL:', m); };
 await t.wait(1200);
-const J = await t.page.evaluate(() => ({ x: 16, tip: window.__game.eco.land.bounds.zMin }));
+const J = await t.page.evaluate(async () => { const S = await import('/src/ecosystems/seagrass.js'); return { x: S.JETTY.x, tip: S.JETTY.z1 - 0.6 }; });   // the jetty's tip (the walkable area now extends over the flats, so it is no longer the bounds edge)
 const pos = async () => (await t.state()).walker.pos;
 // Steer toward the jetty's centre line, then walk out to its tip.
 const held = new Set();

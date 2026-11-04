@@ -2,7 +2,7 @@
 // (ui/mapData.js), and a stylised region map of the whole Illawarra coast with each site's lock. Plus the optional corner minimap (Settings).
 // The site map is drawn as smooth vector shapes (contours of the terrain height: coastline, depth bands, spot areas) at the screen's pixel ratio, fitted
 // to the panel (never panned), with an optional pinch / ctrl-scroll / button zoom. Labels are placed by the pure placeLabels() in mapData.js.
-import { buildSiteMap, uncaughtAt, safetyState, npcMarkers, SPOT_TINT, REGION_SITES, smoothContours, depthLevels, placeLabels, legendFor } from './mapData.js';
+import { buildSiteMap, toMap, mapHeading, uncaughtAt, safetyState, npcMarkers, SPOT_TINT, REGION_SITES, smoothContours, depthLevels, placeLabels, legendFor } from './mapData.js';
 import { ecoById } from '../ecosystems/index.js';
 import { siteLock } from '../ecosystems/unlock.js';
 import { SPECIES_BY_ID, SPOT_INFO } from '../fishing/species.js';
@@ -144,7 +144,7 @@ function paintBase(ctx, map, eco, geo, W, H, xf, dpr) {
   // the crisp shoreline
   trace(ctx, geo.land, W, H, xf); ctx.lineJoin = 'round'; ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(31,95,107,0.55)'; ctx.stroke();
   // decks: the jetty and the wharf
-  for (const ln of map.view.lines ?? []) {
+  for (const ln of map.lines ?? []) {
     const P = (x, z) => [((x - map.view.x0) / (map.view.x1 - map.view.x0)) * W * xf.s + xf.ox, ((z - map.view.z0) / (map.view.z1 - map.view.z0)) * H * xf.s + xf.oy];
     const [x1, y1] = P(ln.x1, ln.z1), [x2, y2] = P(ln.x2, ln.z2), w = Math.max(4, ln.w * mpp);
     ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineWidth = w + 3; ctx.strokeStyle = '#6e4f33'; ctx.stroke();
@@ -285,16 +285,16 @@ const REGION_SVG = `
   <!-- Belmore Basin: a small harbour notch -->
   <path d="M46 36 h4 v3 h-4 z" fill="#7fe0d4" stroke="#1f5f6b" stroke-width=".4"/>
   <!-- Port Kembla and the Five Islands offshore -->
-  <path d="M47 50 C52 49 55 52 54 55 C53 57 49 56 47 55 Z" fill="#c9bb88" stroke="#1f5f6b" stroke-width=".5"/>
-  <g fill="#7fb392" stroke="#1f5f6b" stroke-width=".4"><ellipse cx="66" cy="62" rx="3.2" ry="1.8"/><ellipse cx="72" cy="66" rx="1.6" ry="1"/><ellipse cx="62" cy="67" rx="1.3" ry=".9"/><ellipse cx="76" cy="61" rx="1" ry=".7"/><ellipse cx="70" cy="70" rx="1.1" ry=".8"/></g>
-  <text x="80" y="68" font-size="2.6" fill="#fff" font-weight="800" stroke="#14434d" stroke-width=".5" paint-order="stroke">Five Islands</text>
+  <path d="M47 56 C52 55 56 58 55 61 C54 63 49 62 47 61 Z" fill="#c9bb88" stroke="#1f5f6b" stroke-width=".5"/>
+  <g fill="#7fb392" stroke="#1f5f6b" stroke-width=".4"><ellipse cx="62" cy="62" rx="3.2" ry="1.8"/><ellipse cx="58" cy="60" rx="1" ry=".7"/><ellipse cx="67" cy="65" rx="1.6" ry="1"/><ellipse cx="70" cy="67.5" rx="1.1" ry=".8"/><ellipse cx="73" cy="70" rx=".9" ry=".7"/></g>
+  <text x="78" y="72" font-size="2.6" fill="#fff" font-weight="800" stroke="#14434d" stroke-width=".5" paint-order="stroke">Five Islands</text>
   <!-- the boat route to the reef -->
-  <path d="M51 40 C58 44 66 49 77 54" fill="none" stroke="#fff" stroke-width=".7" stroke-dasharray="1.6 1.4" stroke-linecap="round"/>
+  <path d="M51 40 C55 47 59 55 62 61" fill="none" stroke="#fff" stroke-width=".7" stroke-dasharray="1.6 1.4" stroke-linecap="round"/>
   <text x="3" y="5" font-size="3" fill="#14434d" font-weight="800">N ↑</text>
   <text x="118" y="89" font-size="3.2" fill="#fff" font-weight="800" stroke="#14434d" stroke-width=".6" paint-order="stroke">Tasman Sea</text>
   <text x="26" y="4.5" font-size="2.7" fill="#14434d" font-weight="800" opacity=".75">Sydney ↑</text>
   <text x="22" y="90" font-size="2.7" fill="#14434d" font-weight="800" opacity=".75">Shellharbour ↓</text>
-  <text x="55" y="53" font-size="2.5" fill="#14434d" font-weight="800" opacity=".8">Port Kembla</text>
+  <text x="26" y="62" font-size="2.5" fill="#14434d" font-weight="800" opacity=".8">Port Kembla →</text>
   %PINS%
 </svg>`;
 
@@ -328,9 +328,10 @@ const legendHTML = items => items.map(l => {
 /** Build the data the site map draws from the live game. */
 function liveState(game) {
   const e = game.eco, swell = e.fresh ? 0 : game.cond.swell;
+  const view = siteMapFor(e).map.view, at = (x, z) => { const [u, v] = toMap(view, x, z); return { x: u, z: v }; };   // markers are drawn in map coordinates (north up)
   return {
-    player: { x: game.walker.pos.x, z: game.walker.pos.z, heading: game.walker.heading }, npcs: npcMarkers(game.npcs.npcs), progress: game.progress, swell,
-    boat: e.id === 'reef' ? { x: e.state.x, z: e.state.z } : null,
+    player: { ...at(game.walker.pos.x, game.walker.pos.z), heading: mapHeading(view, game.walker.heading) }, npcs: npcMarkers(game.npcs.npcs).map(n => ({ ...n, ...at(n.x, n.z) })), progress: game.progress, swell,
+    boat: e.id === 'reef' ? at(e.state.x, e.state.z) : null,
   };
 }
 

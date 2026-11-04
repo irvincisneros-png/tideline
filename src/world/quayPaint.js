@@ -3,15 +3,17 @@
 // Pure layout data (RECTS) is exported so the tests can check that the paint sits on the quay and clear of the water.
 import * as THREE from 'three';
 import { patchUnderwater } from '../ocean/shaders.js';
+import { T, QROT } from './belmore.js';
 
-export const AREA = { x0: -58, x1: 48, z0: 41.4, z1: 84 };
+// In the QUAY FRAME (world/belmore.js): x along the quay toward the basin mouth, z inland from the water's edge (zo = 40). The decal is turned to match when it is laid.
+export const AREA = { x0: -44, x1: 64, z0: 41.4, z1: 68 };
 export const PX_PER_M = 16;
 /** Everything painted, in metres on the quay. kind: bays (rows of bays), hatch (yellow chevrons), dashes (dashed outline), plaza (pavers). */
 export const RECTS = [
-  { kind: 'plaza', x0: 15, x1: 37, z0: 47.6, z1: 63 },
+  { kind: 'plaza', x0: 17, x1: 41, z0: 46.8, z1: 60 },
   { kind: 'bays', x0: -16, x1: 8, z0: 57, z1: 63, pitch: 3 },
-  { kind: 'bays', x0: -30, x1: 10, z0: 66, z1: 72, pitch: 3 },
-  { kind: 'bays', x0: 40, x1: 48, z0: 57, z1: 63, pitch: 3 },
+  { kind: 'bays', x0: -30, x1: 10, z0: 61.2, z1: 67, pitch: 3 },
+  { kind: 'bays', x0: 46, x1: 61, z0: 57, z1: 63, pitch: 3 },
   { kind: 'hatch', x0: -12, x1: -5.6, z0: 44.4, z1: 50.6, border: true, label: 'DIESEL' },
   { kind: 'hatch', x0: 8.3, x1: 15.7, z0: 41.6, z1: 43.0, border: false },
   { kind: 'dashes', x0: -35, x1: -21, z0: 43.6, z1: 46.6, label: 'LOADING' },
@@ -57,6 +59,6 @@ export function quayDecal(y) {
   const tex = new THREE.CanvasTexture(paintQuayCanvas()); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const mat = patchUnderwater(new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, depthWrite: false }), { key: 'decal' });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(AREA.x1 - AREA.x0, AREA.z1 - AREA.z0).rotateX(-Math.PI / 2), mat);
-  m.position.set((AREA.x0 + AREA.x1) / 2, y, (AREA.z0 + AREA.z1) / 2); m.renderOrder = 1; m.receiveShadow = true; m.castShadow = false; m.userData.noShadow = true;
+  const [cx, cz] = T((AREA.x0 + AREA.x1) / 2, (AREA.z0 + AREA.z1) / 2); m.position.set(cx, y, cz); m.rotation.y = QROT; m.renderOrder = 1; m.receiveShadow = true; m.castShadow = false; m.userData.noShadow = true;
   return m;
 }

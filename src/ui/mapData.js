@@ -6,11 +6,27 @@ import { ECOSYSTEMS } from '../ecosystems/index.js';
 import { SPOTS, SPOT_INFO } from '../fishing/catches.js';
 import { tierOf } from '../fishing/guide.js';
 import { NPCS } from '../content/npcs.js';
-import { platformMask } from '../ecosystems/rocky.js';
-import { JETTY, shoreZ } from '../ecosystems/seagrass.js';
-import { WHARF, EBW, NBW, QUAY_Z } from '../ecosystems/harbour.js';
+import { platformMask, POOLS, FRAME as BELLAMBI_FRAME } from '../ecosystems/rocky.js';
+import { TOWER, BOARD, HOME as BELLAMBI_HOME, RAMP, ROCKPOOL, BREAKER } from '../world/bellambi.js';
+import { JETTY, shoreZ, FRAME as LAKE_FRAME } from '../ecosystems/seagrass.js';
+import { WHARF, LIGHTHOUSE, QUAY_Z } from '../ecosystems/harbour.js';
+import * as BM from '../world/belmore.js';
 import { WEIR_X, centre } from '../ecosystems/river.js';
 import { PLACES, EXTRAS, HUT } from '../npc/places.js';
+
+/**
+ * A site can be drawn turned so that north is really at the top of the page: view.orient = { toMap(x, z) -> [u, v], toWorld(u, v) -> [x, z] }.
+ * The view rectangle (x0..x1, z0..z1), the cells, the spots and the markers are all in MAP coordinates (u to the right = east, v down the page = south);
+ * the site's own functions (heightAt, fishing.spotAt, the safety test) are always called with WORLD coordinates. Sites with no orient are drawn as the world is.
+ */
+export const toMap = (view, x, z) => (view.orient ? view.orient.toMap(x, z) : [x, z]);
+export const toWorld = (view, u, v) => (view.orient ? view.orient.toWorld(u, v) : [u, v]);
+/** A world heading (0 faces +z, the angle grows toward +x) as the heading of the same direction on the map. */
+export function mapHeading(view, h) {
+  if (!view.orient) return h;
+  const [a, b] = view.orient.toMap(0, 0), [c, d] = view.orient.toMap(Math.sin(h), Math.cos(h));
+  return Math.atan2(c - a, d - b);
+}
 
 /**
  * Per site: the world rectangle the map shows (x to the right, z down the page: the same way up as the game's default camera), the cell size, and the
@@ -19,18 +35,20 @@ import { PLACES, EXTRAS, HUT } from '../npc/places.js';
  */
 export const VIEWS = {
   rocky: {
-    x0: -130, x1: 160, z0: 30, z1: 135, cell: 2.5, landSpots: ['rock'],
-    safety: { id: 'platform', label: 'Rock platform', swell: 2.5, at: (x, z) => platformMask(x, z) > 0.3 && x > 20, note: 'Waves can sweep the platform in a big swell (2.5 m or more). Stay on the sand when the lifeguard warns you.' },
+    orient: BELLAMBI_FRAME, x0: -95, x1: 140, z0: -85, z1: 115, cell: 2, landSpots: ['rock'], iconDepth: 1.6,   // turned so north is at the top: Bellambi's sea is to the east
+    safety: { id: 'platform', label: 'Rock platform', swell: 2.5, at: (x, z) => platformMask(x, z) > 0.3, note: 'Waves can sweep the platform in a big swell (2.5 m or more). Stay on the sand when the lifeguard warns you.' },
     pois: [
-      { id: 'tower', short: 'Lifeguard', label: 'Lifeguard tower', x: PLACES.rocky.tower.x, z: PLACES.rocky.tower.z + 3.5, icon: '🛟', kind: 'tower', legend: 'Lifeguard tower' },
-      { id: 'board', short: 'Club board', label: 'Club board', x: EXTRAS.rocky.board.x, z: EXTRAS.rocky.board.z - 1, icon: '📋', kind: 'club', legend: 'Fishing club board' },
-      { short: 'Home', id: 'home', label: 'Beach access path (head home)', x: -3, z: 118, icon: '🏠', kind: 'home', legend: 'Head home' },
-      { id: 'pools', short: 'Rock pools', label: 'Rock pools', x: 96, z: 90, icon: '🦀', kind: 'poi', legend: 'Rock pools' },
-      { id: 'esky', short: 'Esky', label: 'Esky and bucket', x: 58.5, z: 79.5, icon: '🧊', kind: 'poi', legend: 'Esky and bucket' },
+      { id: 'tower', short: 'Lifeguard', label: 'Lifeguard tower', x: TOWER.x, z: TOWER.z, icon: '🛟', kind: 'tower', legend: 'Lifeguard tower' },
+      { id: 'board', short: 'Club board', label: 'Club board', x: BOARD.x, z: BOARD.z, icon: '📋', kind: 'club', legend: 'Fishing club board' },
+      { short: 'Home', id: 'home', label: 'Beach access path (head home)', x: BELLAMBI_HOME.x, z: BELLAMBI_HOME.z, icon: '🏠', kind: 'home', legend: 'Head home' },
+      { id: 'rockpool', short: 'Rock Pool', label: 'Bellambi Rock Pool', x: ROCKPOOL.x + ROCKPOOL.nx * 4.7, z: ROCKPOOL.z + ROCKPOOL.nz * 4.7, icon: '🏊', kind: 'poi', legend: 'Bellambi Rock Pool' },
+      { id: 'ramp', short: 'Boat ramp', label: 'Bellambi boat ramp', x: RAMP.x0 + RAMP.nx * 6, z: RAMP.z0 + RAMP.nz * 6, icon: '🛶', kind: 'ramp', legend: 'Boat ramp' },
+      { id: 'pools', short: 'Rock pools', label: 'Rock pools', x: POOLS[5][0], z: POOLS[5][1], icon: '🦀', kind: 'poi', legend: 'Rock pools' },
+      { id: 'reef', short: 'Bellambi Reef', label: 'Bellambi Reef (breaking waves)', x: BREAKER.x, z: BREAKER.z, icon: '🌊', kind: 'poi', legend: 'Bellambi Reef' },
     ],
   },
   seagrass: {
-    x0: -90, x1: 90, z0: -22, z1: 85, cell: 1.8,
+    orient: LAKE_FRAME, x0: -125, x1: 85, z0: -110, z1: 85, cell: 1.8, iconDepth: 1.4,   // turned so north is at the top: the lake is to the west, as at Windang
     pois: [
       { id: 'shop', short: 'Mitra\'s shop', label: "Mitra's bait and tackle shop (head home)", x: HUT.x, z: HUT.z - 1.5, icon: '🛒', kind: 'shop', home: true, legend: 'Bait and tackle shop' },
       { id: 'jettyBase', short: '', label: 'Jetty', x: JETTY.x, z: JETTY.z0 + 1, icon: '⚓', kind: 'jetty', legend: 'Jetty' },
@@ -41,15 +59,17 @@ export const VIEWS = {
     lines: [{ id: 'jetty', x1: JETTY.x, z1: JETTY.z0 + 0.4, x2: JETTY.x, z2: JETTY.z1 - 0.9, w: JETTY.w }],
   },
   harbour: {
-    x0: -62, x1: 54, z0: -40, z1: 72, cell: 1.6,
+    x0: -125, x1: 118, z0: -105, z1: 85, cell: 1.8,
     safety: { id: 'breakwall', label: 'Breakwall', swell: 2.5, at: (x, z) => !!ECOSYSTEMS.find(e => e.id === 'harbour')?.hazard.at(x, z), note: 'Waves wash over the breakwall in a big swell (2.5 m or more). Fish the wharf or the basin instead.' },
     pois: [
-      { id: 'lighthouse', label: 'Lighthouse', x: EBW, z: NBW, icon: '🗼', kind: 'poi', legend: 'Lighthouse' },
-      { id: 'wharf', short: '', label: 'Timber wharf and lamps', x: WHARF.x, z: 24, icon: '🏮', kind: 'jetty', legend: 'Wharf' },
+      { id: 'lighthouse', label: 'Lighthouse', x: LIGHTHOUSE[0], z: LIGHTHOUSE[1] + 3, icon: '🗼', kind: 'poi', legend: 'Lighthouse' },
+      { id: 'wharf', short: '', label: 'Timber wharf and lamps', x: BM.T(WHARF.x, 26)[0], z: BM.T(WHARF.x, 26)[1], icon: '🏮', kind: 'jetty', legend: 'Wharf' },
       { id: 'coop', short: 'Co-op', label: "Fishermen's co-op", x: PLACES.harbour.coopDoor.x, z: PLACES.harbour.coopDoor.z, icon: '🐟', kind: 'coop', legend: "Fishermen's co-op" },
-      { short: 'Home', id: 'home', label: 'The harbour road (head home)', x: -8, z: 49, icon: '🏠', kind: 'home', legend: 'Head home' },
+      { short: 'Home', id: 'home', label: 'The harbour road (head home)', x: BM.T(-8, 49)[0], z: BM.T(-8, 49)[1], icon: '🏠', kind: 'home', legend: 'Head home' },
+      { id: 'cove', short: 'Cove Beach', label: 'Cove Beach', x: BM.fromPx(160, 428)[0], z: BM.fromPx(160, 428)[1], icon: '🏖️', kind: 'poi', legend: 'Cove Beach' },
+      { id: 'hill', short: 'Flagstaff Hill', label: 'Flagstaff Hill', x: BM.HILL.x, z: BM.HILL.z, icon: '⛰️', kind: 'poi', legend: 'Flagstaff Hill' },
     ],
-    lines: [{ id: 'wharf', x1: WHARF.x, z1: QUAY_Z + 0.4, x2: WHARF.x, z2: WHARF.z1, w: WHARF.w }],
+    lines: [{ id: 'wharf', x1: BM.T(WHARF.x, QUAY_Z + 0.4)[0], z1: BM.T(WHARF.x, QUAY_Z + 0.4)[1], x2: BM.T(WHARF.x, WHARF.z1)[0], z2: BM.T(WHARF.x, WHARF.z1)[1], w: WHARF.w }],
   },
   reef: {
     x0: -100, x1: 100, z0: -100, z1: 100, cell: 3.2,
@@ -102,7 +122,7 @@ export function buildSiteMap(eco) {
   const hf = heightField(eco, view, 2);
   const open = eco.id === 'reef';   // the open sea: every cell is a place to drop a line
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const k = j * cols + i, x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell, h = eco.heightAt(x, z);
+    const k = j * cols + i, [x, z] = toWorld(view, x0 + (i + 0.5) * cell, z0 + (j + 0.5) * cell), h = eco.heightAt(x, z);
     const dry = h >= 0;
     land[k] = dry ? 1 : 0; depth[k] = dry ? 0 : -h;
     if (dry) { const c = mixc(eco.colorAt(x, z, h, 0.1), CREAM, 0.4); rgb[k * 3] = c[0] * 255; rgb[k * 3 + 1] = c[1] * 255; rgb[k * 3 + 2] = c[2] * 255; }
@@ -132,22 +152,26 @@ export function buildSiteMap(eco) {
     const spotNo = spotNames.length; spotNames.push(sp);
     comps.forEach((cells, ci) => {
       if (ci > 1 || cells.length < 5 || (ci === 1 && cells.length < 60)) { for (const c of cells) spotIdx[c] = spotNo; return; }   // tiny scraps are tinted but get no icon
-      let mx = 0, mz = 0; for (const c of cells) { mx += c % cols; mz += (c / cols) | 0; }
-      mx /= cells.length; mz /= cells.length;
-      let best = cells[0], bd = 1e9;
-      for (const c of cells) { const d = Math.hypot((c % cols) - mx, ((c / cols) | 0) - mz); if (d < bd) { bd = d; best = c; } }
+      // the icon goes at the middle of the patch; on a big open stretch of water (Bellambi's surf beach) it stays in the shallows, where you actually stand and cast
+      const near = view.iconDepth != null ? cells.filter(c => depth[c] <= view.iconDepth) : [], pick = near.length >= 5 ? near : cells;
+      let mx = 0, mz = 0; for (const c of pick) { mx += c % cols; mz += (c / cols) | 0; }
+      mx /= pick.length; mz /= pick.length;
+      let best = pick[0], bd = 1e9;
+      for (const c of pick) { const d = Math.hypot((c % cols) - mx, ((c / cols) | 0) - mz); if (d < bd) { bd = d; best = c; } }
       for (const c of cells) spotIdx[c] = spotNo;
       spots.push({ spot: sp, idx: spotNo, label: SPOT_INFO[sp]?.label ?? sp, x: x0 + ((best % cols) + 0.5) * cell, z: z0 + (((best / cols) | 0) + 0.5) * cell, cells: cells.length, comp: ci });
     });
   }
-  return { id: eco.id, view, cols, rows, hf, land, depth, rgb, spotIdx, safe, spotNames, spots, pois: view.pois, safety: view.safety ? { ...view.safety, cells: safe.reduce((a, b) => a + b, 0) } : null };
+  const pois = view.pois.map(p => { const [u, v] = toMap(view, p.x, p.z); return { ...p, wx: p.x, wz: p.z, x: u, z: v }; });
+  const lines = (view.lines ?? []).map(l => { const [a, b] = toMap(view, l.x1, l.z1), [c, d] = toMap(view, l.x2, l.z2); return { ...l, x1: a, z1: b, x2: c, z2: d }; });
+  return { id: eco.id, view, cols, rows, hf, land, depth, rgb, spotIdx, safe, spotNames, spots, pois, lines, safety: view.safety ? { ...view.safety, cells: safe.reduce((a, b) => a + b, 0) } : null };
 }
 
 /** Terrain height on a grid `k` times finer than the view's cell: { cols, rows, h (Float32, metres, sea level 0) }, sample (i, j) at the centre of its cell. */
 export function heightField(eco, view, k = 2) {
   const { x0, x1, z0, z1, cell } = view, c = cell / k;
   const cols = Math.round((x1 - x0) / c), rows = Math.round((z1 - z0) / c), h = new Float32Array(cols * rows);
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) h[j * cols + i] = eco.heightAt(x0 + (i + 0.5) * c, z0 + (j + 0.5) * c);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const [x, z] = toWorld(view, x0 + (i + 0.5) * c, z0 + (j + 0.5) * c); h[j * cols + i] = eco.heightAt(x, z); }
   return { cols, rows, h };
 }
 
@@ -167,14 +191,15 @@ export function project(view, x, z, w, h) { return [((x - view.x0) / (view.x1 - 
 
 // ---------------------------------------------------------------- the region map
 /**
- * The five sites on a stylised Illawarra coastline (north at the top, the Tasman Sea to the right). x, y are 0..100 in the drawing; the real order of the places
- * from north to south is kept: Bellambi, Belmore Basin (Wollongong), Port Kembla (the reef is offshore), Lake Illawarra; the river runs down from the escarpment.
+ * The five sites on a stylised Illawarra coastline (north at the top, the Tasman Sea to the right). x, y are 0..100 in the drawing, with y spaced like the real latitudes
+ * (about 4 units per km): Bellambi (north), Belmore Basin in Wollongong (5.7 km south of it), Port Kembla (12 km), the Five Islands 2.5 km off Port Kembla (the reef), and Lake Illawarra
+ * at Windang (17 km); the river runs down from the escarpment.
  */
 export const REGION_SITES = [
   { id: 'rocky', short: 'Bellambi', x: 47, y: 15, where: 'Bellambi and Woonona: surf beach and a rock platform', how: 'Walk down the beach path.' },
   { id: 'harbour', short: 'Belmore Basin', x: 49, y: 38, where: 'Wollongong harbour: wharf, breakwall and lighthouse', how: 'Walk along the quay.' },
-  { id: 'reef', short: 'Offshore reef', x: 79, y: 56, where: 'Off Port Kembla, past the Five Islands', how: 'By boat from Belmore Basin.' },
-  { id: 'seagrass', short: 'Lake Illawarra', x: 44, y: 76, where: 'The Illawarra estuary at Windang: jetty, flats and seagrass', how: 'Walk out along the jetty.' },
+  { id: 'reef', short: 'Five Islands reef', x: 66, y: 64, where: 'Off Port Kembla, among the Five Islands', how: 'By boat from Belmore Basin.' },
+  { id: 'seagrass', short: 'Lake Illawarra', x: 43, y: 79, where: 'The Illawarra estuary at Windang: jetty, flats and seagrass', how: 'Walk out along the jetty.' },
   { id: 'river', short: 'River', x: 17, y: 56, where: 'A coastal river below the escarpment, running down to the lake', how: 'Park by the bank and walk to the pool.' },
 ];
 

@@ -261,7 +261,8 @@ await session('rocky', '&swell=3', async H => {
   const { t, page, ev } = H;
   const before = await ev(async () => (await import('/src/fishing/guide.js')).stewardRating(window.__game.progress).value);
   await ev(() => { document.querySelector('#toast').innerHTML = ''; });
-  await t.teleport(75, 86, { camYaw: 0, zoom: 10, heading: Math.PI });
+  const spots = await ev(async () => { const B = await import('/src/world/bellambi.js'), a = B.beachAt(B.S_TIP, -6), b = B.beachAt(B.S_TOWER, 8); return { plat: { x: a.x, z: a.z }, beach: { x: b.x, z: b.z } }; });   // the rock platform at the tip of Bellambi Point, and the beach (world/bellambi.js)
+  await t.teleport(spots.plat.x, spots.plat.z, { camYaw: 0, zoom: 10, heading: Math.PI });
   await t.wait(900);
   check(await ev(() => window.__game.cond.swell >= 2.5), 'the swell is over 2.5 m');
   check(await ev(() => [...document.querySelectorAll('.toast')].some(x => /Sione/.test(x.textContent) && /closed to fishers/.test(x.textContent))) && await ev(() => window.__game.npcs.warned), 'Sione warns you off the rock platform in a big swell (toast and a bubble)');
@@ -274,7 +275,7 @@ await session('rocky', '&swell=3', async H => {
   check(after < before, `the Steward rating dropped (${before.toFixed(2)} -> ${after.toFixed(2)})`);
   await H.shot('08-platform-penalty');
   // Leaving the platform stops it.
-  await t.teleport(4, 92, { camYaw: 0 }); await ev(() => window.__game.advance(10));
+  await t.teleport(spots.beach.x, spots.beach.z, { camYaw: 0 }); await ev(() => window.__game.advance(10));
   check((await ev(() => window.__game.progress.steward.safety ?? 0)) === safety, 'off the platform: no more marks');
 });
 

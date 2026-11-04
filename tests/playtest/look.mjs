@@ -25,17 +25,19 @@ for (const [tag, width, height] of VIEWS) {
   t = await launch({ query: `eco=rocky&quality=${quality}&play=1&time=day&tide=rising&season=summer`, outDir: out, width, height });
   await t.wait(1200);
   await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
-  await t.teleport(4, 88, { camYaw: -0.5, heading: Math.PI, zoom: 14 });
+  // places on Bellambi's real-shaped shore (world/bellambi.js): the beach north of the point, the access path, the tower, the platform at the tip
+  const P = await t.page.evaluate(async () => { const B = await import('/src/world/bellambi.js'), at = (s, off) => { const b = B.beachAt(s, off); return { x: b.x, z: b.z, yaw: Math.atan2(-b.nx, -b.nz) }; }; return { beach: at(B.S_TOWER + 8, 9), path: at(B.S_ACCESS, 22), tower: at(B.S_TOWER, 12), platform: at(B.S_TIP, -4) }; });
+  await t.teleport(P.beach.x, P.beach.z, { camYaw: P.beach.yaw - 0.5, heading: P.beach.yaw, zoom: 14 });
   await t.page.evaluate(() => { window.__game.walker.heading = 0; });
   for (let i = 0; i < 4; i++) await t.hold('KeyS', 350); // leave a trail of footprints
   await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
   await snap(t, 'beach-from-above');
-  await t.teleport(-3, 112, { camYaw: 0.2, heading: 0, zoom: 15, pitch: 1.0 });
+  await t.teleport(P.path.x, P.path.z, { camYaw: P.path.yaw + 0.2, heading: P.path.yaw + Math.PI, zoom: 15, pitch: 1.0 });
   await t.page.evaluate(() => { document.querySelector('#toast').innerHTML = ''; });
   await snap(t, 'beach-access-path');
-  await t.teleport(-8, 104, { camYaw: 3.0, heading: 0, zoom: 21, pitch: 1.0 });
+  await t.teleport(P.tower.x, P.tower.z, { camYaw: P.tower.yaw + 3.0, heading: P.tower.yaw + Math.PI, zoom: 21, pitch: 1.0 });
   await snap(t, 'beach-dunes-tower-pines');
-  await t.teleport(70, 90, { camYaw: -0.3, heading: Math.PI, zoom: 19 });
+  await t.teleport(P.platform.x, P.platform.z, { camYaw: P.platform.yaw - 0.3, heading: P.platform.yaw + Math.PI, zoom: 19 });
   await snap(t, 'rock-platform');
   errors.push(...t.errors); await t.close();
 

@@ -6,7 +6,8 @@ import { KEY, walk, pathTo } from '../src/fishing/key.js';
 import { biteWeights, pickCatch, judge, bagGroupIds, gateOpen, DEFAULT_CTX, SPOTS, RULES, FIGHT } from '../src/fishing/catches.js';
 import { PROFILES, barParams } from '../src/fishing/catchbar.js';
 import { ECOSYSTEMS, ecoById } from '../src/ecosystems/index.js';
-import { harbour, heightAt, deckAt, spotAt, LAMPS, WHARF, QY, QUAY_Z, EBW, NBW, moundAt, litAt, POOL_R } from '../src/ecosystems/harbour.js';
+import { harbour, heightAt, deckAt, spotAt, LAMPS, WHARF, QY, QUAY_Z, LIGHTHOUSE, moundAt, litAt, POOL_R } from '../src/ecosystems/harbour.js';
+import { T, toQuay, CREST, landD, QROT } from '../src/world/belmore.js';   // the working quay is laid out in a rotated frame (xo along the quay, zo inland): see world/belmore.js
 import { siteLock } from '../src/ecosystems/unlock.js';
 import { daylightAt, NIGHT } from '../src/ocean/daylight.js';
 import { SURVIVAL, SURVIVAL_RANGE, survivalNote, CUT_LINE, releaseSurvival } from '../src/economy/effects.js';
@@ -116,26 +117,27 @@ test('the harbour site config is valid and registered', () => {
   for (const id of Object.keys(harbour.life)) assert.ok(LOOKS[id], `${id} has a look`);
   // the spawn is dry, walkable ground; the wharf deck is walkable and level; the quay is above the water
   const sp = harbour.land.spawn; assert.ok(heightAt(sp.x, sp.z) > 0.5, 'spawn on the quay');
-  assert.equal(deckAt(WHARF.x, 20), QY); assert.equal(deckAt(WHARF.x + 20, 20), null); assert.equal(deckAt(WHARF.x, QUAY_Z + 5), null, 'on the quay itself the ground is the quay');
-  assert.ok(heightAt(0, QUAY_Z + 8) > 1, 'the quay is dry'); assert.ok(heightAt(-20, 20) < -1, 'the basin is water');
-  assert.ok(moundAt(EBW, 0) > 2 && heightAt(EBW, 0) > 2, 'the breakwall crest is walkable and above the water'); assert.ok(heightAt(EBW, NBW) > 2, 'the lighthouse stands on a pad');
-  for (let x = -60; x < 60; x += 7) for (let z = -40; z < 90; z += 7) assert.ok(Number.isFinite(heightAt(x, z)), `height ${x},${z}`);
+  assert.equal(deckAt(...T(WHARF.x, 20)), QY); assert.equal(deckAt(...T(WHARF.x + 20, 20)), null); assert.equal(deckAt(...T(WHARF.x, QUAY_Z + 5)), null, 'on the quay itself the ground is the quay');
+  assert.ok(heightAt(...T(0, QUAY_Z + 8)) > 1, 'the quay is dry'); assert.ok(heightAt(...T(-20, 20)) < -1, 'the basin is water'); assert.ok(heightAt(...T(WHARF.x, 8)) < -1, 'and so is the water beyond the wharf end');
+  const cr = CREST.at(80); assert.ok(moundAt(cr.x, cr.z) > 2 && heightAt(cr.x, cr.z) > 2, 'the breakwall crest is walkable and above the water'); assert.ok(heightAt(...LIGHTHOUSE) > 2, 'the lighthouse stands on a pad');
+  assert.ok(landD(...T(-10, 4.5 - 6)) > 0 && landD(...T(-10, 20)) < 0, 'the basin is a notch in the land: land behind its south-east wall, water in it');
+  for (let x = -120; x < 120; x += 7) for (let z = -110; z < 100; z += 7) assert.ok(Number.isFinite(heightAt(x, z)), `height ${x},${z}`);
   // the home point is on the quay; the walker's bounds contain the spawn, the wharf end and the lighthouse
-  const b = harbour.land.bounds; for (const [x, z] of [[sp.x, sp.z], [WHARF.x, WHARF.z1 + 1], [EBW, NBW]]) assert.ok(x >= b.xMin && x <= b.xMax && z >= b.zMin && z <= b.zMax, `${x},${z} in bounds`);
+  const b = harbour.land.bounds; for (const [x, z] of [[sp.x, sp.z], T(WHARF.x, WHARF.z1 + 1), LIGHTHOUSE]) assert.ok(x >= b.xMin && x <= b.xMax && z >= b.zMin && z <= b.zMax, `${x},${z} in bounds`);
   assert.ok(heightAt(harbour.land.home.x, harbour.land.home.z) > 1);
 });
 
 test('the three spots resolve from where the float lands', () => {
-  assert.equal(spotAt(12, 44, 12, 14), 'wharf'); assert.equal(spotAt(12, 30, 20, 20), 'wharf');
-  assert.equal(spotAt(EBW, 0, EBW - 8, -4), 'breakwall'); assert.equal(spotAt(0, NBW, -3, NBW + 6), 'breakwall');
-  assert.equal(spotAt(-20, 44, -22, 24), 'basin'); assert.equal(spotAt(-30, 44, -30, 30), 'basin');
+  assert.equal(spotAt(...T(12, 44), ...T(12, 16)), 'wharf'); assert.equal(spotAt(...T(12, 30), ...T(20, 20)), 'wharf');
+  for (const s of [30, 80, 130]) { const p = CREST.at(s); for (const sd of [-1, 1]) { const x = p.x - p.tz * 6 * sd, z = p.z + p.tx * 6 * sd; if (heightAt(x, z) < -0.5) assert.equal(spotAt(x, z, x, z), 'breakwall', `water 6 m off the crest at ${s}`); } }
+  assert.equal(spotAt(...T(-20, 44), ...T(-22, 24)), 'basin'); assert.equal(spotAt(...T(-30, 44), ...T(-30, 30)), 'basin'); assert.equal(spotAt(...T(45, 20), ...T(46, 14)), 'basin');
   for (const s of ['wharf', 'breakwall', 'basin']) assert.ok(SPOTS[s]);
   assert.equal(harbour.fishing.spotAt, spotAt);
 });
 
 test('six wharf lamps: lit pools sit on the water beside the wharf, inside the lamp radius', () => {
   assert.equal(LAMPS.length, 6);
-  for (const L of LAMPS) { assert.ok(Math.abs(L.head[0] - WHARF.x) > WHARF.w / 2, 'the lantern hangs out over the water'); assert.ok(L.head[1] > WHARF.z1 && L.head[1] < QUAY_Z); assert.ok(heightAt(L.head[0], L.head[1]) < 0, 'the pool is on the water'); }
+  for (const L of LAMPS) { const q = toQuay(...L.head); assert.ok(Math.abs(q.a - WHARF.x) > WHARF.w / 2, 'the lantern hangs out over the water'); assert.ok(q.b > WHARF.z1 && q.b < QUAY_Z); assert.ok(heightAt(L.head[0], L.head[1]) < 0, 'the pool is on the water'); }
   assert.equal(litAt(LAMPS[0].head[0], LAMPS[0].head[1]), 0, 'lamps are off by day (uLampOn = 0)');
 });
 

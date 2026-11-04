@@ -96,9 +96,9 @@ export class Life {
     const b = this.eco.bounds;
     for (let i = 0; i < 200; i++) {
       const x = b.xMin + this.rnd() * (b.xMax - b.xMin), z = b.zMin + this.rnd() * (b.zMax - b.zMin);
-      if (this.eco.reefiness(x, z) < 0.15) return new THREE.Vector3(x, this.terrain.heightAt(x, z), z);
+      if (this.eco.reefiness(x, z) < 0.15 && (!this.eco.waterOnly || this.terrain.heightAt(x, z) < -1.2)) return new THREE.Vector3(x, this.terrain.heightAt(x, z), z);   // waterOnly sites (a real coastline): not on the beach
     }
-    return new THREE.Vector3(0, this.terrain.heightAt(0, 30), 30);
+    const f = this.eco.waterFallback ?? [0, 30]; return new THREE.Vector3(f[0], this.terrain.heightAt(f[0], f[1]), f[1]);
   }
   randomReef(minDepth = -30, maxDepth = -2) {
     if (this.eco.reefRange) [minDepth, maxDepth] = this.eco.reefRange;
@@ -108,7 +108,7 @@ export class Life {
       const h = this.terrain.heightAt(x, z);
       if (this.eco.reefiness(x, z) > 0.4 && h > minDepth && h < maxDepth) return new THREE.Vector3(x, h, z);
     }
-    return new THREE.Vector3(0, this.terrain.heightAt(0, -20), -20);
+    const f = this.eco.waterFallback ?? [0, -20]; return new THREE.Vector3(f[0], this.terrain.heightAt(f[0], f[1]), f[1]);
   }
 
   makeInstanced(id, n) {
@@ -249,7 +249,8 @@ export class Life {
     if (place === 'sand') return this.randomSand();
     if (place === 'water' || place === 'surface') {
       const bd = this.eco.bounds;
-      const x = bd.xMin + this.rnd() * (bd.xMax - bd.xMin), z = bd.zMin + this.rnd() * (bd.zMax - bd.zMin);
+      let x = bd.xMin + this.rnd() * (bd.xMax - bd.xMin), z = bd.zMin + this.rnd() * (bd.zMax - bd.zMin);
+      if (this.eco.waterOnly) for (let t = 0; t < 60 && this.terrain.heightAt(x, z) > -1.2; t++) { x = bd.xMin + this.rnd() * (bd.xMax - bd.xMin); z = bd.zMin + this.rnd() * (bd.zMax - bd.zMin); }
       const g = this.terrain.heightAt(x, z);
       const y = place === 'surface' ? -0.04 : Math.max(g + 1.5, d0 + this.rnd() * (d1 - d0));
       return new THREE.Vector3(x, y, z);

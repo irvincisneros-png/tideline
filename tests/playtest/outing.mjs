@@ -19,7 +19,7 @@ const clearToasts = () => ev(() => { document.querySelector('#toast').innerHTML 
 await t.wait(1200);
 // Stand at a casting spot facing the water: the jetty end at the lake, the beach at Bellambi.
 if (site === 'seagrass') await t.teleport(16, 21, { camYaw: 0.15, heading: Math.PI, zoom: 14 });
-else await t.teleport(4, 86, { camYaw: -0.3, heading: Math.PI, zoom: 14 });
+else { const sp = await ev(async () => { const B = await import('/src/world/bellambi.js'), b = B.beachAt(B.S_TOWER + 8, 2); return { x: b.x, z: b.z, yaw: Math.atan2(-b.nx, -b.nz) }; }); await t.teleport(sp.x, sp.z, { camYaw: sp.yaw - 0.3, heading: Math.PI + sp.yaw, zoom: 14 }); }   // Bellambi: at the water's edge on the beach north of the point, facing the sea (the layout follows the real coast)
 await clearToasts();
 await t.shot('01-at-water');
 
@@ -70,6 +70,10 @@ async function runKey(answers, shotName) {
   check(await waitFor('#key-ok', 3000), 'the key ends at a proposed name');
   if (shotName) await t.shot(`${shotName}-key-leaf`);
   await page.click('#key-ok'); await t.wait(300);
+  if (await waitFor('#miss-keep', 1200)) {   // a wrong name now shows where the path went off first
+    check(await ev(() => /couplet/i.test(document.querySelector('#miss-retry')?.textContent ?? '')), 'a wrong key shows which couplet went off');
+    await page.click('#miss-keep'); await t.wait(300);
+  }
 }
 const leafName = () => ev(() => document.querySelector('.leaf-name')?.textContent);
 

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../core/noise.js';
+import * as BL from './bellambi.js';
 
 const TAU = Math.PI * 2;
 const strip = g => { for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k); return g.index ? g.toNonIndexed() : g; };
@@ -62,64 +63,68 @@ function towel(c1, c2) {
   return paintFaces(g, c => (Math.floor((c.x + 0.425) / 0.17) % 2 ? c1 : c2));
 }
 
-/** Dress the Bellambi beach. T = terrain (heightAt). Meshes are added to world.props.group with the prop material. */
+/** Dress the Bellambi beach. T = terrain (heightAt). Meshes are added to world.props.group with the prop material. Everything is placed relative to the real shoreline (world/bellambi.js). */
 export function dressBeach(world) {
   const pr = world.props, T = world.terrain, rnd = mulberry32(2026), mat = pr.mat;
   const add = (geos, noShadow) => { if (!geos.length) return; const m = new THREE.Mesh(mergeGeometries(geos), mat); m.userData.noShadow = !!noShadow; m.userData.prop = 'beachdress'; pr.group.add(m); return m; };
   const gy = (x, z) => T.heightAt(x, z);
-  const dry = (x, z) => gy(x, z) > 0.35;
+  const clear = (x, z) => gy(x, z) > 0.35 && BL.platformMask(x, z) < 0.05 && BL.rampMask(x, z) < 0.05 && BL.outcropMask(x, z) < 0.05 && BL.lagoonMask(x, z) < 0.01;   // dry sand: not the rock, the ramp, the pool or the lagoon
+  const along = (s0, s1, o0, o1) => BL.beachAt(s0 + rnd() * (s1 - s0), o0 + rnd() * (o1 - o0));
+  const SN = BL.S_BEACH_N, SS = BL.S_BEACH_S + 60, T0 = BL.S_TOWER;
   // Seaweed wrack: a wavy line along the high-tide mark, plus a few strands near the swash.
   const wrack = [];
-  for (let i = 0; i < 170; i++) {
-    const x = -78 + rnd() * 128, line = 95.2 + Math.sin(x * 0.085) * 1.6 + Math.sin(x * 0.23 + 1) * 0.5, z = line + (rnd() - 0.5) * (rnd() < 0.2 ? 6 : 1.8);
-    if (dry(x, z)) wrack.push(place(wrackBlob(rnd), x, gy(x, z) + 0.02, z, rnd() * TAU));
+  for (let i = 0; i < 190; i++) {
+    const s = SN + rnd() * (SS - SN), off = 7.2 + Math.sin(s * 0.085) * 1.2 + Math.sin(s * 0.23 + 1) * 0.4 + (rnd() - 0.5) * (rnd() < 0.2 ? 5 : 1.6), b = BL.beachAt(s, off);
+    if (clear(b.x, b.z)) wrack.push(place(wrackBlob(rnd), b.x, gy(b.x, b.z) + 0.02, b.z, rnd() * TAU));
   }
   add(wrack, true);
   // Shells, thickest near the swash line.
   const shells = [];
-  for (let i = 0; i < 190; i++) {
-    const x = -78 + rnd() * 130, z = 87 + Math.pow(rnd(), 1.6) * 17;
-    if (dry(x, z)) shells.push(place(shell(rnd), x, gy(x, z) + 0.012, z, rnd() * TAU, 0, (rnd() - 0.5) * 0.3));
+  for (let i = 0; i < 210; i++) {
+    const b = along(SN, SS, 0.6 + Math.pow(rnd(), 1.6) * 12, 0.6 + Math.pow(rnd(), 1.6) * 12 + 0.01);
+    if (clear(b.x, b.z)) shells.push(place(shell(rnd), b.x, gy(b.x, b.z) + 0.012, b.z, rnd() * TAU, 0, (rnd() - 0.5) * 0.3));
   }
   add(shells, true);
   // Driftwood: logs along the top of the beach and a few down on the sand.
   const wood = [];
-  for (let i = 0; i < 20; i++) {
-    const x = -76 + rnd() * 122, z = i < 14 ? 101 + rnd() * 10 : 92 + rnd() * 7;
-    if (Math.hypot(x - 4, z - 92) < 5 || Math.hypot(x + 3, z - 108) < 4) continue; // keep the spawn and the access path clear
-    wood.push(place(driftwood(rnd), x, gy(x, z), z, rnd() * Math.PI));
+  for (let i = 0; i < 22; i++) {
+    const b = along(SN, SS, i < 15 ? 9 : 3, i < 15 ? 20 : 8);
+    if (!clear(b.x, b.z) || Math.hypot(b.x - BL.SPAWN.x, b.z - BL.SPAWN.z) < 5 || Math.hypot(b.x - BL.HOME.x, b.z - BL.HOME.z) < 6) continue;   // keep the spawn and the access path clear
+    wood.push(place(driftwood(rnd), b.x, gy(b.x, b.z), b.z, rnd() * Math.PI));
   }
   add(wood);
   // Umbrellas and towels near the lifeguard tower.
   const umb = [], tow = [];
-  const sets = [[-1, 106.5, [[0.95, 0.35, 0.3], [0.98, 0.95, 0.88]], [[0.2, 0.75, 0.75], [1, 1, 0.95]], 0.25], [10.5, 109.5, [[0.25, 0.7, 0.78], [0.98, 0.95, 0.88]], [[1, 0.7, 0.3], [1, 1, 0.95]], -0.2], [-22, 104.5, [[1, 0.78, 0.25], [0.98, 0.95, 0.88]], [[0.95, 0.4, 0.55], [1, 1, 0.95]], 0.15]];
-  for (const [x, z, st, tc, tilt] of sets) {
+  const sets = [[-4, 7, [[0.95, 0.35, 0.3], [0.98, 0.95, 0.88]], [[0.2, 0.75, 0.75], [1, 1, 0.95]], 0.25], [7, 10, [[0.25, 0.7, 0.78], [0.98, 0.95, 0.88]], [[1, 0.7, 0.3], [1, 1, 0.95]], -0.2], [-20, 6.5, [[1, 0.78, 0.25], [0.98, 0.95, 0.88]], [[0.85, 0.3, 0.5], [1, 1, 0.95]], 0.18], [24, 8, [[0.4, 0.8, 0.45], [0.98, 0.95, 0.88]], [[0.3, 0.5, 0.9], [1, 1, 0.95]], -0.12]];
+  for (const [ds, off, st, tc, tilt] of sets) {
+    const b = BL.beachAt(T0 + ds, off), x = b.x, z = b.z;
     umb.push(place(umbrella(st), x, gy(x, z) - 0.05, z, rnd() * TAU, 0, tilt));
     tow.push(place(towel(tc[0], tc[1]), x + 1.5, gy(x + 1.5, z + 0.4) + 0.025, z + 0.4, 0.4 + rnd() * 0.6));
     tow.push(place(towel(tc[1], tc[0]), x - 0.2, gy(x - 0.2, z + 2) + 0.025, z + 2, -0.5 + rnd()));
   }
   add(umb); add(tow);
-  // Beach-access path: a worn strip from the beach up the foredune, with a boardwalk and edge posts over the steep part.
-  const px = z => -3 + Math.sin(z * 0.19) * 0.9, path = [], pos = [], idx = [], col = [];
-  const z0 = 99, z1 = 131, step = 1;
-  for (let z = z0; z <= z1; z += step) for (const s of [-1, 1]) {
-    const open = Math.min(1, Math.max(0, (z - z0) / 7)), x = px(z) + s * 1.25 * (0.25 + 0.75 * open); // narrows to a worn trail at the beach end
+  // Beach-access path: a worn strip from the beach up the berm to the foreshore, with a boardwalk and edge posts over the steep part.
+  const A = BL.S_ACCESS, wig = o => Math.sin(o * 0.19) * 0.9, pt = (o, side = 0, w = 0) => { const b = BL.beachAt(A, o); return [b.x + b.tx * (wig(o) + side * w), b.z + b.tz * (wig(o) + side * w), b]; };
+  const path = [], pos = [], idx = [], col = [];
+  const o0 = 4, o1 = 32, step = 1;
+  for (let o = o0; o <= o1; o += step) for (const sd of [-1, 1]) {
+    const open = Math.min(1, Math.max(0, (o - o0) / 7)), [x, z] = pt(o, sd, 1.25 * (0.25 + 0.75 * open)); // narrows to a worn trail at the beach end
     pos.push(x, gy(x, z) + 0.05, z); col.push(0.88 - 0.16 * open, 0.79 - 0.16 * open, 0.6 - 0.16 * open);
   }
-  for (let i = 0; i < (z1 - z0) / step; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  for (let i = 0; i < (o1 - o0) / step; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); pg.setIndex(idx); pg.computeVertexNormals();
   path.push(pg);
   const boards = [], posts = [];
-  for (let z = 112; z <= 130; z += 0.62) {
-    const x = px(z), b = new THREE.BoxGeometry(2.3, 0.07, 0.5); b.rotateY(Math.atan2(px(z + 0.5) - px(z), 0.5));
-    boards.push(paint(strip(b), v => { const k = 0.9 + 0.1 * Math.sin(v.x * 9 + z); return [0.72 * k, 0.55 * k, 0.36 * k]; }).translate(x, gy(x, z) + 0.09, z));
+  for (let o = 12; o <= 30; o += 0.62) {
+    const [x, z] = pt(o), [x2, z2] = pt(o + 0.5), b = new THREE.BoxGeometry(2.3, 0.07, 0.5); b.rotateY(Math.atan2(x2 - x, z2 - z));
+    boards.push(paint(strip(b), v => { const k = 0.9 + 0.1 * Math.sin(v.x * 9 + o); return [0.72 * k, 0.55 * k, 0.36 * k]; }).translate(x, gy(x, z) + 0.09, z));
   }
-  for (let z = 112; z <= 130; z += 3.7) for (const s of [-1, 1]) {
-    const x = px(z) + s * 1.3, p = new THREE.CylinderGeometry(0.07, 0.08, 0.75, 6); p.translate(x, gy(x, z) + 0.36, z); posts.push(paint(strip(p), () => [0.6, 0.45, 0.3]));
+  for (let o = 12; o <= 30; o += 3.7) for (const sd of [-1, 1]) {
+    const [x, z] = pt(o, sd, 1.3), p = new THREE.CylinderGeometry(0.07, 0.08, 0.75, 6); p.translate(x, gy(x, z) + 0.36, z); posts.push(paint(strip(p), () => [0.6, 0.45, 0.3]));
   }
   // A signpost at the top, where you head home.
-  const sx = px(119) + 1.9, sign = [paint(strip(new THREE.CylinderGeometry(0.06, 0.07, 1.5, 6)), () => [0.55, 0.4, 0.26]).translate(sx, gy(sx, 119) + 0.75, 119),
-    paint(strip(new THREE.BoxGeometry(0.9, 0.34, 0.06)), () => [0.95, 0.9, 0.78]).translate(sx, gy(sx, 119) + 1.35, 119)];
+  const [sx, sz] = pt(26, 1, 1.9), sign = [paint(strip(new THREE.CylinderGeometry(0.06, 0.07, 1.5, 6)), () => [0.55, 0.4, 0.26]).translate(sx, gy(sx, sz) + 0.75, sz),
+    paint(strip(new THREE.BoxGeometry(0.9, 0.34, 0.06)), () => [0.95, 0.9, 0.78]).translate(sx, gy(sx, sz) + 1.35, sz)];
   add(path, true); add([...boards, ...posts, ...sign]);
 }
 

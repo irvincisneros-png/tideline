@@ -13,6 +13,10 @@ process.on('uncaughtException', e => { for (const l of log) console.log(...l); c
 // Start on the title screen of the default site (no ?eco, no ?play): the way a student gets to the harbour is the site picker.
 const t = await launch({ query: `quality=${quality}&time=day&tide=rising&season=summer&swell=1&officer=0`, outDir: `playtest-shots/harbour/${tag}`, width: narrow ? 375 : 1280, height: narrow ? 700 : 760 });
 const page = t.page, ev = (f, a) => page.evaluate(f, a);
+const QF = await page.evaluate(async () => { const B = await import('/src/world/belmore.js'); return { O: B.QO, A: B.QA, N: B.QN, rot: B.QROT, z0: B.QUAY_Z }; });
+/** Teleport to a spot given in the QUAY FRAME (a along the quay, b inland from the edge at b = 40; the old straight-quay numbers), turning the camera and the angler with the frame. */
+const tq = (a, b, o = {}) => t.teleport(QF.O[0] + a * QF.A[0] + (b - QF.z0) * QF.N[0], QF.O[1] + a * QF.A[1] + (b - QF.z0) * QF.N[1], { ...o, camYaw: (o.camYaw ?? 0) + QF.rot, heading: o.heading != null ? o.heading + QF.rot : undefined });
+
 const clearToasts = () => ev(() => { document.querySelector('#toast').innerHTML = ''; });
 const waitFor = (sel, ms = 8000) => page.waitForSelector(sel, { timeout: ms }).then(() => true).catch(() => false);
 const fs = () => ev(() => { const f = window.__game.fishing; return { state: f.state, spot: f.spot, bar: f.bar.active ? { fish: f.bar.fy, zone: f.bar.zy, zv: f.bar.zv, profile: f.bar.profile } : null }; });
@@ -46,14 +50,15 @@ check(await ev(() => window.__game.mode === 'land' && window.__game.eco.id === '
 await clearToasts();
 
 // ================================================================== 2. the day view
-await t.teleport(8, 41, { camYaw: 0.15, heading: Math.PI, zoom, pitch: 1.0 });
+await tq(8, 41, { camYaw: 0.15, heading: Math.PI, zoom, pitch: 1.0 });
 await clearToasts();
 await t.shot('03-day-wharf');
 check(await ev(() => window.__game.env.night < 0.05 && window.__game.cond.time === 'day'), 'it is day: bright');
 const wharfProps = await ev(() => ({ trawlers: window.__game.world.props.byName.trawler_blue?.length + window.__game.world.props.byName.trawler_red?.length + window.__game.world.props.byName.trawler_green?.length, lamps: window.__game.world.props.byName.lamp_post?.length, coop: window.__game.world.props.byName.coop?.length, lighthouse: window.__game.world.props.byName.lighthouse?.length, bollards: window.__game.world.props.byName.bollard?.length, kelp: window.__game.world.reef.picks.filter(p => p.id === 'kelp').length }));
-check(wharfProps.trawlers === 3 && wharfProps.lamps === 6 && wharfProps.coop === 1 && wharfProps.lighthouse === 1 && wharfProps.bollards > 10, `set dressing: ${JSON.stringify(wharfProps)}`);
+check(wharfProps.trawlers === 3 && wharfProps.lamps === 6 && wharfProps.coop === 1 && wharfProps.lighthouse >= 1 && wharfProps.bollards > 10, `set dressing: ${JSON.stringify(wharfProps)}`);
 check(wharfProps.kelp > 20, 'kelp grows on the rubble under the wharf');
-await t.teleport(44, -8, { camYaw: -0.5, heading: Math.PI, zoom: narrow ? 30 : 38, pitch: 1.0 });
+const crest = await ev(async () => { const p = (await import('/src/world/belmore.js')).CREST.at(80); return { x: p.x, z: p.z }; });   // a point on the breakwall crest (the layout follows the real harbour: world/belmore.js)
+await t.teleport(crest.x, crest.z, { camYaw: -0.5, heading: Math.PI, zoom: narrow ? 30 : 38, pitch: 1.0 });
 await clearToasts();
 await t.shot('04-day-breakwall-lighthouse');
 check(await ev(() => window.__game.walker.pos.y > 2), 'the breakwall crest is walkable');
@@ -62,7 +67,7 @@ await t.wait(2600);
 check(await ev(() => /breakwall|washing over/i.test(document.querySelector('#toast').innerText)), 'in a big swell (3 m) the breakwall warns you off');
 await t.shot('04b-breakwall-swell');
 await ev(() => { window.__game.cond.swellBase = 1; });
-await t.teleport(-20, 40, { camYaw: 0.5, heading: Math.PI, zoom: narrow ? 24 : 34, pitch: 1.0 });
+await tq(-20, 40, { camYaw: 0.5, heading: Math.PI, zoom: narrow ? 24 : 34, pitch: 1.0 });
 await t.shot('05-day-coop');
 
 // ================================================================== 3. the night lamp view
@@ -70,7 +75,7 @@ await ev(() => { const g = window.__game; g.cond.minutes = 22 * 60; });
 await t.wait(1800);
 check(await ev(() => window.__game.cond.time === 'night' && window.__game.env.night > 0.95), 'at 22:00 it is night');
 check(await ev(() => window.__game.world.harbour && window.__game.world.props.byName.lamp_post.length === 6), 'six wharf lamps stand on the wharf');
-await t.teleport(12.6, 20, { camYaw: 0, heading: Math.PI, zoom: narrow ? 38 : 26, pitch: 1.0 });   // a phone's tall, narrow frame needs the camera further back to see the water and the pools
+await tq(12.6, 20, { camYaw: 0, heading: Math.PI, zoom: narrow ? 38 : 26, pitch: 1.0 });   // a phone's tall, narrow frame needs the camera further back to see the water and the pools
 await clearToasts(); await t.wait(1500);
 await t.shot('06-night-lamps');
 // readability: the picture is blue, not black, and the lamps are the brightest warm things in it
@@ -90,13 +95,13 @@ check(await ev(() => window.__game.env.glow !== undefined && window.__game.world
 const squid = await ev(() => { const a = window.__game.world.life.agents.filter(a => a.id === 'squid'); return { n: a.length, shown: a.filter(x => x.visible !== false).length }; });
 check(squid.n >= 4 && squid.shown === squid.n, `squid are out in the lamp light at night (${squid.shown}/${squid.n})`);
 await t.wait(6000);
-await t.teleport(14.5, 26, { camYaw: 0, heading: Math.PI, zoom: narrow ? 10 : 13, pitch: 1.12 });
+await tq(14.5, 26, { camYaw: 0, heading: Math.PI, zoom: narrow ? 10 : 13, pitch: 1.12 });
 await clearToasts(); await t.wait(1200);
 await t.shot('07-night-pool-closeup');
 await ev(() => { window.__game.cond.minutes = 11 * 60; }); await t.wait(1200);
 check(await ev(() => window.__game.world.life.agents.filter(a => a.id === 'squid').every(a => a.visible === false)), 'by day the squid are gone (they only come up at dusk and night)');
 await ev(() => { window.__game.cond.minutes = 18.3 * 60; }); await t.wait(2200);   // sunset: the amber glow, the lamps just coming on
-await t.teleport(8, 41, { camYaw: 0.15, heading: Math.PI, zoom, pitch: 1.0 });
+await tq(8, 41, { camYaw: 0.15, heading: Math.PI, zoom, pitch: 1.0 });
 await clearToasts(); await t.shot('08-dusk');
 check(await ev(() => window.__game.cond.time === 'dusk' && window.__game.env.glow > 0.5), 'at 18:20 it is dusk with a sunset glow');
 
@@ -105,7 +110,7 @@ await ev(() => {
   const g = window.__game, p = g.progress; p.inventory.have['rig-squidjig'] = Date.now(); g.gear.rig = 'squidjig'; g.gear.bait = 'none'; g.saveGear(); g.cond.minutes = 21.5 * 60;
 });
 await t.wait(1500);
-await t.teleport(14.4, 23, { camYaw: 0, heading: Math.PI, zoom: narrow ? 16 : 20, pitch: 1.05 });
+await tq(14.4, 23, { camYaw: 0, heading: Math.PI, zoom: narrow ? 16 : 20, pitch: 1.05 });
 await clearToasts();
 async function hookFish(id, length) {
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -293,7 +298,7 @@ await t.teleport(tp[0] + 1.6, tp[1] + 2.2, { camYaw: 0, zoom: narrow ? 11 : 12 }
 await t.shot('17-tam-at-night');
 
 // ================================================================== frame rate and errors
-await t.teleport(12.6, 20, { camYaw: 0.2, heading: Math.PI, zoom: narrow ? 20 : 26, pitch: 1.0 });
+await tq(12.6, 20, { camYaw: 0.2, heading: Math.PI, zoom: narrow ? 20 : 26, pitch: 1.0 });
 await clearToasts(); await t.wait(2500);
 const fps = [];
 for (let i = 0; i < 8; i++) { fps.push(await ev(() => window.__game.fps)); await t.wait(500); }

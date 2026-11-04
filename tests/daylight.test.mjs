@@ -8,6 +8,7 @@ import { START_HOUR, DayConditions } from '../src/fishing/gear.js';
 import { buildHarbourModels, } from '../src/world/harbourProps.js';
 import { RECTS, AREA } from '../src/world/quayPaint.js';
 import { QUAY_Z, QY, harbour } from '../src/ecosystems/harbour.js';
+import { T as quayT } from '../src/world/belmore.js';
 import { buildCephalopod } from '../src/life/cephalopod.js';
 import { LOOKS } from '../src/life/looks.js';
 import '../src/fishing/catches.js';
@@ -106,5 +107,5 @@ test('the quay is dressed: tables, crates, nets, bowser, kiosk with umbrellas, p
   const m = buildHarbourModels(); for (const k of ['fuel_bowser', 'kiosk', 'umbrella_table', 'planter', 'net_rack', 'crab_pots', 'wheelie_bins', 'boat_trailer', 'sandwich_board', 'crate_stack', 'net_pile', 'fish_bin']) assert.ok(m.has(k), k);
   for (const r of RECTS) { assert.ok(r.x0 >= AREA.x0 && r.x1 <= AREA.x1 && r.z0 >= AREA.z0 && r.z1 <= AREA.z1, `${r.kind} inside the painted area`); assert.ok(r.z0 >= QUAY_Z + 0.9 - 0.1, `${r.kind} is on the quay, not over the water`); }
   assert.ok(RECTS.some(r => r.kind === 'bays') && RECTS.some(r => r.kind === 'hatch' && r.label === 'DIESEL') && RECTS.some(r => r.kind === 'plaza') && RECTS.some(r => r.kind === 'dashes'));
-  assert.ok(harbour.heightAt(0, AREA.z0 + 1) >= QY - 0.2, 'the apron is at quay height');
+  assert.ok(harbour.heightAt(...quayT(0, AREA.z0 + 1)) >= QY - 0.2, 'the apron is at quay height (the paint is laid in the quay frame)');
 });

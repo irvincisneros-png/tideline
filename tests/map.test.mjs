@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ECOSYSTEMS } from '../src/ecosystems/index.js';
 import { SPOTS } from '../src/fishing/catches.js';
-import { buildSiteMap, uncaughtAt, safetyState, npcMarkers, REGION_SITES, VIEWS, project, placeLabels, contourLoops, smoothLoop, smoothContours, legendFor, depthLevels } from '../src/ui/mapData.js';
+import { buildSiteMap, uncaughtAt, safetyState, npcMarkers, REGION_SITES, VIEWS, project, placeLabels, contourLoops, smoothLoop, smoothContours, legendFor, depthLevels, toWorld, toMap, mapHeading } from '../src/ui/mapData.js';
 import { siteLock } from '../src/ecosystems/unlock.js';
 import { migrateProgress } from '../src/core/save.js';
 
@@ -25,16 +25,25 @@ test('spot icons sit inside the map and on the right kind of cell', () => {
     const m = maps[e.id], v = VIEWS[e.id];
     for (const s of m.spots) {
       assert.ok(s.x >= v.x0 && s.x <= v.x1 && s.z >= v.z0 && s.z <= v.z1, `${e.id}/${s.spot} inside the view`);
-      assert.equal(e.fishing.spotAt(s.x, s.z, s.x, s.z), s.spot, `${e.id}: the ${s.spot} icon is on ${s.spot}`);
+      const [wx, wz] = toWorld(v, s.x, s.z);   // the map may be turned (Bellambi): ask the site in world coordinates
+      assert.equal(e.fishing.spotAt(wx, wz, wx, wz), s.spot, `${e.id}: the ${s.spot} icon is on ${s.spot}`);
     }
     for (const p of m.pois) assert.ok(p.x >= v.x0 && p.x <= v.x1 && p.z >= v.z0 && p.z <= v.z1, `${e.id}/${p.id} landmark inside the view`);
   }
 });
 test('the sea is where the terrain says it is', () => {
-  const r = maps.rocky, i = Math.floor((0 - r.view.x0) / r.view.cell), jw = Math.floor((45 - r.view.z0) / r.view.cell), jl = Math.floor((125 - r.view.z0) / r.view.cell);
-  assert.equal(r.land[jw * r.cols + i], 0, 'water off Bellambi beach'); assert.equal(r.land[jl * r.cols + i], 1, 'dunes behind it');
+  // Bellambi's map is turned so north is up: the sea is to the EAST (right), the beach and the town to the west
+  const r = maps.rocky, at = (u, v) => r.land[Math.floor((v - r.view.z0) / r.view.cell) * r.cols + Math.floor((u - r.view.x0) / r.view.cell)];
+  assert.equal(at(100, 0), 0, 'open sea east of the point'); assert.equal(at(-60, 60), 1, 'the reserve and the bush behind the south beach'); assert.equal(at(40, 5), 1, 'Bellambi Point sticks out to the east');
+  assert.equal(at(20, -60), 0, 'the cove is water, north of the point'); assert.equal(at(-62, -45), 1, 'the north beach is land');
   assert.ok(maps.river.land.some(x => x) && maps.river.land.some(x => !x), 'the river has both banks and water');
   assert.ok(maps.reef.land.every(x => !x), 'the offshore reef map is all water');
+  const rocky = ECOSYSTEMS.find(e => e.id === 'rocky'), [x, z] = toWorld(r.view, 100, 0);
+  assert.ok(rocky.heightAt(x, z) < -2, 'and the world agrees: deep water there');
+  // the map frame is a proper rotation: round trips, and a heading turns with it
+  assert.deepEqual(toMap(r.view, ...toWorld(r.view, 12, -7)).map(Math.round), [12, -7]);
+  const h = 0.7, [x0, z0] = [3, 4], [x1, z1] = [x0 + Math.sin(h), z0 + Math.cos(h)], [u0, v0] = toMap(r.view, x0, z0), [u1, v1] = toMap(r.view, x1, z1);
+  assert.ok(Math.abs(Math.atan2(u1 - u0, v1 - v0) - mapHeading(r.view, h)) < 1e-9);
 });
 test('the shop is only where Mitra is, and every site has a way home', () => {
   assert.deepEqual(ECOSYSTEMS.filter(e => maps[e.id].pois.some(p => p.kind === 'shop')).map(e => e.id), ['seagrass']);
