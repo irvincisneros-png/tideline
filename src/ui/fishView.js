@@ -84,7 +84,7 @@ export class FishView {
   /** Preset views for the "Top / Side / Front" buttons. */
   setView(name) {
     this.auto = false;
-    const v = { side: [-Math.PI / 2, 0.05], top: [-Math.PI / 2, 1.5], front: [0, 0.05], three: [-0.5, 0.32] }[name] ?? [-0.5, 0.32];
+    const v = { side: [0, 0.05], top: [-Math.PI / 2, 1.5], front: [-Math.PI / 2, 0.05], three: [-0.5, 0.32] }[name] ?? [-0.5, 0.32];
     [this.yaw, this.pitch] = v; this.dirty = true;
   }
   resize() {

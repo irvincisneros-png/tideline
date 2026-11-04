@@ -51,14 +51,39 @@ export function setPhoto(p, id, photo, length = 0) {
 }
 
 /** Record one run through the key ('catch' or 'guide' re-key). Returns { correct }. A correct key names the species for good; a wrong one
- *  is kept as that wrong name until the player re-keys it. */
-export function recordKey(p, id, as, src = 'catch') {
-  const e = entryFor(p, id);
-  (e.keys ??= []).push({ as, t: Date.now(), src });
-  if (as === id) e.ident = true;
+ *  is kept as that wrong name until the player re-keys it.
+ *  opts.assisted = the run used a hint, a "where you went wrong" retry or the walkthrough. A fish first identified with help is still Identified
+ *  (named, measured, kept or released), but it cannot be Mastered until one correct key with no help (e.assisted stays until then).
+ *  Older saves have neither field, so their identified fish count as clean. */
+export function recordKey(p, id, as, src = 'catch', { assisted = false } = {}) {
+  const e = entryFor(p, id), wasIdent = !!e.ident;
+  (e.keys ??= []).push(assisted ? { as, t: Date.now(), src, assisted: true } : { as, t: Date.now(), src });
+  if (as === id) {
+    e.ident = true;
+    if (!assisted) { delete e.assisted; e.clean = true; }
+    else if (!wasIdent && !e.clean) e.assisted = true;
+  }
   checkMastery(p, id);
   return { correct: as === id };
 }
+
+/** Count one piece of help for a fish: 'hint' (a hint button press), 'miss' (a full key run that ended on the wrong species) or 'reveal'
+ *  (the step-by-step walkthrough). Kept on the entry as e.help = { hints, misses, reveals } for the teacher and for the "two misses" rule. */
+export function recordHelp(p, id, kind) {
+  const e = entryFor(p, id);
+  if (!e.help || typeof e.help !== 'object') e.help = { hints: 0, misses: 0, reveals: 0 };
+  const h = e.help;
+  const k = { hint: 'hints', miss: 'misses', reveal: 'reveals' }[kind];
+  if (!k) return h;
+  h[k] = (Number.isFinite(h[k]) ? h[k] : 0) + 1;
+  return h;
+}
+export function helpOf(p, id) {
+  const h = entryOf(p, id)?.help, n = k => (h && typeof h === 'object' && Number.isFinite(h[k]) ? h[k] : 0);
+  return { hints: n('hints'), misses: n('misses'), reveals: n('reveals') };
+}
+/** Named with help and not yet keyed cleanly: Identified, but Mastery waits for one unassisted correct key. */
+export const isAssisted = (p, id) => !!entryOf(p, id)?.ident && entryOf(p, id).assisted === true;
 
 export function recordMeasure(p, id, accurate) {
   const e = entryFor(p, id);
@@ -79,11 +104,11 @@ export function recordDecision(p, id, correct, counts = correct) {
   checkMastery(p, id);
 }
 
-/** Mastered = identified (the key was solved) + an accurate measure + a qualifying decision (see masteryDecision). */
+/** Mastered = identified (the key was solved, with no help the first time or once more later) + an accurate measure + a qualifying decision (see masteryDecision). */
 export function checkMastery(p, id) {
   const e = entryOf(p, id);
   if (!e || e.mastered) return;
-  if (e.ident && (e.meas?.acc ?? 0) > 0 && (e.dec?.ok ?? 0) > 0) e.mastered = Date.now();
+  if (e.ident && !e.assisted && (e.meas?.acc ?? 0) > 0 && (e.dec?.ok ?? 0) > 0) e.mastered = Date.now();
 }
 
 /** The "doesn't match: re-key it" flag: the player's key answers disagree between catches, or all the other mastery checks are done

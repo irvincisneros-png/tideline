@@ -111,6 +111,7 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
         <div class="dyk"><b>Where and when</b> ${esc(whereWhen(s))}</div>`;
     } else {
       main = `<div class="gd-hero two">${sil(false)}${photo}</div>
+        ${G.isAssisted(p, id) ? `<div class="flagbox assist-note"><b>Named with help.</b> You used hints or the walkthrough to identify this fish, so it is Identified but not yet Mastered. Key it once more on your own to unlock Mastery. <button class="btn small" id="g-rekey">Key it on my own</button></div>` : ''}
         <div class="facts"><div><b>Look for</b>${esc(s.idFeature)}</div><div><b>Habitat</b>${esc(s.habitat)} · ${esc(Object.keys(s.spots).map(k => SPOT_INFO[k].label).join(', '))}</div>
           ${s.feat?.closer ? `<div><b>Look closer</b>${esc(s.feat.closer)}</div>` : ''}<div><b>Longest catch</b>${e.best ?? '?'} cm</div></div>`;
     }
@@ -119,7 +120,7 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
     const meas = e.meas ?? { n: 0, acc: 0 }, dec = e.dec ?? { ok: 0 };
     const check = (ok, text) => `<li class="${ok ? 'ok' : ''}"><span>${ok ? '✔' : '○'}</span>${text}</li>`;
     const list = t !== 'unseen' && t !== 'seen' ? `<h3>Mastery</h3><ul class="mastery">
-        ${check(e.ident, 'Identified: solved the key and named it correctly')}
+        ${check(e.ident && !e.assisted, e.assisted ? 'Identified with help: key it once more with no hints to count' : 'Identified: solved the key and named it correctly')}
         ${check(meas.acc > 0, `An accurate measure, within 1 cm (${meas.acc} of ${meas.n} so far)`)}
         ${check(dec.ok > 0, s.rules.protected ? 'A correct release (protected: it can never be kept)' : 'A legal keep, or a correct release of a fish you could not keep')}</ul>
         <p class="muted mastery-hint">${esc(G.MASTERY_HINT)}${dec.neutral ? ` (Releasing a legal fish is allowed but does not count: ${dec.neutral} so far.)` : ''}</p>` : '';
@@ -153,12 +154,15 @@ export function openGuide(game, { focus = null, back = null, region = 'all' } = 
   const renderKey = id => {
     dispose();
     const e = G.entryOf(p, id);
+    const again = G.isAssisted(p, id);
     keyCtl = mountKey(body, {
-      id, title: `Re-key: ${G.labelOf(p, id)}`, photo: e?.photo,
+      id, title: again ? `${SPECIES_BY_ID[id].name}: key it on your own` : `Re-key: ${G.labelOf(p, id)}`, photo: e?.photo,
+      misses: G.helpOf(p, id).misses, noHelp: again,
+      onHelp: kind => { G.recordHelp(p, id, kind); game.persist(); },
       sub: 'Use your catch photo and the 3D fish to work through the key again.',
       cancelLabel: 'Cancel', onCancel: () => renderEntry(id),
-      onConfirm: leaf => {
-        const res = G.recordKey(p, id, leaf, 'guide');
+      onConfirm: (leaf, info = {}) => {
+        const res = G.recordKey(p, id, leaf, 'guide', { assisted: !!info.assisted });
         game.persist(); game.updateStats();
         game.toast(res.correct ? `Identified: ${SPECIES_BY_ID[id].name}. It matches now.` : `Logged as ${SPECIES_BY_ID[leaf].name}. Check the 3D fish against your answers.`, res.correct ? 'good' : 'warn');
         if (res.correct) game.audio.play('newSpecies');

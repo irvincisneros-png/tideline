@@ -8,11 +8,11 @@ import { SPECIES } from './species.js';
 /** Feature order (ties in the splitter go to the earlier feature) and the wording of each possible answer. `a` is the statement for
  *  "has this value", `b` the statement for "does not". `look` is the help line shown under the couplet. */
 export const FEATURE_DEFS = [
-  { id: 'body', label: 'Body shape', look: 'Turn the fish and look at it from above, from the side and head-on.', values: {
+  { id: 'body', label: 'Body shape', look: 'Turn the fish and look at it from above, from the side and head-on. A torpedo is plump and thick through the middle; a long, slim fish looks thin for its length (skinnier than a tailor or a mackerel).', values: {
     flattened: { a: 'Body flattened from top to bottom (wider than it is deep, like a doormat)', b: 'Body not flattened from top to bottom', name: 'flattened' },
-    torpedo: { a: 'Body torpedo-shaped: round, muscular and tapering to the tail', b: 'Body not torpedo-shaped', name: 'torpedo-shaped' },
+    torpedo: { a: 'Body torpedo-shaped: plump and muscular, thick through the middle and tapering to the tail (like a tailor or a tuna)', b: 'Body not torpedo-shaped', name: 'torpedo-shaped' },
     deep: { a: 'Body deep and oval, flattened from side to side', b: 'Body not deep and oval', name: 'deep and oval' },
-    slim: { a: 'Body long and slim, like a pencil', b: 'Body not long and pencil-slim', name: 'long and slim' },
+    slim: { a: 'Body long and slim, like a pencil: thin for its length, much skinnier than a torpedo-shaped fish', b: 'Body not long and pencil-slim', name: 'long and slim' },
     snake: { a: 'Body long and snake-like, with the fins running along it', b: 'Body not snake-like', name: 'snake-like' },
     tentacles: { a: 'Soft tube of a body with arms and tentacles (no bones, no scales)', b: 'Body has bones and scales, no tentacles', name: 'tentacled' },
   } },

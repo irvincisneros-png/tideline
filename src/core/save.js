@@ -1,7 +1,8 @@
 // Local progress: the Fish Guide, the logbook (every fish you handled), the esky, steward record and stock health. No accounts, nothing leaves the device.
 const KEY = 'tideline.progress.v1';
 // v2 (phase 1b), all additive so old saves still load:
-//   guide: { nextN, e: { speciesId: { seen, caught, photo, best, keys, ident, meas, dec, mastered } } }  (fishing/guide.js)
+//   guide: { nextN, e: { speciesId: { seen, caught, photo, best, keys, ident, meas, dec, mastered, assisted?, clean?, help? } } }  (fishing/guide.js)
+//     assisted/clean/help (key hints, added later) are optional: an entry without them counts as keyed cleanly, so old saves are unchanged.
 //   catches: the logbook, one row per fish: { eco, id, length, kept, correct, time, spot, tide, daytime, rig, bait, n, label, measured, accurate, legal, kind, outing, wet, air }
 //   esky: fish kept this outing { id, label, length, legal, kind, time }.  outing: the outing in progress { id, t0, bay0, steward0, ... }.
 //   steward: { points, litter, checks, clean, fines }.  tips: one-line tips already shown.  stock: stock health (0-100) per 'spot:species'.

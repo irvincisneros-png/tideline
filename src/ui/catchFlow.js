@@ -56,7 +56,7 @@ export class CatchFlow {
     this.measured = null; this.accurate = null; this.decision = null; this.verdict = null;
     this.t0 = performance.now();
     g.panels.open('', null, { locked: true, flow: 'flow' });
-    if (G.atLeast(G.tierOf(p, this.id), 'identified')) this.stepMeasure(); else this.stepKey();
+    if (G.atLeast(G.tierOf(p, this.id), 'identified') && !G.isAssisted(p, this.id)) this.stepMeasure(); else this.stepKey();
   }
 
   // ---------------------------------------------------------------- display names
@@ -75,14 +75,20 @@ export class CatchFlow {
     const g = this.game, p = this.p;
     this.disposeKey();
     const n = this.entry.caught.n;
+    // A fish named with help last time is Identified but cannot be Mastered until it is keyed once more with no help: offer that (skippable).
+    const recheck = G.isAssisted(p, this.id);
     this.keyView = mountKey(this.panel.body, {
-      id: this.id, title: `Unknown fish #${n}`,
-      sub: `Nice catch, ${nameOf(p)}! ` + (p.guide.e[this.id]?.keys?.length ? 'You keyed this fish before. Look again, and check each answer against the fish.' : 'Look the fish over, then work through the key. Every question is about something you can see.'),
-      onConfirm: leaf => {
+      id: this.id, title: recheck ? `${this.sp.name}: key it on your own` : `Unknown fish #${n}`,
+      sub: `Nice catch, ${nameOf(p)}! ` + (recheck ? 'You named this fish with help last time. Key it again with no hints to earn Mastery, or skip it for now.'
+        : p.guide.e[this.id]?.keys?.length ? 'You keyed this fish before. Look again, and check each answer against the fish.' : 'Look the fish over, then work through the key. Every question is about something you can see. Stuck? The Hint button shows where to look.'),
+      misses: G.helpOf(p, this.id).misses, noHelp: recheck,
+      cancelLabel: recheck ? 'Skip for now' : undefined, onCancel: recheck ? () => this.stepMeasure() : undefined,
+      onHelp: kind => { G.recordHelp(p, this.id, kind); g.persist(); },
+      onConfirm: (leaf, info = {}) => {
         const as = SPECIES_BY_ID[leaf];
-        G.recordKey(p, this.id, leaf, 'catch');
+        const res = G.recordKey(p, this.id, leaf, 'catch', { assisted: !!info.assisted });
         g.persist(); g.audio.play('newSpecies'); g.audio.music.jingle('reelwinner');
-        g.toast(`Logged as ${as.name} in your Fish Guide.`, 'good');
+        g.toast(recheck && res.correct && !info.assisted ? `Keyed on your own: ${as.name}. Mastery is open again.` : info.revealed ? `Logged as ${as.name}. Key the next one on your own to earn Mastery.` : `Logged as ${as.name} in your Fish Guide.`, 'good');
         this.stepMeasure();
       },
     });
