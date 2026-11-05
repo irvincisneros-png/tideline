@@ -104,3 +104,8 @@ export const COVE_BEACH = { x: fromPx(150, 418)[0], z: fromPx(150, 418)[1] };
 /** The short timber jetty near the restaurants: from the south shore (root) out to the north-west. */
 export const JETTY2 = (() => { const [rx, rz] = fromPx(300, 446), [ex, ez] = fromPx(250, 380), L = Math.hypot(ex - rx, ez - rz); return { rx, rz, ex, ez, len: L, w: 1.8, y: 0.8, ux: (ex - rx) / L, uz: (ez - rz) / L }; })();
 export const FLAGSTAFF = fromPx(782, 266);
+/** 0..1: the streets behind the harbour lawns (Cliff Road and the terraces above Cove Beach and the basin): flat ground off the hill, away from the quay. */
+export function streetAt(x, z) {
+  const d = landD(x, z);
+  return smoothstep(26, 30, d) * (1 - smoothstep(56, 62, d)) * (1 - smoothstep(0.15, 0.5, hillAt(x, z))) * (1 - smoothstep(0.02, 0.2, quayMask(x, z))) * (1 - smoothstep(20, 50, x));
+}

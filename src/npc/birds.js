@@ -25,7 +25,7 @@ export class Birds {
     }
     // Gulls over a school (index 0..4) and one tern (index 5) that dives.
     this.n = 6; this.flock = flyingGullMesh(this.n); this.flock.visible = false; this.group.add(this.flock);
-    this.gulls = Array.from({ length: this.n }, (_, i) => ({ a: i * 1.05, r: 3 + this.rnd() * 3, h: 2.3 + this.rnd() * 1.1, w: (0.5 + this.rnd() * 0.25) * (i % 2 ? -1 : 1), x: 0, z: 0, y: 6, init: false }));
+    this.gulls = Array.from({ length: this.n }, (_, i) => ({ a: i * 1.05, r: 4.5 + this.rnd() * 4, h: 4 + this.rnd() * 2.2, w: (0.5 + this.rnd() * 0.25) * (i % 2 ? -1 : 1), x: 0, z: 0, y: 6, init: false }));
     this.center = new THREE.Vector3(); this.have = false; this.dive = { t: -1, next: 9 + this.rnd() * 6, from: new THREE.Vector3(), at: new THREE.Vector3(), done: false };
   }
 
@@ -93,7 +93,9 @@ export class Birds {
       }
       // The model flies with its beak toward +x; yaw (about y) so +x points along the heading.
       _q.setFromEuler(_e.set(0, yaw, pitch));
-      _m.compose(_p.set(x, y, z), _q, _s.setScalar(tern ? 0.8 : 0.95)); this.flock.setMatrixAt(i, _m);
+      // A gull that wheels right past the lens is a huge flat wing across the screen: shrink it away within a few metres of the camera.
+      const cam = this.game.camera.position, near = 1 - Math.min(1, Math.max(0, (6 - Math.hypot(x - cam.x, y - cam.y, z - cam.z)) / 2.5));
+      _m.compose(_p.set(x, y, z), _q, _s.setScalar((tern ? 0.8 : 0.95) * near)); this.flock.setMatrixAt(i, _m);
     }
     this.flock.instanceMatrix.needsUpdate = true;
   }

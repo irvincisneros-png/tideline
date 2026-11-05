@@ -13,6 +13,7 @@ import { addGenerator } from '../world/reef.js';
 import { rock } from '../world/coral.js';
 import { globalUniforms } from '../ocean/shaders.js';
 import { buildHarbourModels } from '../world/harbourProps.js';
+import { layTown } from '../world/townProps.js';
 import { HarbourLife } from '../world/harbourLife.js';
 import { quayDecal } from '../world/quayPaint.js';
 import * as BM from '../world/belmore.js';
@@ -88,6 +89,7 @@ export function colorAt(x, z, h) {
     c = mix3(c, [0.52 + n * 2, 0.68 + n, 0.36], smoothstep(5, 11, d + noise.n2(x * 0.1, 9) * 3));            // sand to lawn
     c = mix3(c, [0.42 + n, 0.6 + n, 0.3], smoothstep(1.8, 5, h));                                           // greener up the hill
     const rd = BM.roadDist(x, z); if (rd < 2.2 && BM.hillAt(x, z) > 0.4) c = mix3(c, [0.55, 0.55, 0.52], smoothstep(2.2, 1.4, rd));   // Endeavour Drive round the hill
+    const st = BM.streetAt(x, z); if (st > 0.02) { const sd = Math.abs(d - 41.5); c = mix3(c, sd < 0.12 ? [0.9, 0.9, 0.86] : Math.abs(sd - 3.4) < 0.3 ? [0.85, 0.84, 0.8] : [0.55 + n, 0.55 + n, 0.54], st * smoothstep(3.8, 3.2, sd)); }   // the street behind the lawns
     const rk = smoothstep(55, 90, x) * (1 - smoothstep(2, 12, d)); if (rk > 0.05) c = mix3(c, [0.58 + n * 2, 0.5 + n, 0.4], rk * 0.8);   // rocky headland
     if (qm > 0.02 || wall > 0.02) {
       const edge = smoothstep(QUAY_Z + 0.9, QUAY_Z - 0.2, q.b) * (q.b > QUAY_Z - 3 ? 1 : 0);
@@ -222,6 +224,10 @@ function decorate(world) {
   for (const [x, dz, m, s] of [[-40, 24, 'norfolk_pine_0', 1.1], [-24, 26, 'casuarina_0', 1.0], [-6, 25, 'norfolk_pine_1', 1.05], [14, 26, 'casuarina_1', 1.0], [34, 24, 'norfolk_pine_0', 1.05], [-14, 26, 'casuarina_1', 0.95], [52, 22, 'norfolk_pine_1', 1.0]]) { const [x2, z2] = T(x, QUAY_Z + dz); tree(x2, z2, m, s); }
   for (const [px, py, m, s] of [[110, 452, 'casuarina_0', 1.0], [160, 470, 'casuarina_1', 1.05], [215, 490, 'norfolk_pine_0', 1.0], [330, 480, 'norfolk_pine_1', 1.0], [120, 520, 'norfolk_pine_0', 1.1], [260, 520, 'casuarina_0', 1.0],
     [640, 330, 'norfolk_pine_1', 1.0], [690, 320, 'norfolk_pine_0', 1.05], [760, 350, 'norfolk_pine_1', 1.1], [770, 520, 'norfolk_pine_0', 1.05], [680, 560, 'norfolk_pine_1', 1.0], [610, 470, 'casuarina_1', 1.0], [720, 400, 'norfolk_pine_0', 1.0], [655, 520, 'casuarina_0', 1.0]]) { const [x, z] = BM.fromPx(px, py); if (BM.landD(x, z) > 3) tree(x, z, m, s); }
+  // The town behind the harbour: terraces and flats along the street behind the lawns, cottages further back (world/townProps.js).
+  const tb = { xMin: -150, xMax: 60, zMin: -40, zMax: 110 };
+  layTown(world, { bounds: tb, dist: BM.landD, band: [30, 36], spacing: 13, accept: (x, z) => BM.streetAt(x, z) > 0.8, kind: (x, z, i) => (i % 3 === 1 ? 'cottage' : 'flats'), seed: 5, fences: false });
+  layTown(world, { bounds: tb, dist: (x, z) => 100 - BM.landD(x, z), band: [51, 55], spacing: 12, accept: (x, z) => BM.streetAt(x, z) > 0.8, seed: 9 });
   // The second lighthouse, on the headland under Flagstaff Hill (no beam: the breakwall light is the working one), and a flagstaff on the hill.
   { const [x, z] = BM.FLAGSTAFF; at(x, z, 'lighthouse', { sink: 0.2, shadow: 4, tall: 11, scale: 0.9 }); world.addCollider(x, Tr.heightAt(x, z) + 2, z, 2.6); }
   // The timber jetty by the restaurants: deck sections end to end, posts every 4 m on both sides, from the shore out toward the north-west.

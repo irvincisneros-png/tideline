@@ -12,6 +12,7 @@ import * as FL from '../world/flora.js';
 import * as FO from '../world/foliage.js';
 import { rock } from '../world/coral.js';
 import { dressBeach } from '../world/beachProps.js';
+import { layTown } from '../world/townProps.js';
 import * as BL from '../world/bellambi.js';
 
 export { platformMask, POOLS, FRAME } from '../world/bellambi.js';
@@ -28,10 +29,11 @@ function landHeight(x, z, d, s) {
   let h = 2.15 * (0.55 * t + 0.45 * smoothstep(0, 1, t));                              // beach face (about 1:5, a little steeper than life so the sand stays narrow)
   h += 0.5 * smoothstep(10, 22, d);                                                    // the back beach and the foreshore
   const pm = pointMask(x, z);
+  const town = BL.townAt(x, z), flat = 1 - town;                                      // the streets behind the beach are graded flat
   const dune = smoothstep(13, 22, d) * (1 - smoothstep(40, 56, d)) * (1 - pm);
-  h += dune * (noise.fbm2(x * 0.035, z * 0.05, 4) * 2.4 + noise.fbm2(x * 0.15, z * 0.15, 2) * 0.45 + 0.6);
-  h += smoothstep(34, 150, d) * (5.2 - 2.6 * pm);                                      // rising ground behind (low on the point)
-  h += noise.fbm2(x * 0.03 + 5, z * 0.03, 3) * 0.9 * smoothstep(10, 40, d) + BL.bushAt(x, z) * (0.9 + noise.fbm2(x * 0.12, z * 0.12, 2) * 1.2);
+  h += dune * (noise.fbm2(x * 0.035, z * 0.05, 4) * 2.4 + noise.fbm2(x * 0.15, z * 0.15, 2) * 0.45 + 0.6) * flat;
+  h += smoothstep(34, 150, d) * (5.2 - 2.6 * pm) * (1 - town * 0.5);                  // rising ground behind (low on the point, gentler through the streets)
+  h += (noise.fbm2(x * 0.03 + 5, z * 0.03, 3) * 0.9 * smoothstep(10, 40, d) + BL.bushAt(x, z) * (0.9 + noise.fbm2(x * 0.12, z * 0.12, 2) * 1.2)) * flat;
   h += Math.sin(x * 0.26) * 0.1 * smoothstep(0.3, 1, h) * (1 - smoothstep(2, 5, h));   // beach cusps
   return h;
 }
@@ -104,6 +106,13 @@ function shoreColor(x, z, h, slope, d) {
   // the shared path along the back of the beach
   const path = smoothstep(1.0, 0.45, Math.abs(d - 17)) * (1 - smoothstep(0.1, 0.4, BL.bushAt(x, z)));
   if (path > 0) c = mix3(c, [0.8, 0.78, 0.72], path * 0.9);
+  // the streets behind the beach: mown lawns, a grey road with a pale kerb and a dashed centre line
+  const town = BL.townAt(x, z);
+  if (town > 0.02) {
+    c = mix3(c, [0.6 + n * 0.05, 0.72, 0.38], town * 0.8);
+    const rd = Math.abs(d - 48.5), road = smoothstep(3.6, 3.0, rd), kerb = smoothstep(0.5, 0.15, Math.abs(rd - 3.4)), dash = rd < 0.12 && ((s % 4 + 4) % 4) < 2.2 ? 1 : 0;
+    c = mix3(c, dash ? [0.9, 0.9, 0.86] : kerb ? [0.85, 0.84, 0.8] : [0.56 + n * 0.03, 0.56 + n * 0.03, 0.55], Math.max(road, kerb) * town);
+  }
   // the car park on the point: grey asphalt with painted bays
   const C = BL.CARPARK, cx = Math.abs(x - C.x), cz = Math.abs(z - C.z);
   if (cx < C.hx + 0.6 && cz < C.hz + 0.6) { const k = smoothstep(C.hx + 0.6, C.hx - 0.2, cx) * smoothstep(C.hz + 0.6, C.hz - 0.2, cz); const bay = ((x - C.x) % 2.6 + 2.6) % 2.6 < 0.1 && cz < C.hz - 1.2; c = mix3(c, bay ? [0.9, 0.9, 0.86] : [0.6 + n * 0.04, 0.6 + n * 0.04, 0.58 + n * 0.04], k); }
@@ -165,7 +174,7 @@ const onBeach = (x, z, lo, hi) => { const d = shoreD(x, z); return d > lo && d <
 addGenerator('kelp', { fn: FL.kelp, variants: 5, scale: [1.0, 1.7], radius: 0.7, sink: 0.02, rough: 0.6, sway: 0.22, cluster: 16, bleaches: false, as: 'kelp', detailScale: 12, sat: 1.05, transl: 0.6, doubleSide: true, soft: true });
 addGenerator('crayweed', { fn: FL.crayweed, variants: 3, scale: [0.9, 1.4], radius: 0.6, sink: 0.02, rough: 0.6, sway: 0.12, cluster: 6, bleaches: false, as: 'crayweed', detailScale: 12, sat: 1.1, transl: 0.5, doubleSide: true, soft: true });
 // Weed on the dark reef patches in the shallows of the cove and off the beach (the dark areas in the satellite view): crayweed that grows right up to a half-metre depth.
-addGenerator('coveweed', { fn: FL.crayweed, variants: 3, scale: [0.9, 1.5], radius: 0.6, sink: 0.02, rough: 0.6, sway: 0.14, cluster: 7, bleaches: false, as: 'crayweed', detailScale: 12, sat: 1.1, transl: 0.5, doubleSide: true, soft: true, maxH: -0.4 });
+addGenerator('coveweed', { fn: FL.crayweed, variants: 3, scale: [0.3, 0.5], radius: 0.6, sink: 0.02, rough: 0.6, sway: 0.14, cluster: 7, bleaches: false, as: 'crayweed', detailScale: 12, sat: 1.1, transl: 0.5, doubleSide: true, soft: true, maxH: -0.4 });
 addGenerator('fingersponge', { fn: FL.fingerSponge, variants: 3, scale: [0.8, 1.6], radius: 0.35, sink: 0.02, rough: 0.9, bleaches: false, as: 'spongegarden', cluster: 4 });
 addGenerator('vasesponge', { fn: s => FL.vaseSponge(s, { colors: [[0.9, 0.6, 0.2], [0.8, 0.4, 0.3], [0.7, 0.65, 0.5]] }), variants: 3, scale: [0.8, 1.5], radius: 0.35, sink: 0.02, rough: 0.9, bleaches: false, as: 'spongegarden' });
 // ---- Beach, dune and rock-platform plants (placed by height and region, not by reefiness)
@@ -352,6 +361,10 @@ export const rocky = {
     }
     if (spot) { pr.place('esky', spot.x, spot.z, { rot: 0.4 }); pr.place('bucket', spot.x + 1.2, spot.z + 0.5, { rot: 0.4 }); }
     dressBeach(world); // shells, driftwood, wrack, umbrellas, towels and the beach-access path
+    // The suburb: two rows of cottages either side of the road behind the north beach, one row behind the south beach (world/townProps.js).
+    const tb = { xMin: -140, xMax: 150, zMin: 0, zMax: 110 };
+    layTown(world, { bounds: tb, dist: shoreD, band: [38, 43], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9, seed: 11 });
+    layTown(world, { bounds: tb, dist: (x, z) => 110 - shoreD(x, z), band: [52, 57], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9, seed: 23 });
     // Chunky rounded sandstone boulders along the platform's seaward edge, and a few on the shore of the point.
     const warm = new THREE.Color(1.28, 0.96, 0.7);
     let k = 0;
@@ -376,14 +389,14 @@ export const rocky = {
     // Dense, like a healthy NSW dune system: spinifex mats on the foredune, a wall of wattle and heath behind, banksia woodland.
     ['spinifex', 1100, (x, z) => notPlatform(x, z) * (1 - BL.pointMask(x, z) * 0.85) * (onBeach(x, z, 12, 44) + 0.04)],
     ['pigface', 380, (x, z) => notPlatform(x, z) * (onBeach(x, z, 11, 50) * 0.9 + 0.04)],
-    ['wattle', 520, (x, z) => notPlatform(x, z) * (shoreD(x, z) > 40 ? 1 : 0.06) * (0.4 + BL.bushAt(x, z))],
-    ['heath', 440, (x, z) => notPlatform(x, z) * (shoreD(x, z) > 46 ? 1 : 0.05) * (0.4 + BL.bushAt(x, z))],
-    ['banksia', 200, (x, z) => notPlatform(x, z) * (shoreD(x, z) > 52 ? 0.8 : 0.03) * (0.3 + BL.bushAt(x, z) * 1.4)],
+    ['wattle', 520, (x, z) => notPlatform(x, z) * (1 - BL.townAt(x, z)) * (shoreD(x, z) > 40 ? 1 : 0.06) * (0.4 + BL.bushAt(x, z))],
+    ['heath', 440, (x, z) => notPlatform(x, z) * (1 - BL.townAt(x, z)) * (shoreD(x, z) > 46 ? 1 : 0.05) * (0.4 + BL.bushAt(x, z))],
+    ['banksia', 200, (x, z) => notPlatform(x, z) * (1 - BL.townAt(x, z)) * (shoreD(x, z) > 52 ? 0.8 : 0.03) * (0.3 + BL.bushAt(x, z) * 1.4)],
     ['norfolkpine', 18, (x, z) => notPlatform(x, z) * onBeach(x, z, 16, 34)],
     ['casuarina', 24, (x, z) => notPlatform(x, z) * (onBeach(x, z, 14, 40) + 0.03)],
     ['hormosira', 420, (x, z) => platformMask(x, z)],
     ['kelp', 1300, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h < -3 && h > -13 ? 1 : 0.1)],
-    ['coveweed', 360, (x, z, h) => BL.patchAt(x, z) * (h < -0.4 ? 1 : 0)],
+    ['coveweed', 520, (x, z, h) => BL.patchAt(x, z) * (h < -0.5 ? 1 : 0)],
     ['crayweed', 90, (x, z, h) => (inBarren(x, z) ? 0 : 1) * (h > -7 ? 1 : 0.2)],
     ['fingersponge', 70, (x, z, h) => (h < -11 ? 1 : 0.05)],
     ['vasesponge', 50, (x, z, h) => (h < -12 ? 1 : 0.05)],

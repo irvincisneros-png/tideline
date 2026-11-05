@@ -154,3 +154,11 @@ export function lagoonMask(x, z) { const e = Math.hypot((x - LAGOON.x) / LAGOON.
 export function bushAt(x, z) { const [px, py] = toPx(x, z); return 1 - smoothstep(0.7, 1.1, Math.hypot((px - 270) / 110, (py - 545) / 80 + noise.n2(px * 0.03, py * 0.03) * 0.15)); }
 /** The car park on the point: [x, z, half width x, half depth z]. */
 export const CARPARK = (() => { const [x, z] = fromPx(412, 384); return { x, z, hx: 7, hz: 5 }; })();
+/** 0..1: the streets of houses behind the beaches (the suburb north of the point along the foreshore reserve, a shorter row behind the south beach). Flat ground for the houses and a road. */
+export function townAt(x, z) {
+  const d = shoreD(x, z), s = shoreS(x, z);
+  const band = smoothstep(33, 40, d) * (1 - smoothstep(62, 70, d));
+  const north = smoothstep(S_BEACH_N - 90, S_BEACH_N - 70, s) * (1 - smoothstep(S_POOL + 10, S_POOL + 30, s));
+  const south = smoothstep(S_PT1 + 20, S_PT1 + 40, s) * (1 - smoothstep(S_BEACH_S + 20, S_BEACH_S + 40, s)) * (1 - smoothstep(0.2, 0.6, bushAt(x, z)));
+  return band * Math.max(north, south) * (1 - pointMask(x, z));
+}
