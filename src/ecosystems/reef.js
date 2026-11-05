@@ -198,7 +198,7 @@ export function nextDrift(game, instant = false) {
   const go = () => {
     const nx = START.x + off * 0.78, nz = START.z - off * 0.62, dx = nx - S.x, dz = nz - S.z;
     S.x = nx; S.z = nz; game.walker.pos.x += dx; game.walker.pos.z += dz; game.rig.focus.x += dx; game.rig.focus.z += dz;
-    game.fishing.float.visible = false; if (game.fishing.active && game.fishing.state !== 'off') game.fishing.state = 'ready';
+    game.fishing.float.visible = false; game.fishing.hideShadow?.(); if (game.fishing.active && game.fishing.state !== 'off') game.fishing.state = 'ready';
     placeBoat(game);
   };
   if (instant) go(); else fadeBlink(game, go);
@@ -220,7 +220,7 @@ function tick(game, dt) {
     if (S.anchored) { dx = Math.cos(S.t * 0.5) * 0.04 * dt; dz = Math.sin(S.t * 0.4) * 0.03 * dt; S.speed = 0; }
     else { const sp = driftSpeed(game.cond.swell); dx = DIR.x * sp * dt; dz = DIR.y * sp * dt; S.speed = sp; }
     S.x += dx; S.z += dz; w.pos.x += dx; w.pos.z += dz;
-    if (!S.anchored && (S.x > DRIFT_BOX.xMax || S.z > DRIFT_BOX.zMax) && !S.fadeing && ['off', 'ready', 'wait'].includes(game.fishing.state)) { S.fadeing = true; nextDrift(game); setTimeout(() => { S.fadeing = false; }, 900); }   // (never motor off with a fish on)
+    if (!S.anchored && (S.x > DRIFT_BOX.xMax || S.z > DRIFT_BOX.zMax) && !S.fadeing && ['off', 'ready', 'wait', 'retrieve'].includes(game.fishing.state)) { S.fadeing = true; nextDrift(game); setTimeout(() => { S.fadeing = false; }, 900); }   // (never motor off with a fish on)
   }
   game.carry = { x: dx, z: dz };
   placeBoat(game);

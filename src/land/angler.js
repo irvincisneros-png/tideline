@@ -210,12 +210,12 @@ export class Angler {
     }
     const act = ctx.act ?? 0;
     // Smooth the inputs once per frame (rise a little faster than fall) so the pose never snaps.
-    const reelIn = state === 'fight' && ctx.reel ? 1 : 0;
+    const reelIn = (state === 'fight' || state === 'retrieve') && ctx.reel ? 1 : 0;
     this.hold_ += (reelIn - this.hold_) * Math.min(1, dt * (reelIn > this.hold_ ? 6 : 4));
     this.pull += ((state === 'fight' ? act : 0) - this.pull) * Math.min(1, dt * 5);
     this.tension = clamp(0.3 + 0.3 * this.hold_ + 0.55 * this.pull, 0, 1);
-    this.crank = (this.crank + dt * (state === 'fight' ? 0.5 + 6.5 * this.hold_ : 0)) % (Math.PI * 2);
-    this.az = damp(this.az, state === 'fight' || state === 'wait' || state === 'bite' ? clamp(ctx.side ?? 0, -0.45, 0.45) : 0, 4, dt);
+    this.crank = (this.crank + dt * (state === 'fight' ? 0.5 + 6.5 * this.hold_ : state === 'retrieve' ? 5 * this.hold_ : 0)) % (Math.PI * 2);
+    this.az = damp(this.az, state === 'fight' || state === 'wait' || state === 'retrieve' || state === 'bite' ? clamp(ctx.side ?? 0, -0.45, 0.45) : 0, 4, dt);
     if (state === 'charge') {
       const p = ctx.power ?? 0; // wind back: the rod goes up and over, the shoulder rotates, the body leans back
       aRx = -0.85 + p * 1.5; eRx = -0.7 - p * 0.5; phi = 0.95 + p * 1.0; lean = -0.14 * p; aLx = -0.55 + p * 0.3;
@@ -228,6 +228,11 @@ export class Angler {
       if (this.castT > 0.3) { phi = 0.45 + clamp((this.castT - 0.3) / 0.5, 0, 1) * 0.4; aRx = -1.5 + clamp((this.castT - 0.3) / 0.5, 0, 1) * 0.65; eRx = -0.5 - clamp((this.castT - 0.3) / 0.5, 0, 1) * 0.25; rate = 8; }
     } else if (state === 'wait') {
       phi = 0.78 + Math.sin(t * 0.9) * 0.02; aRx = -0.9; eRx = -0.75;
+    } else if (state === 'retrieve') {
+      // Working a lure: rod a little higher than waiting, the left hand on the reel handle, cranking while Space is held.
+      const hs = this.hold_, c = this.crank, r = 0.12 + 0.1 * hs;
+      phi = 0.85 + 0.08 * hs + Math.sin(t * 0.9) * 0.02; aRx = -0.9; eRx = -0.75;
+      aLx = -0.85 + Math.sin(c) * r; aLz = 0.08 + Math.cos(c) * r * 0.8; eLx = -1.1 + Math.cos(c) * 0.25 * hs; crankRate = 30;
     } else if (state === 'bite') {
       phi = 0.95 + Math.sin(t * 14) * 0.03; aRx = -0.95; lean = 0.05; headX = 0.22; // lean in, rod tip twitching
     } else if (state === 'fight') {
@@ -266,7 +271,7 @@ export class Angler {
     this.rod.visible = rodOut;
     if (this.holding) { this.holder.position.y = 1.3 + Math.sin(t * 6) * 0.04; this.holder.rotation.y = Math.sin(t * 5) * 0.25; }
     // The reel faces the angler: spin the grip around the rod axis so the reel hangs below the rod.
-    this.bendS = damp(this.bendS, state === 'fight' ? 0.3 + 0.7 * this.tension : state === 'wait' ? 0.05 : state === 'bite' ? 0.2 : state === 'charge' ? 0.25 : 0, 7, dt);
+    this.bendS = damp(this.bendS, state === 'fight' ? 0.3 + 0.7 * this.tension : state === 'wait' ? 0.05 : state === 'retrieve' ? 0.06 + 0.1 * this.hold_ : state === 'bite' ? 0.2 : state === 'charge' ? 0.25 : 0, 7, dt);
     this.setBend(this.bendS, t, this.shake);
   }
 }

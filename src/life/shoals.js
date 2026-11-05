@@ -10,7 +10,7 @@ import { SPOTS, SPECIES_BY_ID, gateOpen } from '../fishing/catches.js';
 
 export const SEEN_RANGE = 8; // metres: a school this close to the angler counts as Seen in the Fish Guide
 
-function fishGeometry() {
+export function fishGeometry() {
   const s = new THREE.Shape();
   s.moveTo(0.5, 0); s.bezierCurveTo(0.42, 0.11, 0.2, 0.15, -0.02, 0.12); s.bezierCurveTo(-0.2, 0.1, -0.3, 0.05, -0.36, 0.03);
   s.lineTo(-0.5, 0.15); s.quadraticCurveTo(-0.44, 0, -0.5, -0.15); s.lineTo(-0.36, -0.03);
@@ -121,6 +121,12 @@ export class Shoals {
         U[i].set(s.c.x - sd.x * off, s.c.y - sd.z * off, s.ready && off > 0.15 ? 1.5 + s.fish.length * 0.42 : 0);
       });
     }
+  }
+  /** The nearest school to a point: { sp, d } (species id and distance in metres), or null. A bait drawn in next to a school gets its bites. */
+  nearest(x, z) {
+    let best = null;
+    for (const s of this.schools) { if (!s.ready || !s.sp) continue; const d = Math.hypot(s.c.x - x, s.c.y - z); if (!best || d < best.d) best = { sp: s.sp, d }; }
+    return best;
   }
   dispose() { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }
 }

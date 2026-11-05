@@ -409,7 +409,7 @@ class Game {
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / strike / lift'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / work lure / strike'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
     if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
     this.updateStats();
@@ -465,14 +465,14 @@ class Game {
       $('#prompt').innerHTML = this.hint([talk, near && !paused ? `Press <kbd>H</kbd> to head home from ${hz.label}` : ''].filter(Boolean).join('<br>')); w.frozen = false;
     }
     // Camera: follows the angler, frames the float too while a line is out.
-    const also = f.active && f.float.visible && ['wait', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
+    const also = f.active && f.float.visible && ['wait', 'retrieve', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
     this.rig.update(dt, this.world, w.pos, also, !paused, { fight: f.active && f.state === 'fight', line: f.lineDir, heading: w.heading });
     this.focus.copy(this.rig.focus);
     // The angler: stand, walk and fish.
     const a = this.angler;
     a.place(w.pos, w.heading);
-    const lineOut = f.active && ['flying', 'wait', 'bite', 'fight', 'landed'].includes(f.state);   // feet planted while a line is out: no walk cycle
-    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reel: f.state === 'fight' && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, reducedMotion: this.settings.reducedMotion });
+    const lineOut = f.active && ['flying', 'wait', 'retrieve', 'bite', 'fight', 'landed'].includes(f.state);   // feet planted while a line is out: no walk cycle
+    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reel: (f.state === 'fight' || f.state === 'retrieve') && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, reducedMotion: this.settings.reducedMotion });
     if (this.frame % 5 === 0 && !paused) {
       const m = this.input.mouse, lbl = $('#target-label');
       const hit = !this.touch && performance.now() - m.t < 2500 ? (() => { const r = this.mouseRay(m.x, m.y); return this.world.pick(r.origin, r.direction, 80); })() : null;
