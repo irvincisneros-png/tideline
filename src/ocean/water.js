@@ -124,7 +124,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
           float film = smoothstep(at + 0.1, at - 0.7, dm) * (0.16 + 0.42 * lace);
           float line2 = exp(-pow((dm - at2) / 0.5, 2.0)) * lace * 0.42;
           float fleck = smoothstep(0.76, 0.84, vnoise(wp * 11.0 + vec2(uTime * 0.2, uTime * 0.14))) * smoothstep(0.35, 0.6, vnoise(wp * 0.8)) * smoothstep(5.0, 1.2, dm) * 0.55;
-          foam = max(foam, max(max(line, film), max(line2, fleck)));
+          foam = max(foam, max(max(line, film), max(line2, fleck)) * mix(0.35, 1.0, texture2D(uDepth, duv).g));
         }
       }
       if (!below) {

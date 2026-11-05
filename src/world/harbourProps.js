@@ -226,7 +226,7 @@ function quayWall() {
     const row = r % 2 ? [[-1.75, 0.5], [-1, 1], [0, 1], [1, 1], [1.75, 0.5]] : [[-1.5, 1], [-0.5, 1], [0.5, 1], [1.5, 1]];
     row.forEach(([cx, w], i) => p.push(box(w - 0.05, rh - 0.05, 0.9, cols[(r * 3 + i) % 4], cx, -rh * (r + 0.5), 0)));
   }
-  p.push(box(4.0, 0.22, 1.1, 0xc2bcae, 0, -0.11, 0.05));   // the coping stone
+  p.push(box(4.0, 0.3, 2.7, 0xc2bcae, 0, -0.11, 0.85));   // the wide coping slab: its landward edge is a clean straight joint with the apron
   return finish(p, 0.2);
 }
 

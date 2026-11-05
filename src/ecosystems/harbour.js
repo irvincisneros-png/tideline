@@ -108,7 +108,6 @@ export function colorAt(x, z, h) {
       if (slab) k = mix3(k, [0.62, 0.6, 0.55], 0.7);
       k = mix3(k, [0.7, 0.67, 0.6], noise.fbm2(x * 0.15, z * 0.15, 2) * 0.5 + 0.1);
       k = mix3(k, [0.86, 0.83, 0.76], edge * 0.6);
-      if (Math.abs(q.b - (QUAY_Z + 3.2)) < 0.22 && q.a > -44 && q.a < 64) k = [0.93, 0.75, 0.22];             // the painted yellow line along the quay edge
       c = mix3(c, k, Math.max(qm, wall > 0.5 ? 1 : 0));
     }
     return c;

@@ -10,6 +10,7 @@ export const AREA = { x0: -44, x1: 64, z0: 41.4, z1: 68 };
 export const PX_PER_M = 16;
 /** Everything painted, in metres on the quay. kind: bays (rows of bays), hatch (yellow chevrons), dashes (dashed outline), plaza (pavers). */
 export const RECTS = [
+  { kind: 'rule', x0: -44, x1: 8.3, z0: 43.1, z1: 43.3 }, { kind: 'rule', x0: 15.7, x1: 64, z0: 43.1, z1: 43.3 },   // the yellow line along the quay edge
   { kind: 'plaza', x0: 17, x1: 41, z0: 46.8, z1: 60 },
   { kind: 'bays', x0: -16, x1: 8, z0: 57, z1: 63, pitch: 3 },
   { kind: 'bays', x0: -30, x1: 10, z0: 61.2, z1: 67, pitch: 3 },
@@ -46,6 +47,8 @@ export function paintQuayCanvas() {
       g.restore();
       if (r.border) { g.strokeStyle = YELLOW; g.lineWidth = 0.22 * P; g.strokeRect(x0 + 0.11 * P, y0 + 0.11 * P, w - 0.22 * P, h - 0.22 * P); }
       if (r.label) { g.save(); g.fillStyle = '#fff6d2'; g.fillRect(x0 + w / 2 - 1.5 * P, y0 + h / 2 - 0.42 * P, 3 * P, 0.84 * P); g.fillStyle = '#c0392b'; g.font = `800 ${0.62 * P}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(r.label, x0 + w / 2, y0 + h / 2); g.restore(); }
+    } else if (r.kind === 'rule') {
+      g.fillStyle = YELLOW; g.fillRect(X(r.x0), Z(r.z0), X(r.x1) - X(r.x0), Z(r.z1) - Z(r.z0));
     } else if (r.kind === 'dashes') {
       g.strokeStyle = YELLOW; g.lineWidth = 0.2 * P; g.setLineDash([0.9 * P, 0.7 * P]); g.strokeRect(X(r.x0), Z(r.z0), X(r.x1) - X(r.x0), Z(r.z1) - Z(r.z0)); g.setLineDash([]);
       if (r.label) { g.fillStyle = YELLOW; g.font = `800 ${0.7 * P}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(r.label, (X(r.x0) + X(r.x1)) / 2, (Z(r.z0) + Z(r.z1)) / 2); }

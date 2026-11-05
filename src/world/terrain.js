@@ -169,7 +169,7 @@ export class Terrain {
             float lace = 1.0 - smoothstep(0.0, 0.05, abs(la - lb));
             float line = exp(-pow((wy - lapY) / 0.022, 2.0)) * (0.3 + 0.7 * lace);
             float film = smoothstep(lapY + 0.01, lapY - 0.1, wy) * smoothstep(-0.28, -0.06, wy) * (0.1 + 0.5 * lace);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 1.0, 0.98), clamp(max(line, film), 0.0, 0.92));
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 1.0, 0.98), clamp(max(line, film), 0.0, 0.92) * (dryMask - 0.3) / 0.7);   // on rock, hardly any: pools stay clear to their rims
           }
         }
         #ifdef USE_SCHOOLS
@@ -245,14 +245,15 @@ export class Terrain {
     const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.flipY = false;
     this.shade.value.dispose(); this.shade.value = t;
   }
-  /** Seabed height texture for the water shader: half-float metres (precise near the waterline, where the shore foam and the clear shallows read it). */
+  /** Seabed height (red) and sand mask (green) for the water shader: half-float metres (precise near the waterline, where the shore foam and the clear shallows read it). */
   static depthTexture(eco, size = 320, res = 256) {
-    const data = new Uint16Array(res * res);
+    const data = new Uint16Array(res * res * 2);
     for (let j = 0; j < res; j++) for (let i = 0; i < res; i++) {
-      const x = -size / 2 + (i + 0.5) / res * size, z = -size / 2 + (j + 0.5) / res * size;
-      data[j * res + i] = THREE.DataUtils.toHalfFloat(Math.max(-60, Math.min(60, eco.heightAt(x, z))));
+      const x = -size / 2 + (i + 0.5) / res * size, z = -size / 2 + (j + 0.5) / res * size, h = eco.heightAt(x, z), k = (j * res + i) * 2;
+      data[k] = THREE.DataUtils.toHalfFloat(Math.max(-60, Math.min(60, h)));
+      data[k + 1] = THREE.DataUtils.toHalfFloat(1 - Math.min(1, (eco.rockAt?.(x, z, h, 0) ?? 0) * 1.4));   // green: 1 on sand, 0 on rock (shore foam is for beaches; a rock pool stays clear)
     }
-    const t = new THREE.DataTexture(data, res, res, THREE.RedFormat, THREE.HalfFloatType);
+    const t = new THREE.DataTexture(data, res, res, THREE.RGFormat, THREE.HalfFloatType);
     t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.needsUpdate = true;
     t.box = new THREE.Vector4(-size / 2, -size / 2, size, size);
     return t;
