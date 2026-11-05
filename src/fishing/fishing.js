@@ -11,6 +11,7 @@ import { buildFish } from '../life/fishModel.js';
 import { LOOKS } from '../life/looks.js';
 import { fishGeometry } from '../life/shoals.js';
 import { LureInterest, MoveReader, STYLES, styleOf } from './lure.js';
+import { RELEASE_AT } from '../land/anim.js';
 import { RIGS } from './gear.js';
 import { LURE_COLOURS } from '../npc/inventory.js';
 
@@ -110,6 +111,9 @@ export class Fishing {
     });
   }
 
+  /** What the angler watches: the shadow fish behind a lure, else the float, else nothing. */
+  lookAt() { return this.sh?.on ? this.shadow.position : this.float.visible ? this.float.position : null; }
+
   /** Where a cast of this power lands, along the way the angler faces. */
   castTarget(power, out = this.target) {
     const w = this.game.walker, f = w.facing, r = CAST_MIN + power * (CAST_MAX - CAST_MIN);
@@ -148,13 +152,16 @@ export class Fishing {
         const depth = surf(this.target.x, this.target.z) - world.groundAt(this.target.x, this.target.z);
         if (depth < 0.4) { this.state = 'ready'; g.toast('That cast would land on dry ground — face the water and cast again.', 'warn'); }
         else if (!g.baitReady()) { this.state = 'ready'; g.toast('No bait left in your box. Buy some at Mitra\'s shop, collect your own, or switch to a lure (tackle box, T).', 'warn'); }
-        else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); this.setLure(this.onLure); g.audio.play('click'); }
+        else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); this.setLure(this.onLure); }
       }
     } else if (this.state === 'flying') {
-      this.flyT += dt / 0.75;
-      const k = Math.min(1, this.flyT);
-      // The tip follows the swing for the first moments, then the float flies a high arc to the target.
-      this.float.position.lerpVectors(this.from, this.target, k); this.float.position.y = THREE.MathUtils.lerp(this.from.y, surf(this.target.x, this.target.z), k) + Math.sin(k * Math.PI) * 2.6;
+      // The rig rides the rod tip through the wind-up and snap (anim.js CAST), leaves it at RELEASE_AT, then flies a high arc to the target.
+      const held = this.flyT < RELEASE_AT;
+      this.flyT += dt;
+      if (held && this.flyT >= RELEASE_AT) g.audio.play('click');
+      const k = Math.min(1, Math.max(0, (this.flyT - RELEASE_AT) / 0.75));
+      if (this.flyT < RELEASE_AT) { this.from.copy(tipW); this.float.position.copy(tipW); }
+      else { this.float.position.lerpVectors(this.from, this.target, k); this.float.position.y = THREE.MathUtils.lerp(this.from.y, surf(this.target.x, this.target.z), k) + Math.sin(k * Math.PI) * 2.6; }
       this.float.visible = true;
       if (k >= 1) {
         this.state = 'wait'; g.audio.play('smallSplash'); g.fx.splash?.(this.float.position, 6); this.dist = this.float.position.distanceTo(eye);

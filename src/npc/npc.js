@@ -206,7 +206,8 @@ export class NPC {
         }
         break;
       case 'flying': {
-        state = 'flying'; const k = clamp(1 - F.t / 0.8, 0, 1);
+        state = 'flying'; const k = clamp((0.8 - F.t - 0.2) / 0.6, 0, 1);   // rides the tip through the snap, then flies
+        if (F.t > 0.6) F.from.copy(tip);
         F.floatPos.lerpVectors(F.from, F.target, k); F.floatPos.y = THREE.MathUtils.lerp(F.from.y, F.target.y, k) + Math.sin(k * Math.PI) * 2.2;
         this.float.visible = true;
         if (F.t <= 0) { F.phase = 'wait'; F.t = 5 + this.rnd() * 7; F.bite = this.rnd() < 0.62; this.mgr.splash(F.target, 5); }

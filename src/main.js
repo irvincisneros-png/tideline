@@ -472,7 +472,7 @@ class Game {
     const a = this.angler;
     a.place(w.pos, w.heading);
     const lineOut = f.active && ['flying', 'wait', 'retrieve', 'bite', 'fight', 'landed'].includes(f.state);   // feet planted while a line is out: no walk cycle
-    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reel: (f.state === 'fight' || f.state === 'retrieve') && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, reducedMotion: this.settings.reducedMotion });
+    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reel: (f.state === 'fight' || f.state === 'retrieve') && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, look: lineOut ? f.lookAt() : null, reducedMotion: this.settings.reducedMotion });
     if (this.frame % 5 === 0 && !paused) {
       const m = this.input.mouse, lbl = $('#target-label');
       const hit = !this.touch && performance.now() - m.t < 2500 ? (() => { const r = this.mouseRay(m.x, m.y); return this.world.pick(r.origin, r.direction, 80); })() : null;
