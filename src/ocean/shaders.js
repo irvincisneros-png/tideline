@@ -250,7 +250,7 @@ export function patchUnderwater(material, opts = {}) {
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.14 + 0.025, smoothstep(0.8, 1.0, vFin.y) * 0.6);
           // Thin membrane: lighter and see-through toward the margin (alpha-to-coverage with MSAA; opaque without it).
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.1 + 0.05, smoothstep(0.2, 1.0, vFin.y) * 0.5);
-          diffuseColor.a = 1.0 - 0.32 * smoothstep(0.3, 1.0, vFin.y) * (1.0 - 0.5 * smoothstep(0.5, 1.0, rayC));
+          // Solid: see-through margins went through alpha-to-coverage, which stippled every fin edge into dots. The paler margin above reads as thin membrane on its own.
         }
         if (vFin.y >= 0.0 && uStyle < 0.5) {
           float nr = 16.0;

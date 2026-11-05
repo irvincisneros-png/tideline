@@ -118,7 +118,7 @@ export function flyingGullMesh(count) {
     sh.uniforms.uTime = globalUniforms.uTime;
     sh.vertexShader = 'attribute float aWing; uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       float ph = uTime * 4.2 + instanceMatrix[3].x * 0.7;
-      transformed.y += sin(ph) * aWing * 0.9 * abs(aWing) * 2.0;`);
+      transformed.y += sin(ph) * aWing * 0.9 * abs(aWing) * 0.8;   // a gentle beat: the old amplitude stood the wings up like two grey slabs`);
   };
   mat.customProgramCacheKey = () => 'flyinggull';
   const im = new THREE.InstancedMesh(geo, mat, count); im.frustumCulled = false;

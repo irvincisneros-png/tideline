@@ -49,6 +49,7 @@ function tone(c) {
 }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const lum = c => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+const ROOT_TAPS = [[0, 0], [0.03, 0.06], [-0.03, -0.06], [0.06, -0.03], [-0.06, 0.03], [0.015, -0.1], [-0.015, 0.1]];
 /** Fill a canvas skin. painter(u, s, part, f) returns [r,g,b] 0..1. Body rows (top 75%): fine overlapping scales, a lateral line that follows the back's curve, a curved gill-cover edge
  *  and a mouth line; fin rows: each fin starts in the body colour at its root and fades to the fin's own colour. */
 function paintSkin(look, W = 512, H = 512) {
@@ -88,7 +89,8 @@ function paintSkin(look, W = 512, H = 512) {
           }
           // Mouth: a curved line from the snout back toward the cheek, rising as it goes.
           const mu = (1 - u) / mo.len;
-          if (mu < 1 && mu >= 0) { const sm2 = mo.s + mu * 0.1 + mu * mu * 0.1; col = mix3(col, INK, 0.8 * (1 - sstep(0.02, 0.045, Math.abs(s - sm2)))); }
+          // The gape runs back from the snout tip level or a touch downward to the corner of the jaw (a real fish never smiles); look.mouth.rise > 0 lifts it for an upturned mouth.
+          if (mu < 1 && mu >= 0) { const sm2 = mo.s + mu * (mo.rise ?? -0.06); col = mix3(col, INK, 0.8 * (1 - sstep(0.02, 0.045, Math.abs(s - sm2)))); }
         }
         col = tone(col);
       } else {
@@ -99,7 +101,13 @@ function paintSkin(look, W = 512, H = 512) {
         if (part === 'pectoral') col = mix3(col, [1, 1, 0.95], 0.24);   // paired fins read pale and glassy
         // Root: start in the body's own colour (a fin grows out of the skin), then fade to the fin colour.
         const root = (1 - sstep(0.1, 0.55, f)) * (part === 'pectoral' ? 0.3 : 0.85);
-        if (root > 0.01) col = mix3(col, tone(p.body(Math.min(u, 0.8), part === 'dorsal' ? 0.85 : part === 'anal' ? -0.85 : part === 'tail' ? 0.1 : -0.1, 1)), root);
+        if (root > 0.01) {
+          // The skin colour under the fin root, averaged over a small patch so a single spot or bar under the sample point cannot stain the whole root (the dark block at the flathead's tail).
+          const su = Math.min(u, 0.8), ss = part === 'dorsal' ? 0.85 : part === 'anal' ? -0.85 : part === 'tail' ? 0.1 : -0.1;
+          let acc = [0, 0, 0];
+          for (const [du, ds] of ROOT_TAPS) { const b = p.body(Math.min(0.99, Math.max(0.01, su + du)), Math.max(-1, Math.min(1, ss + ds)), 1); acc[0] += b[0]; acc[1] += b[1]; acc[2] += b[2]; }
+          col = mix3(col, tone([acc[0] / ROOT_TAPS.length, acc[1] / ROOT_TAPS.length, acc[2] / ROOT_TAPS.length]), root);
+        }
       }
       const i = (py * W + px) * 4;
       img.data[i] = Math.min(255, col[0] * 255); img.data[i + 1] = Math.min(255, col[1] * 255); img.data[i + 2] = Math.min(255, col[2] * 255); img.data[i + 3] = 255;
@@ -303,7 +311,7 @@ export function buildFish(look, opts = {}) {
         let yy = y * span * (look.lowerLobe != null && y < 0 ? look.lowerLobe : 1);
         if (tail === 'heterocercal') yy = y > 0 ? y * span * 1.15 + tl * 0.25 * y : y * span * 0.6;
         return flat ? [x, 0, yy] : [x, cy0 + yy, 0];
-      }, 14, 0.5, k => 0.02 + 0.06 * Math.abs(k - 0.5), { thick: 0.9 });
+      }, 14, 0.5, k => 0.02 + 0.06 * k, { thick: 0.9 });   // tail u runs 0.02 (lower lobe) .. 0.08 (upper lobe), so a painter can mark one lobe (the flathead's blotch sits low)
   }
   // Small tapered tubes for the garfish's beak and the carp's barbels (uvAt(k) picks the painted colour along the tube).
   const spike = (p0, p1, r0, r1, n, side, uvAt) => {

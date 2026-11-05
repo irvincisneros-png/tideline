@@ -217,7 +217,7 @@ const looks = {
   snapper: { length: 0.7, top: [.28,.44,.66,.9,1,.92,.78,.56,.2], bot: [.3,.44,.62,.82,.92,.8,.58,.34,.08], fork: 0.66, topShare: 0.57, depth: 0.35, topShare: 0.62, width: 0.15, peak: 0.6, snout: 0.6, tailFrac: 0.17, tail: 'forked', pectoral: 0.14, hump: { at: 0.84, h: 0.07, w: 0.1 }, mouth: { len: 0.06, s: -0.18 },
     dorsal: { from: 0.18, to: 0.78, height: 0.07, shape: 'dual' }, anal: { from: 0.16, to: 0.4, height: 0.065 },
     // Chrysophrys auratus: a deep pink-red body with a scatter of small electric-blue spots on the back and upper sides, a steep head with a bony forehead hump, a big eye, one long dorsal (spiny front) and a forked tail with a pale edge.
-    paint: { body: withEye(spots((u, s) => mix(C(0xf4d2c4), C(0xd4705e), sm(-0.3, 0.7, s)), 0x7ac4f4, 40, 0.085, (u, s) => s > -0.2), 0.9, 0.3, 0.028, 0x101010, 0xe8d8b0), fin: () => C(0xdc7a6a) }, swim: { freq: 3, amp: 0.5 } },
+    paint: { body: withEye(spots((u, s) => mix(C(0xf8e4da), C(0xe08878), sm(-0.3, 0.7, s)), 0x7ac4f4, 40, 0.085, (u, s) => s > -0.2), 0.9, 0.3, 0.028, 0x101010, 0xe8d8b0), fin: () => C(0xe08a7a) }, swim: { freq: 3, amp: 0.5 } },
   easternbluedevil: { length: 0.3, depth: 0.32, width: 0.15, peak: 0.55, snout: 0.6, tailFrac: 0.15, tail: 'round', pectoral: 0.14,
     dorsal: { from: 0.12, to: 0.8, height: 0.12 }, anal: { from: 0.12, to: 0.45, height: 0.12 },
     paint: { body: withEye(spots((u, s) => mix(C(0x0a1a5a), C(0x1a3aa0), s * 0.5 + 0.5), 0xbfe0ff, 30, 0.1), 0.88, 0.25, 0.04), fin: (u, part, f) => (f > 0.8 ? C(0x60c0ff) : C(0x1a3aa0)) }, swim: { freq: 2.5, amp: 0.4 } },

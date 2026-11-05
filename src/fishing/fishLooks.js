@@ -8,22 +8,22 @@ const { C, mix, sm, withEye, counter, spots } = P;
 registerLook('australiansalmon', {
   // Arripis trutta: blue-green back, silver flanks and belly, small dark spots over the back and upper sides (no bars), a spiny dorsal then a small soft one, a dark-edged forked tail, a mid-sized eye.
   length: 0.5, top: [.15,.3,.55,.85,1,.93,.74,.46,.1], bot: [.15,.28,.5,.78,.95,.96,.78,.42,.05], fork: 0.4, depth: 0.24, width: 0.13, peak: 0.55, snout: 0.85, tailFrac: 0.2, tail: 'forked', tailSpan: 1.1, pectoral: 0.13, mouth: { len: 0.08, s: -0.1 },
-  dorsal: { from: 0.5, to: 0.64, height: 0.06, shape: 'tri' }, dorsal2: { from: 0.27, to: 0.37, height: 0.045 }, anal: { from: 0.25, to: 0.37, height: 0.05 },
+  dorsal: { from: 0.3, to: 0.64, height: 0.06, shape: 'dual' }, anal: { from: 0.25, to: 0.37, height: 0.05 },
   paint: { body: withEye(spots((u, s) => mix(C(0xeaf0f0), C(0x6f9a92), sm(-0.25, 0.75, s)), 0x2c4a44, 40, 0.1, (u, s) => s > 0.12 && u > 0.12 && u < 0.82), 0.88, 0.25, 0.026, 0x101010, 0xd8d8b0), fin: (u, part) => (part === 'tail' ? C(0x55706a) : C(0xd8dcc0)) },
   swim: { freq: 6, amp: 0.7 }, metal: 0.5,
 });
 registerLook('tailor', {
   // Pomatomus saltatrix: a sturdy, streamlined bluish-green fish with a big oblique mouth full of teeth, a short spiny dorsal then a long soft one, a long soft anal and a forked tail.
-  length: 0.45, top: [.16,.3,.55,.82,.98,.95,.78,.5,.12], bot: [.16,.28,.5,.75,.93,.97,.8,.42,.04], fork: 0.3, topShare: 0.54, depth: 0.24, width: 0.12, peak: 0.5, snout: 0.75, tailFrac: 0.2, tail: 'forked', tailSpan: 1.15, pectoral: 0.12, mouth: { len: 0.1, s: -0.06 },
+  length: 0.45, top: [.16,.3,.55,.82,.98,.95,.78,.5,.12], bot: [.16,.28,.5,.75,.93,.97,.8,.42,.04], fork: 0.3, topShare: 0.54, depth: 0.21, width: 0.11, peak: 0.5, snout: 0.75, tailFrac: 0.2, tail: 'forked', tailSpan: 1.15, pectoral: 0.12, mouth: { len: 0.13, s: -0.02, rise: -0.14 },
   dorsal: { from: 0.52, to: 0.64, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.26, to: 0.5, height: 0.05 }, anal: { from: 0.26, to: 0.47, height: 0.05 },
   paint: { body: withEye(counter(0x5a8a9a, 0xdce6e2, 0.9), 0.88, 0.25, 0.027, 0x101010, 0xd8d0a8), fin: (u, part) => part === 'tail' ? C(0x6a7a6a) : C(0xc8c890) },
   swim: { freq: 6, amp: 0.7 }, metal: 0.45,
 });
 registerLook('sandwhiting', {
   // Sillago ciliata: a long, slim, pale sandy fish with a pointed snout and a small low mouth, two separate dorsals (a short spiny one then a long soft one) and a long soft anal.
-  length: 0.3, top: [.3,.5,.72,.9,1,.98,.8,.5,.08], bot: [.3,.48,.7,.88,.98,.95,.75,.4,.04], topShare: 0.52, tailRound: 0.12, depth: 0.15, width: 0.1, peak: 0.5, snout: 1.3, tailFrac: 0.16, tail: 'truncate', pectoral: 0.11, mouth: { len: 0.035, s: -0.3 },
+  length: 0.3, top: [.3,.5,.72,.9,1,.98,.8,.5,.08], bot: [.3,.48,.7,.88,.98,.95,.75,.4,.04], topShare: 0.52, tailRound: 0.12, depth: 0.15, width: 0.1, peak: 0.5, snout: 1.3, tailFrac: 0.16, tail: 'truncate', pectoral: 0.11, eyeRaise: 0.55, mouth: { len: 0.035, s: -0.3 },
   dorsal: { from: 0.55, to: 0.65, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.47, height: 0.036 }, anal: { from: 0.2, to: 0.47, height: 0.036 },
-  paint: { body: withEye((u, s) => mix(C(0xf2ecd8), C(0xc8b890), sm(-0.2, 0.9, s)), 0.9, 0.25, 0.024, 0x101010, 0xd8d0a0), fin: () => C(0xd8c890) },
+  paint: { body: withEye((u, s) => mix(C(0xf2ecd8), C(0xc8b890), sm(-0.2, 0.9, s)), 0.9, 0.28, 0.026, 0x1a1a1a, 0xd8c898), fin: () => C(0xd8c890) },
   swim: { freq: 6, amp: 0.6 }, metal: 0.3,
 });
 registerLook('yellowfinbream', {
@@ -41,7 +41,7 @@ registerLook('duskyflathead', {
   dorsal: { from: 0.66, to: 0.74, height: 0.04, shape: 'tri' }, dorsal2: { from: 0.28, to: 0.62, height: 0.03, shape: 'low' }, anal: { from: 0.26, to: 0.55, height: 0.035 },
   paint: {
     body: withEye(spots((u, s) => mix(C(0xeee2c4), C(0x8d7852), sm(-0.3, 0.3, s)), 0x3a2e20, 30, 0.14, (u, s) => s > -0.2), 0.86, 0.96, 0.02, 0x222222, 0xd0b060),
-    fin: (u, part, f) => (part === 'tail' ? mix(mix(C(0x9a8660), C(0xece2bc), sm(0.75, 0.95, f) * 0.85), C(0x3a2c1c), 0.9 * (1 - sm(0.08, 0.2, Math.hypot(f - 0.6, (u - 0.044) * 8)))) : part === 'pectoral' ? mix(C(0xe8dcb8), C(0x8d7852), f) : C(0x8d7852)),
+    fin: (u, part, f) => (part === 'tail' ? mix(mix(C(0x9a8660), C(0xece2bc), sm(0.75, 0.95, f) * 0.85), C(0x3a2c1c), 0.9 * (1 - sm(0.08, 0.2, Math.hypot(f - 0.6, (u - 0.035) * 8)))) : part === 'pectoral' ? mix(C(0xe8dcb8), C(0x8d7852), f) : C(0x8d7852)),
   }, swim: { freq: 2.5, amp: 0.5 },
 });
 registerLook('seamullet', {
@@ -54,7 +54,7 @@ registerLook('mulloway', {
   // Argyrosomus japonicus: a long, silvery-bronze body, a big oblique mouth, a large eye, a tall spiny dorsal then a long soft one, a pale lateral line and a squarish tail.
   length: 0.8, top: [.2,.38,.62,.85,.98,1,.86,.6,.16], bot: [.2,.35,.58,.8,.94,.96,.82,.5,.08], tailRound: 0.24, tailCurve: 2, depth: 0.22, width: 0.12, peak: 0.5, snout: 0.8, tailFrac: 0.17, tail: 'truncate', tailSpan: 1.0, pectoral: 0.12, mouth: { len: 0.09, s: -0.05 },
   dorsal: { from: 0.5, to: 0.67, height: 0.07, shape: 'tri' }, dorsal2: { from: 0.2, to: 0.48, height: 0.05 }, anal: { from: 0.16, to: 0.3, height: 0.05 },
-  paint: { body: withEye((u, s) => mix(C(0xefece4), C(0xa08e78), sm(-0.3, 0.8, s)).map(v => v * (Math.abs(s - 0.1) < 0.03 && u > 0.2 && u < 0.8 ? 0.92 : 1)), 0.9, 0.22, 0.025, 0x101010, 0xe0d8c0), fin: () => C(0x8a7a68) },
+  paint: { body: withEye((u, s) => { const c = mix(C(0xf0f0ee), C(0x8c96a2), sm(-0.3, 0.8, s)); return Math.abs(s - 0.12) < 0.03 && u > 0.2 && u < 0.82 && Math.sin(u * 110) > 0.3 ? mix(c, C(0xfafaf4), 0.7) : c; }, 0.9, 0.22, 0.03, 0x101010, 0xe0d8c0), fin: () => C(0x8a8a8e) },
   swim: { freq: 4, amp: 0.55 }, metal: 0.35,
 });
 registerLook('silvertrevally', {
