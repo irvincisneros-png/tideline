@@ -11,6 +11,7 @@ import { registerBehaviour, registerLook } from '../life/life.js';
 import { paint as P } from '../life/looks.js';
 import * as FL from '../world/flora.js';
 import * as FO from '../world/foliage.js';
+import * as G from '../world/groundPaint.js';
 import '../fishing/fishLooks.js'; // the line-caught species' looks are also what swims in the Lake
 
 // The layout follows Cudgeree Bay on the east shore of Lake Illawarra at Windang (a satellite view, north up, 790 m across, drawn here at about 35%): the shore runs north-south
@@ -79,6 +80,13 @@ export function heightAt(x, z) {
 /** Patchy seagrass meadows across the shallows (visible through the clear water): big irregular patches with bare sand between them, thicker in the inner bay. */
 export const meadow = (x, z) => noise.fbm2(x * 0.045 + 3, z * 0.045, 3) > 0.04 || (Math.pow((x + 5) / 30, 2) + Math.pow((-bankD(x, z) - 26) / 20, 2) < 1 && noise.n2(x * 0.15, z * 0.15) > -0.35);
 export function reefiness(x, z) { const h = heightAt(x, z); return h < -0.3 && h > -2.3 && meadow(x, z) ? 0.8 : 0.1; }
+let WORN_T = null;
+const WORN = { get lines() { return WORN_T ??= [[[JETTY.x, shoreZ(JETTY.x) + 5], [JETTY.x + 6, shoreZ(JETTY.x) + 22], [JETTY.x + 4, shoreZ(JETTY.x) + 46]], [[JETTY.x - 26, shoreZ(JETTY.x - 26) + 8], [JETTY.x - 14, shoreZ(JETTY.x - 14) + 20], [JETTY.x + 6, shoreZ(JETTY.x) + 22]]]; } };
+/** Mown lawn (eco.lawnAt for the terrain shader): [how mown, stripe coordinate]. The caravan-park lawns behind the bank, stripes along the shore. */
+export function lawnAt(x, z) {
+  const d = bankD(x, z);
+  return [smoothstep(9, 13, d) * (1 - smoothstep(50, 62, d)), d];
+}
 export function colorAt(x, z, h) {
   const n = noise.n2(x * 0.2, z * 0.2) * 0.04, n2 = noise.n2(x * 0.05 + 9, z * 0.05), mud = mudAt(x);
   const d = bankD(x, z);
@@ -88,8 +96,10 @@ export function colorAt(x, z, h) {
   if (meadow(x, z) && h < -0.3 && h > -2.3) c = mix3(c, [0.3, 0.44, 0.28], 0.62); // seagrass patches show as dark green-brown, as in the satellite view
   if (d > 0) {
     c = mix3([0.84, 0.74, 0.55], [0.97, 0.89, 0.7], smoothstep(0, 0.6, h));      // damp sand at the waterline
-    c = mix3(c, [0.55 + n * 2, 0.7 + n, 0.33], smoothstep(4.5, 9.5, d + n2 * 7)); // sand bank to grass
-    c = mix3(c, [0.42 + n, 0.6 + n, 0.3], smoothstep(30, 60, d));                 // greener, deeper on the hill
+    c = G.paintGrass(c, x, z, smoothstep(4.5, 9.5, d + n2 * 7));                  // sand bank to grass
+    c = G.paintWild(c, x, z, smoothstep(4.5, 7, d + n2 * 7) * (1 - smoothstep(8, 15, d)) * smoothstep(0, 0.3, n2 + 0.2) * 0.8);   // pigface and spinifex along the top of the bank
+    c = mix3(c, [c[0] * 0.8, c[1] * 0.92, c[2] * 0.82], smoothstep(30, 60, d));   // greener, deeper on the hill
+    c = G.paintWorn(c, G.wornAt(x, z, WORN.lines) * smoothstep(3, 6, d));                                     // tracks down to the jetty and the bait hut
   }
   if (mud > 0 && h < 1.0) c = mix3(c, [0.56, 0.5, 0.4], mud * 0.85);             // muddy, grey-brown on the mangrove edge
   const bm = barMask(x, z); if (bm > 0.05) c = mix3(c, [0.97, 0.92, 0.78], bm * 0.9);   // the pale sand bar
@@ -211,7 +221,7 @@ export const seagrass = {
     life: {}, zones: {},
     home: { x: JETTY.x - 11, z: shoreZ(JETTY.x - 11) + 8, r: 7, label: 'the bait shop' }, // walk here (or press H) to head home and end the outing
   },
-  island: null,
+  ridge: { arc: [205, 335] }, lawnAt,   // the escarpment across the lake to the west, as it is from Windang
   treeShadows: { casuarina: [2.4, 8], norfolkpine: [3, 12], coastbanksia: [2, 4] }, // low tier: soft blob shadows under reef-placed trees [radius, height]
   cosyModels: {
     url: 'assets/models/seagrass_cosy.glb',

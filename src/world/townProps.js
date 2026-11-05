@@ -101,6 +101,7 @@ export function layTown(world, { bounds, dist, band, spacing = 11, accept = () =
     let y = Infinity; for (const [ox, oz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) y = Math.min(y, T.heightAt(l.x + ox, l.z + oz));
     g.rotateY(l.rot); g.translate(l.x, y + 0.05, l.z); geos.push(g);
     world.addCollider(l.x, y + 1.5, l.z, k === 'flats' ? 6 : 4.6);
+    pr.blobs.push({ x: l.x, z: l.z, y, r: k === 'flats' ? 7.5 : 6.2, tall: 7 });
     if (fences && rnd() < 0.7) { const f = fence(9 + rnd() * 2, seed + i); const fx = l.x + Math.sin(l.rot) * 6.2, fz = l.z + Math.cos(l.rot) * 6.2; f.rotateY(l.rot); f.translate(fx, T.heightAt(fx, fz), fz); fen.push(f); }
     if (geos.length >= 20) { add(geos.splice(0)); }
   });

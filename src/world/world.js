@@ -9,6 +9,7 @@ import { Ocean, WaveMesh, Sky } from '../ocean/water.js';
 import { makeNoise } from '../core/noise.js';
 import { globalUniforms } from '../ocean/shaders.js';
 import { Props } from './props.js';
+import { makeRidges } from './ridges.js';
 
 const SHARED_MODELS = 'assets/models/tideline_cosy.glb'; // the angler, trees, jetty, boats and huts shared by every site
 
@@ -63,7 +64,9 @@ export class World {
     this.land = eco.land ? new LandLife(this.scene, eco, this.terrain, this.quality, 13, art) : null;
     this.props = new Props(this.scene, this.models, this.terrain, this.quality, this);
     eco.decorate?.(this);
-    this.props.finish(this.treeBlobs());
+    this.bakeGroundShade();
+    this.props.finish();
+    this.ridges = eco.ridge ? makeRidges(this.scene, eco, this.terrain, globalUniforms.uSunDir.value) : null;
     await tick();
     progress(0.9, 'Final touches…');
     // Coarse spatial hash of coral colliders for the diver.
@@ -86,12 +89,12 @@ export class World {
   addCollider(x, y, z, r) { (this.extraColliders ??= []).push({ center: new THREE.Vector3(x, y, z), r, pick: { hidden: false } }); }
   /** Where feet stand: the terrain, or a built walkway above it (a jetty deck: eco.deckAt(x, z) -> height or null). */
   walkAt(x, z) { const g = this.terrain.heightAt(x, z), d = this.eco.deckAt?.(x, z); return d != null && d > g ? d : g; }
-  /** Soft blob shadows (low tier only) under the trees the reef placed: eco.treeShadows = { kind: [radius, height] }. */
-  treeBlobs() {
-    if (this.quality.shadows || !this.eco.treeShadows) return [];
-    const out = [];
-    for (const p of this.reef.picks) { const t = this.eco.treeShadows[p.id]; if (t && !p.hidden) out.push({ x: p.x, z: p.z, y: p.y, r: t[0] * p.s, tall: t[1] * p.s }); }
-    return out;
+  /** Bake the soft shade under everything standing on the ground into the terrain, on every tier: trees the reef placed (eco.treeShadows = { kind: [radius, height] }), props with a `shadow` and the houses. */
+  bakeGroundShade() {
+    const out = [], ts = this.eco.treeShadows ?? {};
+    for (const p of this.reef.picks) { const t = ts[p.id]; if (t && !p.hidden) out.push({ x: p.x, z: p.z, r: t[0] * p.s, tall: t[1] * p.s }); }
+    out.push(...this.props.takeGroundBlobs());
+    if (out.length) this.terrain.bakeShade(out, globalUniforms.uSunDir.value, this.quality.shadows ? 1024 : 768);
   }
   nearbyColliders(p, r = 3) {
     const out = [];
@@ -137,6 +140,7 @@ export class World {
   }
   dispose() {
     this.terrain?.dispose(); this.reef?.dispose(); this.life?.dispose(); this.land?.dispose(); this.props?.dispose();
+    if (this.ridges) { this.ridges.parent?.remove(this.ridges); this.ridges.geometry.dispose(); this.ridges.material.dispose(); this.ridges = null; }
     for (const o of [this.ocean?.near, this.ocean?.far, this.waveMesh?.mesh]) if (o) { o.geometry.dispose(); o.material.dispose(); o.parent?.remove(o); }
     this.ocean?.group.parent?.remove(this.ocean.group);
     this.eco?.undecorate?.(this);

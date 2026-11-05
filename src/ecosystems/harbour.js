@@ -17,6 +17,7 @@ import { layTown } from '../world/townProps.js';
 import { HarbourLife } from '../world/harbourLife.js';
 import { quayDecal } from '../world/quayPaint.js';
 import * as BM from '../world/belmore.js';
+import * as G from '../world/groundPaint.js';
 import '../fishing/fishLooks.js';
 
 const noise = makeNoise(53);
@@ -72,6 +73,13 @@ export function rockAt(x, z, h) {
   if (landD(x, z) > 0 && wallNear(x, z) > 0.5 && h > 0.5) return 0.9;
   return Math.min(1, (BM.moundAt(x, z) > h - 0.3 && BM.moundAt(x, z) > -90 ? 1 : 0) + rubbleAt(x, z) * 0.9 + smoothstep(55, 90, x) * (h > -0.4 && landD(x, z) < 12 ? 0.8 : 0));
 }
+/** Tracks across the lawns: to the top of Flagstaff Hill, along the back of the Cove Beach dunes and down the headland. */
+const WORN = [[[-30, 70], [-4, 82], [BM.FLAGSTAFF[0], BM.FLAGSTAFF[1]]], [[-92, 58], [-60, 54], [-34, 58]], [[BM.FLAGSTAFF[0], BM.FLAGSTAFF[1]], [64, 44], [78, 26]]];
+/** Mown lawn (eco.lawnAt for the terrain shader): [how mown, stripe coordinate]. Stripes run along the shore; the hill and the headland are left rough. */
+export function lawnAt(x, z) {
+  const d = landD(x, z);
+  return [smoothstep(7, 11, d) * (1 - smoothstep(0.2, 2.2, BM.hillAt(x, z))), d];
+}
 export function colorAt(x, z, h) {
   const n = noise.n2(x * 0.25, z * 0.25) * 0.04, n2 = noise.n2(x * 1.7, z * 1.7) * 0.04;
   const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
@@ -86,8 +94,10 @@ export function colorAt(x, z, h) {
     const qm = quayMask(x, z), wall = wallNear(x, z);
     // sand on the beaches (Cove Beach, the beach under the breakwater), lawn behind, the hill, the ring road
     let c = mix3([0.9 + n, 0.8 + n, 0.6], [0.97, 0.9 + n, 0.72], smoothstep(0, 1.4, h));                    // damp then dry sand
-    c = mix3(c, [0.52 + n * 2, 0.68 + n, 0.36], smoothstep(5, 11, d + noise.n2(x * 0.1, 9) * 3));            // sand to lawn
-    c = mix3(c, [0.42 + n, 0.6 + n, 0.3], smoothstep(1.8, 5, h));                                           // greener up the hill
+    c = G.paintGrass(c, x, z, smoothstep(5, 11, d + noise.n2(x * 0.1, 9) * 3));                             // sand to lawn
+    c = G.paintWild(c, x, z, smoothstep(0.5, 3, BM.hillAt(x, z)) * smoothstep(0.1, 0.3, noise.fbm2(x * 0.05, z * 0.05, 2) + 0.2) * 0.5);   // rough cover on Flagstaff Hill
+    c = mix3(c, [c[0] * 0.8, c[1] * 0.93, c[2] * 0.8], smoothstep(1.8, 5, h));                              // greener up the hill
+    c = G.paintWorn(c, G.wornAt(x, z, WORN) * smoothstep(8, 12, d) * (1 - quayMask(x, z)));                 // tracks worn across the lawns and up the hill
     const rd = BM.roadDist(x, z); if (rd < 2.2 && BM.hillAt(x, z) > 0.4) c = mix3(c, [0.55, 0.55, 0.52], smoothstep(2.2, 1.4, rd));   // Endeavour Drive round the hill
     const st = BM.streetAt(x, z); if (st > 0.02) { const sd = Math.abs(d - 41.5); c = mix3(c, sd < 0.12 ? [0.9, 0.9, 0.86] : Math.abs(sd - 3.4) < 0.3 ? [0.85, 0.84, 0.8] : [0.55 + n, 0.55 + n, 0.54], st * smoothstep(3.8, 3.2, sd)); }   // the street behind the lawns
     const rk = smoothstep(55, 90, x) * (1 - smoothstep(2, 12, d)); if (rk > 0.05) c = mix3(c, [0.58 + n * 2, 0.5 + n, 0.4], rk * 0.8);   // rocky headland
@@ -275,7 +285,7 @@ export const harbour = {
     hemiSky: 0xd4eaf0, hemiGround: 0x6a7a5a,
   },
   sound: { wash: 0.35, wind: 0.25, shrimp: 0.05, gulls: 0.6 },
-  island: { x: -500, z: 160, r: 400, h: 30 }, islandKind: 'headland',   // the Illawarra escarpment, inland to the west of Wollongong
+  ridge: { arc: [96, 262] }, lawnAt,   // the Illawarra escarpment, inland to the west of Wollongong
   menuCam: { yaw: 0.35, swing: 0.3, pitch: 0.6, dist: 24, lift: 3 },
   fishing: { spotAt, litAt },
   // Swell washing over the breakwall (>= 2.5 m): spray, a warning, then a safety mark (npc/manager.js guardHazard).

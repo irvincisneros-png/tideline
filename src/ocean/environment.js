@@ -1,7 +1,6 @@
 // Lighting, fog, sky colours and underwater light shafts; switches look as the camera crosses the surface.
 import * as THREE from 'three';
 import { globalUniforms, noiseGLSL } from './shaders.js';
-import { makeNoise } from '../core/noise.js';
 import { paletteAt, lightingFor } from './daylight.js';
 
 /** Night and dusk values for the stylised lighting (ambient from above / below, the key light, the rim light): moonlit blue, bright enough to read. */
@@ -29,7 +28,6 @@ export class Environment {
     this.fogAbove = new THREE.Color(); this.fogBelow = new THREE.Color(); this.fogDeep = new THREE.Color();
     this.shafts = quality.shafts ? this.makeShafts() : null;
     if (this.shafts) scene.add(this.shafts);
-    this.island = null;
     this.night = 0; this.glow = 0; this.daylightOn = false; this.tmp = new THREE.Color();
     this.renderer = renderer;
     this.envRT = null;
@@ -64,8 +62,6 @@ export class Environment {
     this.daylightOn = !!this.lightCfg; this.night = 0; this.glow = 0;
     globalUniforms.uNight.value = 0; globalUniforms.uLampOn.value = 0;
     this.buildEnvMap();
-    if (this.island) { this.scene.remove(this.island); this.island.geometry.dispose(); this.island = null; }
-    if (eco.island) this.island = this.makeIsland(eco.island, eco.islandKind);
   }
 
   /**
@@ -106,32 +102,6 @@ export class Environment {
     this.scene.environment = this.envRT.texture;
     this.scene.environmentIntensity = 0.6;
     pm.dispose(); geo.dispose();
-  }
-
-  makeIsland({ x, z, r, h }, kind = 'cay') {
-    const noise = makeNoise(3);
-    const geo = new THREE.CircleGeometry(r, 96, 0, Math.PI * 2);
-    // Turn into a low mound with a sand fringe and vegetated centre (a coral cay or headland).
-    const g2 = new THREE.PlaneGeometry(r * 2.4, r * 2.4, 120, 120); g2.rotateX(-Math.PI / 2);
-    const p = g2.attributes.position, col = new Float32Array(p.count * 3);
-    for (let i = 0; i < p.count; i++) {
-      const px = p.getX(i), pz = p.getZ(i);
-      const d = Math.hypot(px, pz * 1.6) / r;
-      const n = noise.fbm2(px * 0.02, pz * 0.02, 4);
-      let y = (1 - d + n * 0.35);
-      y = y > 0 ? Math.pow(y, kind === 'headland' ? 0.7 : 1.6) * h * (kind === 'headland' ? 3 : 1) : y * 8;
-      p.setY(i, y);
-      const sand = y < 1.4;
-      const c = sand ? [0.93, 0.88, 0.74] : kind === 'headland' ? [0.28 + n * 0.1, 0.36, 0.2] : [0.2 + n * 0.08, 0.42 + n * 0.1, 0.18];
-      col.set(c, i * 3);
-    }
-    geo.dispose();
-    g2.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    g2.computeVertexNormals();
-    const m = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
-    m.position.set(x, -0.5, z);
-    this.scene.add(m);
-    return m;
   }
 
   makeShafts() {

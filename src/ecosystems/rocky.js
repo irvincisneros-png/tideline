@@ -14,6 +14,7 @@ import { rock } from '../world/coral.js';
 import { dressBeach } from '../world/beachProps.js';
 import { layTown } from '../world/townProps.js';
 import * as BL from '../world/bellambi.js';
+import * as G from '../world/groundPaint.js';
 
 export { platformMask, POOLS, FRAME } from '../world/bellambi.js';
 const { platformMask, platformHeight, shoreD, shoreS, POOLS, S_PT0, S_PT1, S_RAMP, S_POOL, S_TOWER } = BL;
@@ -92,6 +93,17 @@ export function colorAt(x, z, h, slope) {
   const t = clamp(reef * 1.3 - slope * 0.3, 0, 1);
   return [lerp(sand[0], rockC[0], t), lerp(sand[1], rockC[1], t), lerp(sand[2], rockC[2], t)];
 }
+let WORN = null;
+/** Tracks people wear across the reserve: from the access path and the car park down to the beach, and across the point. */
+const wornLines = () => (WORN ??= (() => {
+  const b = (s, o) => { const p = BL.beachAt(s, o); return [p.x, p.z]; }, C = BL.CARPARK;
+  return [[b(BL.S_ACCESS, 30), b(BL.S_ACCESS + 4, 19), b(BL.S_ACCESS + 12, 9)], [b(BL.S_TOWER + 16, 34), b(BL.S_TOWER + 12, 18)], [[C.x, C.z], b(BL.S_RAMP - 26, 16), b(BL.S_RAMP - 38, 9)], [[C.x, C.z], b(BL.S_TIP - 34, 18)]];
+})());
+/** Mown lawn (eco.lawnAt for the terrain shader): [how mown, stripe coordinate]. The stripes run along the shore. */
+export function lawnAt(x, z) {
+  const d = shoreD(x, z), pm = pointMask(x, z);
+  return [Math.max(smoothstep(11, 14, d) * (1 - smoothstep(28, 33, d)), BL.townAt(x, z), smoothstep(24, 34, d) * pm) * (1 - BL.bushAt(x, z)), d];
+}
 function shoreColor(x, z, h, slope, d) {
   const n = noise.n2(x * 0.3, z * 0.3), n2 = noise.n2(x * 2.1, z * 2.1), s = shoreS(x, z), pm = pointMask(x, z);
   const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
@@ -99,17 +111,18 @@ function shoreColor(x, z, h, slope, d) {
   const wet = [0.9 + n * 0.03, 0.78 + n * 0.03, 0.56], dry = [1.0, 0.92 + n * 0.02, 0.72];
   let c = mix3(wet, dry, smoothstep(0.1, 0.75, h));
   const cover = Math.max(0, Math.min(1, 0.55 + 0.6 * noise.fbm2(x * 0.08, z * 0.08, 3)));
-  c = mix3(c, [0.5 + n * 0.05, 0.54, 0.34], smoothstep(13, 22, d) * cover * 0.7 * (1 - pm));                  // spinifex on the dunes
-  c = mix3(c, [0.58 + n * 0.05, 0.7 + n * 0.04, 0.36], smoothstep(9, 15, d) * 0.95);   // the mown foreshore grass
+  c = G.paintGrass(c, x, z, smoothstep(9, 15, d + noise.n2(x * 0.09, z * 0.09) * 3) * 0.95);                   // the mown foreshore grass
+  c = G.paintWild(c, x, z, smoothstep(12, 18, d) * (1 - smoothstep(30, 44, d)) * smoothstep(-0.05, 0.3, cover - 0.4) * (1 - pm) * 0.9);   // spinifex and pigface on the dunes
   c = mix3(c, [0.24 + n * 0.04, 0.38 + n * 0.04, 0.18], smoothstep(40, 58, d) * (0.6 + 0.35 * cover) * (1 - pm) + BL.bushAt(x, z) * 0.85);   // scrub behind the dunes, the gully bushland
-  c = mix3(c, [0.56 + n * 0.05, 0.68, 0.34], smoothstep(24, 40, d) * pm * 0.6);                                // the reserve on the point
+  c = G.paintGrass(c, x, z, smoothstep(24, 40, d) * pm * 0.6);                                                  // the reserve on the point
   // the shared path along the back of the beach
   const path = smoothstep(1.0, 0.45, Math.abs(d - 17)) * (1 - smoothstep(0.1, 0.4, BL.bushAt(x, z)));
   if (path > 0) c = mix3(c, [0.8, 0.78, 0.72], path * 0.9);
+  c = G.paintWorn(c, G.wornAt(x, z, wornLines()) * smoothstep(8, 12, d));                                       // short cuts worn across the grass
   // the streets behind the beach: mown lawns, a grey road with a pale kerb and a dashed centre line
   const town = BL.townAt(x, z);
   if (town > 0.02) {
-    c = mix3(c, [0.6 + n * 0.05, 0.72, 0.38], town * 0.8);
+    c = G.paintGrass(c, x, z, town * 0.85);
     const rd = Math.abs(d - 48.5), road = smoothstep(3.6, 3.0, rd), kerb = smoothstep(0.5, 0.15, Math.abs(rd - 3.4)), dash = rd < 0.12 && ((s % 4 + 4) % 4) < 2.2 ? 1 : 0;
     c = mix3(c, dash ? [0.9, 0.9, 0.86] : kerb ? [0.85, 0.84, 0.8] : [0.56 + n * 0.03, 0.56 + n * 0.03, 0.55], Math.max(road, kerb) * town);
   }
@@ -303,7 +316,7 @@ export const rocky = {
   },
   daylight: true,   // time of day: the sunset glow and the dark-blue night (ocean/daylight.js)
   sound: { wash: 1.2, wind: 0.4, shrimp: 0.6, gulls: 1 },
-  island: { x: 40, z: 560, r: 420, h: 34 }, islandKind: 'headland', // the Illawarra escarpment behind the coastal plain (to the west)
+  ridge: { arc: [8, 172] }, lawnAt, // the Illawarra escarpment behind the coastal plain (to the west)
   // Rod fishing: the rock platform round the point, the surf beach elsewhere (keys of SPOTS in fishing/catches.js).
   fishing: { spotAt: (x, z) => (platformMask(x, z) > 0.3 ? 'rock' : 'beach') },
   land: {
@@ -363,8 +376,8 @@ export const rocky = {
     dressBeach(world); // shells, driftwood, wrack, umbrellas, towels and the beach-access path
     // The suburb: two rows of cottages either side of the road behind the north beach, one row behind the south beach (world/townProps.js).
     const tb = { xMin: -140, xMax: 150, zMin: 0, zMax: 110 };
-    layTown(world, { bounds: tb, dist: shoreD, band: [38, 43], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9, seed: 11 });
-    layTown(world, { bounds: tb, dist: (x, z) => 110 - shoreD(x, z), band: [52, 57], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9, seed: 23 });
+    layTown(world, { bounds: tb, dist: shoreD, band: [38, 43], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9 && Math.hypot(x - BL.LAGOON.x, z - BL.LAGOON.z) > 26, seed: 11 });
+    layTown(world, { bounds: tb, dist: (x, z) => 110 - shoreD(x, z), band: [52, 57], spacing: 11.5, accept: (x, z) => BL.townAt(x, z) > 0.8 && Math.hypot(x - HOME.x, z - HOME.z) > 9 && Math.hypot(x - BL.LAGOON.x, z - BL.LAGOON.z) > 26, seed: 23 });
     // Chunky rounded sandstone boulders along the platform's seaward edge, and a few on the shore of the point.
     const warm = new THREE.Color(1.28, 0.96, 0.7);
     let k = 0;

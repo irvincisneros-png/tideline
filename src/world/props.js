@@ -59,9 +59,15 @@ export class Props {
   }
   /** A boat or buoy that sits on the water and bobs. */
   floater(mesh, y = 0) { (this.floaters ??= []).push({ mesh, y, ph: Math.random() * 6 }); }
-  /** Call after placing everything: builds the blob shadows (low tier only, or extra ones requested by the caller). */
-  finish(extra = []) {
-    const list = [...this.blobs, ...extra];
+  /** The blobs that sit on the terrain, for the baked ground shade; the ones on decks and piers stay as blob meshes. */
+  takeGroundBlobs() {
+    const on = b => { const g = this.terrain.heightAt(b.x, b.z); return b.y <= g + 0.3 && g > 0.05; };
+    const ground = this.blobs.filter(on); this.blobs = this.blobs.filter(b => !on(b));
+    return ground;
+  }
+  /** Call after placing everything: builds the blob shadows (low tier only). */
+  finish() {
+    const list = this.blobs;
     if (!list.length || this.quality.shadows) return;
     const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({ map: blobTexture(), color: 0x1d5f70, transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: false });

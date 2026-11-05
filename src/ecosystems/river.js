@@ -13,6 +13,7 @@ import * as FL from '../world/flora.js';
 import * as RT from '../world/riverTrees.js';
 import { patchUnderwater } from '../ocean/shaders.js';
 import { closedNow, SPECIES_BY_ID } from '../fishing/catches.js';
+import * as G from '../world/groundPaint.js';
 import '../fishing/fishLooks.js';
 
 const noise = makeNoise(61);
@@ -75,6 +76,10 @@ export function rockiness(x, z) {
   return Math.min(1, Math.max(pool, below) * (0.55 + 0.6 * (noise.n2(x * 0.18, z * 0.18) + 0.5)));
 }
 export const reefiness = (x, z) => (heightAt(x, z) < -0.3 ? rockiness(x, z) : 0.04);
+/** Mown lawn (eco.lawnAt for the terrain shader): only the picnic clearing by the landing; everywhere else is long grass. */
+export function lawnAt(x, z) {
+  return [1 - smoothstep(14, 22, Math.hypot(x - LAND.x, z - LAND.z)), bankDist(x, z)];
+}
 export function colorAt(x, z, h) {
   const n = noise.n2(x * 0.3, z * 0.3) * 0.04, n2 = noise.n2(x * 0.06 + 5, z * 0.06);
   const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
@@ -84,8 +89,8 @@ export function colorAt(x, z, h) {
   c = mix3(c, [0.52 + n, 0.48 + n, 0.42 + n], rockiness(x, z) * 0.8);                                             // boulders
   if (bd > 0) {
     c = mix3([0.88, 0.8, 0.6], [0.96, 0.88, 0.68], smoothstep(0, 1.2, h));                                         // pale sand on the water's edge
-    c = mix3(c, [0.5 + n * 2, 0.66 + n, 0.3], smoothstep(2.5, 8, bd + n2 * 5));                                    // grass
-    c = mix3(c, [0.4 + n, 0.56 + n, 0.28], smoothstep(24, 55, bd));
+    c = G.paintGrass(c, x, z, smoothstep(2.5, 8, bd + n2 * 5), 0.35);                                              // rough grass
+    c = mix3(c, [c[0] * 0.78, c[1] * 0.9, c[2] * 0.8], smoothstep(24, 55, bd));                                    // deeper under the bush
   }
   const bar = barAt(x, z);
   if (bar > 0) c = mix3(c, [0.7 + n * 3, 0.66 + n * 3, 0.55 + n * 2], smoothstep(0.1, 0.6, bar));                      // pebbly gravel
@@ -284,6 +289,7 @@ export const river = {
     life: {}, zones: {}, flyingGulls: 0,
     home: { x: LAND.x, z: LAND.z + 10, r: 5, label: 'the car park by the bank' },
   },
+  ridge: { arc: [0, 359] }, lawnAt,   // the escarpment all round the valley
   treeShadows: { casuarina: [2.4, 8] },
   cosyModels: {
     url: 'assets/models/seagrass_cosy.glb',

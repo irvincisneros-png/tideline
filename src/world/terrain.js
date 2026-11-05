@@ -94,6 +94,9 @@ export class Terrain {
       const [r, g, b] = eco.colorAt(x, z, h, 1 - nrm.getY(i));
       colors[i * 3] = r; colors[i * 3 + 1] = g; colors[i * 3 + 2] = b;
     }
+    Terrain.bakeCavity(colors, pos, segs, size / segs);
+    const ground = eco.lawnAt ? Terrain.groundAttribute(eco, pos, colors) : null;
+    if (ground) geo.setAttribute('aGround', new THREE.BufferAttribute(ground, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.baseColors = colors.slice();
     // Optional substrate mask: 0 = sand, 1 = rock (rock texture and relief instead of sand grain and ripples).
@@ -110,7 +113,15 @@ export class Terrain {
     });
     // Break up texture tiling by modulating with a second, larger-scale sample.
     const rock = rockAt ? makeRockTexture(noise) : null, rockTex = rock?.tex;
+    this.shade = { value: Terrain.blankShade() };
     mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uShadeMap = this.shade; shader.uniforms.uShadeSize = { value: size };
+      shader.vertexShader = 'varying vec2 vPlan;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvPlan = position.xz;');
+      shader.fragmentShader = 'uniform sampler2D uShadeMap; uniform float uShadeSize; varying vec2 vPlan;\n' + shader.fragmentShader;
+      if (ground) {
+        shader.vertexShader = 'attribute vec3 aGround; varying vec3 vGround;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround = aGround;');
+        shader.fragmentShader = '#define USE_GROUND\nvarying vec3 vGround;\n' + shader.fragmentShader;
+      }
       if (rockTex) {
         shader.uniforms.uRockTex = { value: rockTex }; shader.uniforms.uRockNrm = { value: rock.nrm };
         shader.vertexShader = 'attribute float aRock; varying float vRock;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvRock = aRock;');
@@ -128,7 +139,20 @@ export class Terrain {
           diffuseColor.rgb *= mix(mix(sandDetail, rockDetail * 1.15, rk), vec3(0.93), 0.45 * uStyle);
         #else
           diffuseColor.rgb *= mix(sandDetail, vec3(0.93), 0.45 * uStyle);
-        #endif`);
+        #endif
+        #ifdef USE_GROUND
+          {
+            // Mown stripes: runs up and back along vGround.z (metres, follows the shore or the street), fading out once they would shimmer in the distance.
+            float mown = vGround.x * uStyle, wide = fwidth(vGround.z) / 2.6;
+            float run = mix(smoothstep(-0.25, 0.25, sin(vGround.z * 1.2083)), 0.5, smoothstep(0.3, 0.9, wide));
+            diffuseColor.rgb *= 1.0 + mown * (run - 0.5) * vec3(0.16, 0.11, 0.2);
+            // Tufts: dabs of lighter and darker green, broken up by the same grain as the sand, on all grass.
+            float tuft = (t1.r - 0.78) * 4.0 + (t2.r - 0.78) * 3.0;
+            diffuseColor.rgb *= 1.0 + vGround.y * uStyle * clamp(tuft, -1.0, 1.0) * vec3(0.1, 0.13, 0.08);
+          }
+        #endif
+        // Baked soft shade under trees and houses: a cool teal tint of the ground, never grey.
+        diffuseColor.rgb *= mix(vec3(0.5, 0.64, 0.74), vec3(1.0), texture2D(uShadeMap, vPlan / uShadeSize + 0.5).r);`);
       // Rock relief: perturb the normal with the rock texture's height (screen-space derivatives).
       if (rockTex) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
@@ -150,6 +174,49 @@ export class Terrain {
     this.depthTex = Terrain.depthTexture(eco, size, quality.terrainScale < 1 ? 192 : 320);
   }
 
+  /** A white 1x1 shade map (nothing shaded) until bakeShade runs. */
+  static blankShade() {
+    const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t;
+  }
+  /** Damp hollows and dry crowns: compares each land vertex with the ground about 3 m around it, so dips go a deeper, cooler colour and rises a little paler. */
+  static bakeCavity(colors, pos, segs, step) {
+    const row = segs + 1, R = Math.max(1, Math.round(3 / step)), at = (i, j) => pos.getY(Math.max(0, Math.min(segs, j)) * row + Math.max(0, Math.min(segs, i)));
+    for (let j = 0; j <= segs; j++) for (let i = 0; i <= segs; i++) {
+      const v = j * row + i, h = pos.getY(v);
+      if (h < 0.3) continue;
+      const avg = (at(i - R, j) + at(i + R, j) + at(i, j - R) + at(i, j + R) + at(i - R, j - R) + at(i + R, j + R) + at(i - R, j + R) + at(i + R, j - R)) / 8;
+      const cav = Math.max(-1, Math.min(1, (avg - h) / 0.35));
+      const k = cav > 0 ? [1 - 0.26 * cav, 1 - 0.14 * cav, 1 - 0.1 * cav] : [1 - 0.08 * cav, 1 - 0.07 * cav, 1 - 0.05 * cav];
+      colors[v * 3] *= k[0]; colors[v * 3 + 1] *= k[1]; colors[v * 3 + 2] *= k[2];
+    }
+  }
+  /** Per vertex: mown (0..1, stripes), green (0..1, tufts), the stripe coordinate in metres. eco.lawnAt(x, z, h) -> [mown, coord]; anything not green (a road, a path) gets no stripes. */
+  static groundAttribute(eco, pos, colors) {
+    const out = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const r = colors[i * 3], g = colors[i * 3 + 1], b = colors[i * 3 + 2], h = pos.getY(i);
+      if (h < 0.1) continue;
+      const green = Math.max(0, Math.min(1, (g - Math.max(r, b)) / 0.07)), [m, s] = eco.lawnAt(pos.getX(i), pos.getZ(i), h);
+      out[i * 3] = m * green; out[i * 3 + 1] = green; out[i * 3 + 2] = s;
+    }
+    return out;
+  }
+  /** Paint the soft shade of trees and houses into a map the terrain shader multiplies in, so every tier has it for one texture read and no extra pass. `list` = [{ x, z, r, tall }]. */
+  bakeShade(list, sunDir, res) {
+    const c = document.createElement('canvas'); c.width = c.height = res;
+    const g = c.getContext('2d'), S = res / this.size, sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
+    const sx = sprite.getContext('2d'), rg = sx.createRadialGradient(32, 32, 3, 32, 32, 32);
+    rg.addColorStop(0, 'rgba(0,0,0,0.85)'); rg.addColorStop(0.6, 'rgba(0,0,0,0.5)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    sx.fillStyle = rg; sx.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, res, res);
+    const ox = -sunDir.x, oz = -sunDir.z, l = Math.hypot(ox, oz) || 1;
+    for (const b of list) {
+      const off = b.tall * 0.18, cx = (b.x + ox / l * off + this.size / 2) * S, cz = (b.z + oz / l * off + this.size / 2) * S, w = b.r * 1.5 * S, d = (b.r * 1.5 + b.tall * 0.14) * S;
+      g.save(); g.translate(cx, cz); g.rotate(Math.atan2(oz, ox) - Math.PI / 2); g.drawImage(sprite, -w, -d, w * 2, d * 2); g.restore();
+    }
+    const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.flipY = false;
+    this.shade.value.dispose(); this.shade.value = t;
+  }
   /** Seabed height texture for the water shader: half-float metres (precise near the waterline, where the shore foam and the clear shallows read it). */
   static depthTexture(eco, size = 320, res = 256) {
     const data = new Uint16Array(res * res);
@@ -173,5 +240,5 @@ export class Terrain {
     }
     col.needsUpdate = true;
   }
-  dispose() { this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.mesh.parent?.remove(this.mesh); }
+  dispose() { this.shade.value.dispose(); this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.mesh.parent?.remove(this.mesh); }
 }
