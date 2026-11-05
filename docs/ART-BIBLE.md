@@ -28,16 +28,16 @@ A sunny, hand-made diorama. Bright, clear, calm and friendly. Readable at a glan
 
 ## Lines
 - Thin outlines on silhouettes, **dark teal** rather than black, fading with distance and fog.
-  No outlines on water.
+  No outlines on water. Every placed prop has its outline merged into its own mesh (`src/world/propBake.js`), with baked AO and a paler bevel on hard edges, so this holds on the low tier with no extra pass.
 
 ## Water
 - Clear: you see the reef and the sand under shallow water.
 - **Caustics**: crisp, bright, slowly dancing light networks on the seabed in the shallows.
-- **Shore foam**: soft white bands that lap at the edge of sand and rock.
+- **Shore foam**: soft white bands that lap at the edge of sand, with a dark wet strip above the waterline (water level driven, in the terrain shader). Rock pools stay clear.
 - Surf: glassy turquoise face, white lip and spray, small foam flecks; sun glints.
 
 ## Sky
-- Soft blue gradient, a few big puffy rounded clouds with gentle shading (no hard noisy edges).
+- Soft blue gradient, a few big puffy rounded clouds with gentle shading (no hard noisy edges): painted billboards (`src/ocean/clouds.js`), tinted by the hour. A clean sun and moon disc with a soft halo. The escarpment is layered ridges fading to the live horizon colour (`src/world/ridges.js`).
 
 ## Camera and characters
 - A high third-person, near top-down follow camera (pitch about 60 degrees, 12-18 m back, damped, wheel / pinch zoom). The angler is a chunky, cel-shaded character with a big head and a bucket hat (`tools/blender/tideline.py`); colours are parameters (`setAppearance`). Hair (6), hats (5), sunnies (2) and shirt patterns (stripes, flowers, fishing shirt) are separate Blender meshes in the neutral colour slots (hair / hat / shirt / trim) plus a few fixed-colour parts, chosen in the character creator (`src/ui/creator.js`). Fish: tails, markings and lips match the key's features (`tests/looks.test.mjs`); a flat-bodied fish's tail is spread flat on the brag mat. Casts, the line (a thin dark curve) and the red and white float are all readable from above.
