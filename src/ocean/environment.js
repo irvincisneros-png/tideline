@@ -79,7 +79,7 @@ export class Environment {
     put(this.hemi.color, P.hemiSky); put(this.hemi.groundColor, P.hemiGround);
     this.hemiBase = P.hemiIntensity; this.exposureAbove = P.exposure;
     G.uSunDir.value.set(...P.sunDir);
-    G.uNight.value = k; G.uLampOn.value = cfg.lamps ? d.lamps : 0; this.night = k; this.glow = Math.min(1, d.glow * cfg.glow);
+    G.uNight.value = k; G.uLampOn.value = cfg.lamps ? d.lamps : 0; this.night = k; this.glow = Math.min(1, d.glow * cfg.glow); G.uGlow.value = this.glow * (1 - k * 0.8);
     return d;
   }
 
@@ -155,8 +155,9 @@ export class Environment {
           // Dusk: a warmer, lower key light; night: moonlit blue everywhere (kept bright enough to read, never black).
           // The blue only takes over once it is properly dark (kk), so early dusk keeps its warm amber light on the ground and the walls.
           const k = this.night, kk = Math.min(1, Math.max(0, (k - 0.3) / 0.7)), warm = this.glow * (1 - kk), ns = NIGHT_STYLE;
-          G.uStyleSun.value.lerp(this.tmp.setRGB(1.0, 0.5, 0.2), Math.min(1, warm * 1.0)).multiplyScalar(1 - 0.35 * kk);
-          G.uStyleSky.value.lerp(this.tmp.setRGB(0.86, 0.5, 0.46), warm * 0.62);          // a rosy-peach ambient from the sky at sunset
+          G.uStyleSun.value.lerp(this.tmp.setRGB(1.05, 0.56, 0.24), Math.min(1, warm * 1.0)).multiplyScalar(1 - 0.35 * kk);
+          G.uStyleSky.value.lerp(this.tmp.setRGB(0.8, 0.5, 0.5), warm * 0.62);            // a rosy-peach ambient from the sky at sunset
+          G.uStyleGround.value.lerp(this.tmp.setRGB(0.52, 0.34, 0.3), warm * 0.6);        // and warm light bounced back up off the ground
           G.uStyleSky.value.lerp(this.tmp.setRGB(...ns.sky), kk); G.uStyleGround.value.lerp(this.tmp.setRGB(...ns.ground), kk);
           G.uStyleSun.value.lerp(this.tmp.setRGB(...ns.sun), kk); G.uStyleRim.value.lerp(this.tmp.setRGB(...ns.rim), kk);
         }
@@ -186,6 +187,7 @@ export class Environment {
     if (this.shadowRange) {
       // Snap to shadow texels so edges don't crawl as the camera moves.
       this.sun.castShadow = this.sunBase > 0;
+      this.sun.shadow.intensity = 0.6 + 0.28 * this.glow * (1 - this.night);   // low warm sun: longer, firmer shadows
       const step = (this.shadowRange * 2) / this.sun.shadow.mapSize.x;
       const fp = focus ?? camera.position;
       const t = this.sun.target.position.set(Math.round(fp.x / step) * step, Math.round(fp.y / step) * step, Math.round(fp.z / step) * step);

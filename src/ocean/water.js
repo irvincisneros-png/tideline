@@ -1,6 +1,7 @@
 // Ocean surface (GPU swell), the breaking set-wave mesh (CPU profile) and the sky dome.
 import * as THREE from 'three';
 import { globalUniforms, uwFogGLSL, skyGLSL, noiseGLSL } from './shaders.js';
+import { makeClouds } from './clouds.js';
 import { SWELLS, PROFILE_N, sampleProfile, swellHeight } from './waveProfile.js';
 
 const swellGLSL = (() => {
@@ -318,9 +319,9 @@ export class Sky {
   constructor(scene) {
     const geo = new THREE.SphereGeometry(5000, 32, 16);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon, uUnderwater: globalUniforms.uUnderwater, uFogColor: globalUniforms.uFogColor, uStyle: globalUniforms.uStyle, uNight: globalUniforms.uNight },
+      uniforms: { uSunDir: globalUniforms.uSunDir, uSkyTop: globalUniforms.uSkyTop, uSkyHorizon: globalUniforms.uSkyHorizon, uUnderwater: globalUniforms.uUnderwater, uFogColor: globalUniforms.uFogColor, uStyle: globalUniforms.uStyle, uNight: globalUniforms.uNight, uGlow: globalUniforms.uGlow },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
-      fragmentShader: `${skyGLSL}${uwFogGLSL}\nuniform float uUnderwater; uniform vec3 uFogColor; varying vec3 vDir;
+      fragmentShader: `#define SKY_DOME\n${skyGLSL}${uwFogGLSL}\nuniform float uUnderwater; uniform vec3 uFogColor; varying vec3 vDir;
         void main(){ vec3 d = normalize(vDir); vec3 c = uUnderwater > 0.5 ? uwFogColor(d, uFogColor, uSunDir) : skyColor(d); gl_FragColor = vec4(c,1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -331,6 +332,11 @@ export class Sky {
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -10;
     scene.add(this.mesh);
+    this.clouds = makeClouds(); scene.add(this.clouds);
   }
-  update(camera) { this.mesh.position.copy(camera.position); }
+  update(camera) {
+    this.mesh.position.copy(camera.position);
+    const c = this.clouds; c.visible = globalUniforms.uStyle.value > 0.5 && globalUniforms.uUnderwater.value < 0.5;
+    c.position.set(camera.position.x, 0, camera.position.z); c.rotation.y = globalUniforms.uTime.value * 0.0012;   // they drift round the sky, very slowly
+  }
 }

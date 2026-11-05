@@ -32,11 +32,15 @@ export const globalUniforms = {
   uLampCol: { value: new THREE.Color(1.0, 0.72, 0.38) },
   uClear: { value: 0 },   // extra metres of see-through water (the offshore reef: you can see the reef from the surface)
   uHaze: { value: 0.06 }, // how fast the seabed fades to water colour with depth
+  uGlow: { value: 0 },    // the warm sunrise / sunset colour, 0..1
   uLampOn: { value: 0 }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
 };
 
 export const skyGLSL = /* glsl */`
 uniform vec3 uSunDir; uniform vec3 uSkyTop; uniform vec3 uSkyHorizon; uniform float uStyle; uniform float uNight;
+#ifdef SKY_DOME
+uniform float uGlow;
+#endif
 float skyHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float skyNoise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(skyHash(i), skyHash(i + vec2(1, 0)), u.x), mix(skyHash(i + vec2(0, 1)), skyHash(i + vec2(1, 1)), u.x), u.y); }
@@ -46,15 +50,15 @@ float skyClouds(vec3 d) {
   vec2 p = d.xz / (d.y + 0.1) * (uStyle > 0.5 ? 0.8 : 1.4) + vec2(3.7, 1.3); // cosy: fewer, bigger clouds
   float s = 0.0, a = 0.5;
   if (uStyle > 0.5) {
-    // Puffy cumulus: a big low-frequency body plus "billow" bumps (rounded lobes) around its edge; few octaves = soft, round.
-    float body = skyNoise(p * 0.7);
-    float lobes = 0.0, la = 0.5; vec2 q = p * 1.9;
-    for (int i = 0; i < 3; i++) { lobes += la * (1.0 - abs(skyNoise(q) * 2.0 - 1.0)); q = q * 2.1 + vec2(5.2, 1.7); la *= 0.5; }
-    s = body * 0.75 + lobes * 0.32;
-  } else for (int i = 0; i < 5; i++) { s += a * skyNoise(p); p = p * 2.03 + vec2(11.3, 7.1); a *= 0.5; }
-  float fade = smoothstep(0.0, 0.2, d.y);
-  // Cosy: big rounded clouds (soft edge, solid body).
-  return uStyle > 0.5 ? smoothstep(0.72, 0.79, s) * fade : smoothstep(0.5, 0.78, s) * fade;
+    // Cosy: the clouds you see are billboards (ocean/clouds.js), so the dome has none; on the water they reflect as a few big soft shapes.
+    #ifdef SKY_DOME
+      return 0.0;
+    #else
+      return smoothstep(0.6, 0.8, skyNoise(p * 0.55)) * smoothstep(0.0, 0.2, d.y) * 0.5;
+    #endif
+  }
+  for (int i = 0; i < 5; i++) { s += a * skyNoise(p); p = p * 2.03 + vec2(11.3, 7.1); a *= 0.5; }
+  return smoothstep(0.5, 0.78, s) * smoothstep(0.0, 0.2, d.y);
 }
 vec3 skyColor(vec3 d) {
   float y = max(d.y, -0.05);
@@ -65,17 +69,24 @@ vec3 skyColor(vec3 d) {
   vec3 cloud = mix(vec3(0.66, 0.7, 0.78), vec3(1.05, 1.02, 0.97), 0.45 + 0.55 * pow(s, 3.0));
   if (uStyle > 0.5) {
     // Gentle shading: brighter, warmer toward the sun; soft blue-grey underside near the cloud's edge.
-    float inner = skyClouds(d + vec3(0.0, 0.035, 0.0));
-    cloud = mix(vec3(0.78, 0.84, 0.94), vec3(1.06, 1.04, 1.0), smoothstep(0.2, 0.9, inner) * (0.7 + 0.3 * s));
+    cloud = mix(vec3(0.78, 0.84, 0.94), vec3(1.06, 1.04, 1.0), 0.5 + 0.5 * s);
   }
   cloud = mix(cloud, cloud * vec3(0.3, 0.38, 0.62), uNight);                              // moonlit clouds are blue-grey
   col = mix(col, cloud, uStyle > 0.5 ? cl * 0.97 : cl * 0.9);
   vec3 sunCol = mix(vec3(1.0, 0.92, 0.75), vec3(0.78, 0.88, 1.0), uNight);                 // the moon is white-blue and softer than the sun
+  #ifdef SKY_DOME
+    if (uStyle > 0.5) {
+      // A clean round disc with a soft halo: pale gold by day, deep orange low in the glow, a small white-blue moon.
+      vec3 disc = mix(mix(vec3(1.5, 1.38, 1.1), vec3(1.7, 0.86, 0.4), uGlow), vec3(1.0, 1.06, 1.2), uNight);
+      col += sunCol * (pow(s, 90.0) * mix(0.42, 0.14, uNight) + pow(s, 8.0) * mix(0.1, 0.04, uNight));
+      col = mix(col, disc, smoothstep(0.99935, 0.99965, s));
+    } else
+  #endif
   col += sunCol * (pow(s, 900.0) * mix(30.0, 9.0, uNight) * (1.0 - cl) + pow(s, 24.0) * mix(0.35, 0.18, uNight) + pow(s, 4.0) * mix(0.08, 0.05, uNight));
   if (uNight > 0.01 && d.y > 0.02) {                                                      // stars: a sparse scatter of pin-pricks, a few brighter
     vec2 sp = d.xz / (d.y + 0.25) * 46.0; vec2 si = floor(sp), sf = fract(sp);
     float sh = skyHash(si), star = step(0.985, sh) * (1.0 - smoothstep(0.0, 0.34, length(sf - 0.5)) );
-    col += vec3(0.95, 0.96, 1.0) * star * (0.6 + 0.9 * step(0.996, sh)) * uNight * smoothstep(0.02, 0.25, d.y) * (1.0 - cl);
+    col += vec3(0.95, 0.96, 1.0) * star * (0.6 + 0.9 * step(0.996, sh)) * smoothstep(0.45, 0.95, uNight) * smoothstep(0.02, 0.25, d.y) * (1.0 - cl);
   }
   col = mix(col, uSkyHorizon * 0.95, smoothstep(0.02, -0.08, d.y));
   return col;
