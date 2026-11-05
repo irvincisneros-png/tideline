@@ -23,7 +23,7 @@ export const ball = (r, hex, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => par
 export const torus = (R, r, hex, x, y, z, rx = Math.PI / 2) => part(new THREE.TorusGeometry(R, r, 6, 14), hex, x, y, z, rx, 0, 0);
 export const cone = (r, h, hex, x = 0, y = 0, z = 0, seg = 10) => part(new THREE.ConeGeometry(r, h, seg), hex, x, y, z);
 
-/** Merge parts, then bake a soft light-from-above shade into the colours so the faces read without a lit shader. */
+/** Merge parts, then bake a soft light-from-above shade into the colours so the faces read without a lit shader. AO, bevels and the ink outline come on top when the model is placed (world/propBake.js). */
 export function finish(parts, shade = 0.26) {
   const geo = mergeGeometries(parts.map(g => (g.index ? g.toNonIndexed() : g)), false);
   geo.computeVertexNormals();

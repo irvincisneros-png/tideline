@@ -161,6 +161,7 @@ export function patchUnderwater(material, opts = {}) {
     if (opts.coral) vHead += 'attribute float aBleach;\nvarying float vBleach;\n';
     if (opts.detail) vHead += 'varying vec3 vLocal;\n';
     if (opts.fish) vHead += 'attribute vec2 aFin;\nvarying vec2 vFin;\n';
+    if (opts.ink) vHead += 'attribute float aInk; attribute vec3 aEdge;\nvarying float vInk; varying vec3 vEdge;\n';
     shader.vertexShader = vHead + shader.vertexShader;
     let deform = '';
     if (opts.swim) {
@@ -206,6 +207,9 @@ export function patchUnderwater(material, opts = {}) {
     if (opts.coral) deform += 'vBleach = aBleach;\n';
     if (opts.detail) deform += 'vLocal = position;\n';
     if (opts.fish) deform += 'vFin = aFin;\n';
+    // The ink outline (world/propBake.js): the backward copy of the model pushes out along its smooth normal, about 1.5 to 2 pixels wide from the play camera, and thins away with distance.
+    if (opts.ink) deform += `vInk = aInk; vEdge = aEdge;
+      if (aInk > 0.5) { float dI = length((modelViewMatrix * vec4(transformed, 1.0)).xyz); transformed += normal * min(0.05, 0.01 + dI * 0.0012) * (1.0 - smoothstep(60.0, 120.0, dI)); }\n`;
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + deform);
     shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
       vec4 wpw = vec4(transformed, 1.0);
@@ -223,6 +227,7 @@ export function patchUnderwater(material, opts = {}) {
                    mix(mix(dHash(i+vec3(0,0,1)), dHash(i+vec3(1,0,1)), f.x), mix(dHash(i+vec3(0,1,1)), dHash(i+vec3(1,1,1)), f.x), f.y), f.z); }
     `;
     if (opts.fish) fHead += '#define TL_FISH\nvarying vec2 vFin;\n';
+    if (opts.ink) fHead += '#define TL_INK\nvarying float vInk; varying vec3 vEdge;\n';
     if (opts.cutaway) fHead += 'uniform vec3 uPlayer;\n';
     shader.fragmentShader = fHead + shader.fragmentShader;
     if (opts.cutaway) {
@@ -287,6 +292,12 @@ export function patchUnderwater(material, opts = {}) {
         diffuseColor.rgb *= mix(0.45, 1.0, smoothstep(0.0, 0.22, vLocal.y));
         diffuseColor.rgb *= 1.0 + (0.3 * dNoise(vWPos * 9.0) - 0.15) * (1.0 - 0.7 * uStyle);`);
     }
+    if (opts.ink) shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      // A thin paler bevel along the hard edges (metres to the nearest crease in vEdge; nothing on models without the bake), softening off with distance.
+      if (vEdge.x + vEdge.y + vEdge.z > 0.001) {
+        float bevel = (1.0 - smoothstep(0.012, 0.05, min(vEdge.x, min(vEdge.y, vEdge.z)))) * (1.0 - smoothstep(30.0, 80.0, distance(vWPos, cameraPosition)));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.2 + 0.07, bevel * uStyle);
+      }`);
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
       if (uStyle > 0.5) {
         // Stylised lighting: the sun term (which already includes shadows) becomes a soft two-tone band,
@@ -358,6 +369,9 @@ export function patchUnderwater(material, opts = {}) {
           }
         }
       }
+      #ifdef TL_INK
+        if (vInk > 0.5) outgoingLight = vec3(0.045, 0.17, 0.21) * (0.6 + 0.4 * max(uStyleSun.g * 1.4, 0.0));   // dark teal ink, not lit, dimming with the light
+      #endif
       #include <opaque_fragment>`);
     // Underwater, light is lost along the line of sight too (red first), then scattered toward a
     // direction-dependent backdrop colour instead of a single flat fog colour.

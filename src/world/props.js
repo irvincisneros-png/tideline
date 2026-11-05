@@ -3,6 +3,7 @@
 // On the low tier (no sun shadows) every tall prop also gets a soft blob contact shadow so the sand still reads as sunlit.
 import * as THREE from 'three';
 import { patchUnderwater, globalUniforms } from '../ocean/shaders.js';
+import { bakeModel } from './propBake.js';
 
 let blobTex = null;
 function blobTexture() {
@@ -15,11 +16,16 @@ function blobTexture() {
   return blobTex;
 }
 
+/** The Blender set gets the same finish as the code-built props, once per model (the loader keeps its geometry between sites). */
+const done = new WeakMap();
+const BUTT = { wharf_deck: 'z', jetty_deck: 'z' };   // lengths of deck laid end to end
+const finished = (g, name) => { let f = done.get(g); if (!f) done.set(g, f = bakeModel(g, { butt: BUTT[name] })); return f; };
+
 export class Props {
   constructor(scene, models, terrain, quality, world) {
     this.scene = scene; this.models = models; this.terrain = terrain; this.quality = quality; this.world = world;
     this.group = new THREE.Group(); scene.add(this.group);
-    this.mat = patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 }), { key: 'prop', cutaway: true });
+    this.mat = patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 }), { key: 'prop', cutaway: true, ink: true });
     this.anim = []; this.blobs = [];
     this.byName = {};
   }
@@ -28,8 +34,9 @@ export class Props {
    * Returns the mesh (null if the model is missing).
    */
   place(name, x, z, opts = {}) {
-    const geo = this.models.get(name);
-    if (!geo) { console.warn('Prop model missing:', name); return null; }
+    const raw = this.models.get(name);
+    if (!raw) { console.warn('Prop model missing:', name); return null; }
+    const geo = finished(raw, name);
     const m = new THREE.Mesh(geo, opts.color != null ? this.tinted(opts.color) : this.mat);
     const s = opts.scale ?? 1;
     m.scale.setScalar(s); m.rotation.y = opts.rot ?? 0;
@@ -46,7 +53,7 @@ export class Props {
   tinted(c) {
     const col = c instanceof THREE.Color ? c : new THREE.Color(c), key = col.getHexString() + col.r.toFixed(2) + col.g.toFixed(2);
     this.tints ??= {};
-    return (this.tints[key] ??= patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, color: col, roughness: 0.9, metalness: 0 }), { key: 'prop', cutaway: true }));
+    return (this.tints[key] ??= patchUnderwater(new THREE.MeshStandardMaterial({ vertexColors: true, color: col, roughness: 0.9, metalness: 0 }), { key: 'prop', cutaway: true, ink: true }));
   }
   /** A pelican (or other bird) idling on a post: slow turns of the head, a ruffle now and then. */
   idle(mesh, amp = 0.35) { this.anim.push({ mesh, rot: mesh.rotation.y, ph: Math.random() * 6, amp, y: mesh.position.y }); }

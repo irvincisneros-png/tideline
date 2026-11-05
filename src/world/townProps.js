@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../core/noise.js';
 import { box, cyl, part, finish } from './propKit.js';
+import { bakeModel } from './propBake.js';
 
 const WALLS = [0xf4ecd8, 0xe9dcc2, 0xcfe3e8, 0xd9e6cf, 0xf1d8c6, 0xfaf3e6, 0xe2d4e8, 0xd7c4a6];
 const ROOFS = [0xb9553c, 0x8a8f94, 0x4f6f63, 0x9a4a3a, 0x6b7f99, 0xa8694a, 0xc26a4a];
@@ -96,13 +97,13 @@ export function layTown(world, { bounds, dist, band, spacing = 11, accept = () =
   }
   const add = list => { if (list.length) { const m = new THREE.Mesh(mergeGeometries(list), pr.mat); m.userData.prop = 'town'; m.castShadow = m.receiveShadow = true; pr.group.add(m); } };
   lots.forEach((l, i) => {
-    const k = kind(l.x, l.z, i), g = k === 'flats' ? flats(seed * 31 + i) : cottage(seed * 17 + i);
+    const k = kind(l.x, l.z, i), g = bakeModel(k === 'flats' ? flats(seed * 31 + i) : cottage(seed * 17 + i));
     // settle on the lowest of the footprint corners so the plinth hides the slope
     let y = Infinity; for (const [ox, oz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) y = Math.min(y, T.heightAt(l.x + ox, l.z + oz));
     g.rotateY(l.rot); g.translate(l.x, y + 0.05, l.z); geos.push(g);
     world.addCollider(l.x, y + 1.5, l.z, k === 'flats' ? 6 : 4.6);
     pr.blobs.push({ x: l.x, z: l.z, y, r: k === 'flats' ? 7.5 : 6.2, tall: 7 });
-    if (fences && rnd() < 0.7) { const f = fence(9 + rnd() * 2, seed + i); const fx = l.x + Math.sin(l.rot) * 6.2, fz = l.z + Math.cos(l.rot) * 6.2; f.rotateY(l.rot); f.translate(fx, T.heightAt(fx, fz), fz); fen.push(f); }
+    if (fences && rnd() < 0.7) { const f = bakeModel(fence(9 + rnd() * 2, seed + i)); const fx = l.x + Math.sin(l.rot) * 6.2, fz = l.z + Math.cos(l.rot) * 6.2; f.rotateY(l.rot); f.translate(fx, T.heightAt(fx, fz), fz); fen.push(f); }
     if (geos.length >= 20) { add(geos.splice(0)); }
   });
   add(geos); add(fen);
