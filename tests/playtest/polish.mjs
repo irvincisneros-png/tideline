@@ -5,9 +5,9 @@ const label = process.argv[2] ?? 'a', q = process.argv[3] ?? 'high', sites = (pr
 const OUT = 'playtest-shots/polish';
 // [name, x, z, yaw, pitch, zoom]: yaw 0 looks toward -z, pi/2 toward -x
 const V = {
-  rocky: [['inland', 30, 30, Math.PI, 0.42, 10], ['lawn', 34, 36, 2.6, 0.75, 16], ['cove', 2, 4, 0.1, 0.5, 9], ['platform', 48, -30, 0.8, 0.8, 14]],
-  harbour: [['west', -70, 50, 1.9, 0.42, 10], ['lawn', 40, 70, 2.6, 0.8, 18], ['beach', -92, 34, 0.1, 0.5, 9]],
-  seagrass: [['lake', 20, 16, 0.1, 0.42, 10], ['lawn', 10, 60, 3.0, 0.8, 16], ['flats', 30, 10, 0.3, 0.55, 9]],
+  rocky: [['inland', 30, 30, Math.PI, 0.42, 10], ['lawn', 34, 36, 2.6, 0.75, 16], ['cove', 2, 2, 0.1, 0.6, 10], ['platform', 48, -30, 0.8, 0.8, 14]],
+  harbour: [['west', -70, 50, 1.9, 0.42, 10], ['lawn', 40, 70, 2.6, 0.8, 18], ['beach', -100, 36, 0.1, 0.6, 10]],
+  seagrass: [['lake', 20, 16, 0.1, 0.42, 10], ['lawn', 10, 60, 3.0, 0.8, 16], ['flats', 30, 22, 0.1, 0.6, 10]],
   river: [['valley', -30, 18, 2.4, 0.42, 10]],
 };
 let fail = 0;

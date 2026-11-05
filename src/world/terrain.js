@@ -151,6 +151,26 @@ export class Terrain {
             diffuseColor.rgb *= 1.0 + vGround.y * uStyle * clamp(tuft, -1.0, 1.0) * vec3(0.1, 0.13, 0.08);
           }
         #endif
+        // The water's edge, in stylised looks: a dark wet strip above the waterline, and the lap itself, a soft lacy foam line that runs up and back on the sand (height-driven, so it follows any shore).
+        {
+          float wy = vWPos.y - uWaterLevel;
+          if (uStyle > 0.5 && wy > -0.4 && wy < 1.0) {
+            float lapY = -0.015 + 0.05 * sin(uTime * 0.85 + vWPos.x * 0.07 + vWPos.z * 0.05 + t3.r * 2.5) + 0.016 * sin(uTime * 1.9 + vWPos.x * 0.21 - vWPos.z * 0.17);
+            #ifdef USE_ROCK
+              float dryMask = 1.0 - smoothstep(0.15, 0.85, vRock) * 0.7;
+            #else
+              float dryMask = 1.0;
+            #endif
+            float wet = smoothstep(0.62, 0.06, wy - lapY * 0.6 + (t2.r - 0.78) * 0.18) * dryMask;
+            diffuseColor.rgb *= mix(vec3(1.0), vec3(0.7, 0.71, 0.74), wet);
+            // Lace: where two drifting samples of the grain cross, thin wandering lines of foam.
+            float la = texture2D(map, vWPos.xz * 0.19 + vec2(uTime * 0.012, -uTime * 0.009)).r, lb = texture2D(map, vWPos.xz * 0.27 + vec2(-uTime * 0.008, uTime * 0.013)).r;
+            float lace = 1.0 - smoothstep(0.0, 0.05, abs(la - lb));
+            float line = exp(-pow((wy - lapY) / 0.022, 2.0)) * (0.3 + 0.7 * lace);
+            float film = smoothstep(lapY + 0.01, lapY - 0.1, wy) * smoothstep(-0.28, -0.06, wy) * (0.1 + 0.5 * lace);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 1.0, 0.98), clamp(max(line, film), 0.0, 0.92));
+          }
+        }
         // Baked soft shade under trees and houses: a cool teal tint of the ground, never grey.
         diffuseColor.rgb *= mix(vec3(0.5, 0.64, 0.74), vec3(1.0), texture2D(uShadeMap, vPlan / uShadeSize + 0.5).r);`);
       // Rock relief: perturb the normal with the rock texture's height (screen-space derivatives).
@@ -165,7 +185,7 @@ export class Terrain {
         }`);
       // Wet sand in the swash zone is darker (vertex colour) and glossy: a thin water film reflects the sky.
       shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.28, smoothstep(0.75, 0.25, vWPos.y) * smoothstep(-0.4, -0.05, vWPos.y));`);
+        roughnessFactor = mix(roughnessFactor, 0.28, smoothstep(0.6, 0.2, vWPos.y) * smoothstep(-0.4, -0.05, vWPos.y));`);
     };
     patchUnderwater(mat, { key: 'terrain' });
     this.mesh = new THREE.Mesh(geo, mat);

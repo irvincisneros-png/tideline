@@ -19,7 +19,7 @@ function blobTexture() {
 /** The Blender set gets the same finish as the code-built props, once per model (the loader keeps its geometry between sites). */
 const done = new WeakMap();
 const BUTT = { wharf_deck: 'z', jetty_deck: 'z' };   // lengths of deck laid end to end
-const finished = (g, name) => { let f = done.get(g); if (!f) done.set(g, f = bakeModel(g, { butt: BUTT[name] })); return f; };
+const finished = (g, name) => { let f = done.get(g); if (!f) done.set(g, f = bakeModel(g, BUTT[name] ? { butt: BUTT[name], ink: 0.3 } : {})); return f; };
 
 export class Props {
   constructor(scene, models, terrain, quality, world) {

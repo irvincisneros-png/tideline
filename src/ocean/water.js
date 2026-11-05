@@ -107,18 +107,24 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
       foam = max(foam, smoothstep(0.92, 1.0, vFoam));
       if (uStyle > 0.5) foam = smoothstep(0.42, 0.48, foam);           // stylised: crisp white foam shapes
       if (uStyle > 0.5 && !below) {
-        // Shore foam: soft white bands lapping where the water meets sand or rock.
-        // A bright, lacy band hugging the waterline (it laps in and out), then a fainter trailing band a little further out.
-        // Widths are in metres along the slope: depth / slope = distance from the waterline, so steep and gentle shores get the same band.
-        vec2 sd = 1.0 / uDepthBox.zw;
+        // Shore foam, soft and moving: a bright lacy line that laps in and out, a thin film of wash behind it, a fainter line following further out, and small flecks torn off them.
+        // Widths are metres from the waterline along the slope (depth / slope, the slope measured over a few metres so the height map's texels do not show), so steep and gentle shores get the same band.
+        vec2 sd = 2.5 / uDepthBox.zw;
         float sx = texture2D(uDepth, duv + vec2(sd.x, 0.0)).r - texture2D(uDepth, duv - vec2(sd.x, 0.0)).r, sz = texture2D(uDepth, duv + vec2(0.0, sd.y)).r - texture2D(uDepth, duv - vec2(0.0, sd.y)).r;
-        float dm = wdepth / max(0.05, length(vec2(sx, sz)) * 0.5);
-        float lap = sin(uTime * 1.1 + vWPos.x * 0.15 + fbm(vWPos.xz * 0.2) * 3.0);
-        float wob = fbm(vWPos.xz * 1.1 + vec2(uTime * 0.05, 0.0));
-        float lace = smoothstep(0.5, 0.64, fbm(vWPos.xz * 3.4 + vec2(uTime * 0.12, -uTime * 0.08)));
-        float band = smoothstep(0.7, 0.18, dm + 0.22 * lap + (wob - 0.5) * 0.5) * (0.72 + 0.28 * lace);
-        float outer = smoothstep(1.9, 1.1, dm + 0.4 * lap) * smoothstep(0.8, 1.2, dm) * lace * 0.35;
-        foam = max(foam, max(band, outer));
+        float dm = wdepth / clamp(length(vec2(sx, sz)) * 0.2, 0.06, 0.5);
+        if (dm < 8.0) {
+          vec2 wp = vWPos.xz;
+          float bend = vnoise(wp * 0.11) * 6.0;
+          float lap = sin(uTime * 0.85 + bend), lap2 = sin(uTime * 0.6 + bend * 0.7 + 1.9);
+          float wob = (vnoise(wp * 0.9 + vec2(uTime * 0.07, 0.0)) - 0.5) * 0.5;
+          float lace = smoothstep(0.42, 0.7, vnoise(wp * 2.3 + vec2(uTime * 0.13, -uTime * 0.09)) * 0.6 + vnoise(wp * 5.1 - vec2(uTime * 0.1, uTime * 0.16)) * 0.4);
+          float at = 0.75 + 0.55 * lap + wob, at2 = 3.0 + 0.8 * lap2 + wob * 2.0;
+          float line = exp(-pow((dm - at) / 0.34, 2.0)) * (0.5 + 0.5 * lace);
+          float film = smoothstep(at + 0.1, at - 0.7, dm) * (0.16 + 0.42 * lace);
+          float line2 = exp(-pow((dm - at2) / 0.5, 2.0)) * lace * 0.42;
+          float fleck = smoothstep(0.76, 0.84, vnoise(wp * 11.0 + vec2(uTime * 0.2, uTime * 0.14))) * smoothstep(0.35, 0.6, vnoise(wp * 0.8)) * smoothstep(5.0, 1.2, dm) * 0.55;
+          foam = max(foam, max(max(line, film), max(line2, fleck)));
+        }
       }
       if (!below) {
         float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
@@ -187,6 +193,7 @@ function waterMaterial({ detail, depthTex, depthBox, waveMesh }) {
         col = mix(col, skyColor(normalize(vec3(-V.x, 0.02, -V.z))), hz);
         // Clear tropical water: see the reef when looking down into the shallows.
         alpha = clamp((uStyle > 0.5 ? mix(0.3, 0.62, smoothstep(0.15, 2.2, wdepth)) - min(0.27, uClear * 0.0125) : 0.42) + fres * 1.3 + smoothstep(3.0 + uClear, 26.0 + uClear * 2.2, wdepth) * 0.6 + foam + hz + lampGlow * uLampOn * 0.16, 0.0, 1.0);
+        if (uStyle > 0.5) alpha *= smoothstep(0.0, 0.1, wdepth);                                 // feather the very edge of the water into the wet sand
         ${waveMesh ? 'alpha = mix(alpha, 1.0, smoothstep(uStyle > 0.5 ? 0.3 : 0.12, uStyle > 0.5 ? 0.85 : 0.45, thick));' : ''}
       } else {
         // Looking up from below: Snell's window shows the sky, outside it total internal reflection.

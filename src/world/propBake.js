@@ -84,9 +84,9 @@ function creases(pos, nrm, cut) {
 
 /**
  * One finished geometry from a model: AO in the colours, aEdge, and the outline hull merged in. `strength` is how dark the occlusion goes. `butt` ('z') names the axis a repeated piece
- * (a length of deck) is laid along: the faces at both ends of that axis meet the next piece, so they get no bevel and no outline. Geometry with no vertex colours is returned as it is.
+ * (a length of deck) is laid along: the faces at both ends of that axis meet the next piece, so they get no bevel and no outline. `ink` scales the outline's width (thin boards take a finer line). Geometry with no vertex colours is returned as it is.
  */
-export function bakeModel(src, { strength = 0.62, butt = null } = {}) {
+export function bakeModel(src, { strength = 0.62, butt = null, ink = 1 } = {}) {
   if (src.userData.baked || !src.attributes.color) return src;
   const g = src.index ? src.toNonIndexed() : src.clone();
   g.computeVertexNormals();
@@ -119,7 +119,7 @@ export function bakeModel(src, { strength = 0.62, butt = null } = {}) {
         const w = n + t * 3 + c, s = sum.get(key(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2])).v, l = Math.hypot(s[0], s[1], s[2]) || 1;
         P[w * 3] = pos[v * 3]; P[w * 3 + 1] = pos[v * 3 + 1]; P[w * 3 + 2] = pos[v * 3 + 2];
         Nn[w * 3] = s[0] / l; Nn[w * 3 + 1] = s[1] / l; Nn[w * 3 + 2] = s[2] / l;
-        Ink[w] = 1;
+        Ink[w] = ink;
       });
     }
   }

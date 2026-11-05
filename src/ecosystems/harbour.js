@@ -45,16 +45,16 @@ const wharfDist = (x, z) => { const q = toQuay(x, z); return wharfDistQ(q.a, q.b
 export const rubbleAt = (x, z) => { const q = toQuay(x, z); return (1 - smoothstep(0, 7, wharfDistQ(q.a, q.b))) * (q.b < QUAY_Z - 1 ? 1 : 0.4) * (0.55 + 0.45 * noise.n2(x * 0.3, z * 0.3)); };
 function seabed(x, z, d) {
   const c = crestNear(x, z), out = smoothstep(0, 7, c.side * c.d);                 // 1 on the open-sea side of the breakwater
-  const open = -3.5 * smoothstep(0, 22, -d) - 1.3 * smoothstep(26, 70, -d), inner = lerp(lerp(open, -3.2, BM.basinK(x, z)), -3.2 * smoothstep(0, 0.9, -d), wallNear(x, z));   // the outer harbour shelves away from the shore; the basin has a level floor and steep walls
+  const open = -3.5 * smoothstep(0, 22, -d) - 0.5 * smoothstep(0, 4, -d) - 1.3 * smoothstep(26, 70, -d), inner = lerp(lerp(open, -3.2, BM.basinK(x, z)), -3.2 * smoothstep(0, 0.9, -d), wallNear(x, z));   // the outer harbour shelves away from the shore; the basin has a level floor and steep walls
   let h = lerp(inner, -9.5 * smoothstep(0, 11, -d), out);
   const rub = rubbleAt(x, z);
-  h = Math.min(Math.max(h, h + rub * (1.5 + noise.fbm2(x * 0.5, z * 0.5, 3) * 1.8)), -0.9);   // low rocky mounds under the wharf, never breaking the surface
-  return h + noise.fbm2(x * 0.3, z * 0.3, 2) * 0.05;
+  h = Math.min(Math.max(h, h + rub * (1.5 + noise.fbm2(x * 0.5, z * 0.5, 3) * 1.8)), -0.9 * smoothstep(0, 5, -d));   // low rocky mounds under the wharf, never breaking the surface
+  return h + noise.fbm2(x * 0.3, z * 0.3, 2) * 0.05 * smoothstep(0, 3, -d);
 }
 /** The dry ground: sand beaches sloping up from the water, lawn, Flagstaff Hill, the flat quay (apron and promenade) and the stone-walled basin edge. */
 function landHeight(x, z, d) {
   const lawn = 1.55 + BM.hillAt(x, z) + noise.fbm2(x * 0.05, z * 0.05, 3) * 0.35 * smoothstep(10, 40, d);
-  let h = lawn * smoothstep(0, 9, d);                                             // the beach face, then the lawn
+  let h = lawn * (0.3 * Math.min(1, d / 9) + 0.7 * smoothstep(0, 9, d));           // the beach face (a real slope right at the water, or the waterline goes blocky on the mesh), then the lawn
   const rock = smoothstep(55, 90, x) * (1 - smoothstep(2, 12, d)) * (0.45 + 0.8 * Math.max(0, noise.fbm2(x * 0.18, z * 0.18, 3)));   // the rocky headland coast under Flagstaff Hill
   h += rock * 1.4;
   h = lerp(h, QY, wallNear(x, z));                                                // the stone quay face

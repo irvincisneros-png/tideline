@@ -209,7 +209,7 @@ export function patchUnderwater(material, opts = {}) {
     if (opts.fish) deform += 'vFin = aFin;\n';
     // The ink outline (world/propBake.js): the backward copy of the model pushes out along its smooth normal, about 1.5 to 2 pixels wide from the play camera, and thins away with distance.
     if (opts.ink) deform += `vInk = aInk; vEdge = aEdge;
-      if (aInk > 0.5) { float dI = length((modelViewMatrix * vec4(transformed, 1.0)).xyz); transformed += normal * min(0.05, 0.01 + dI * 0.0012) * (1.0 - smoothstep(60.0, 120.0, dI)); }\n`;
+      if (aInk > 0.01) { float dI = length((modelViewMatrix * vec4(transformed, 1.0)).xyz); transformed += normal * aInk * min(0.05, 0.01 + dI * 0.0012) * (1.0 - smoothstep(60.0, 120.0, dI)); }\n`;
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + deform);
     shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
       vec4 wpw = vec4(transformed, 1.0);
@@ -370,7 +370,7 @@ export function patchUnderwater(material, opts = {}) {
         }
       }
       #ifdef TL_INK
-        if (vInk > 0.5) outgoingLight = vec3(0.045, 0.17, 0.21) * (0.6 + 0.4 * max(uStyleSun.g * 1.4, 0.0));   // dark teal ink, not lit, dimming with the light
+        if (vInk > 0.01) outgoingLight = vec3(0.045, 0.17, 0.21) * (0.6 + 0.4 * max(uStyleSun.g * 1.4, 0.0));   // dark teal ink, not lit, dimming with the light
       #endif
       #include <opaque_fragment>`);
     // Underwater, light is lost along the line of sight too (red first), then scattered toward a

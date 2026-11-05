@@ -41,7 +41,7 @@ export function makeRidges(scene, eco, terrain, sunDir) {
     STEPS.forEach((s, j) => {
       const t = j / (rows - 1), d = e + s, rise = noise.fbm2(ca * d * 0.004 + 3, sa * d * 0.004, 3);
       const y = j === 0 ? (h > 0.15 ? h : y0) : Math.max(y0, (h > 0.15 ? h : y0) * (1 - t) + t * 8 + rise * 14 * t);
-      const c = edge ?? (j < 2 ? [0.92, 0.84, 0.64] : near), k = Math.sqrt(t);     // a thin far beach, then scrub
+      const c = edge ?? (j < 1 ? [0.86, 0.8, 0.62] : near), k = Math.sqrt(t);     // a thin far beach, then scrub
       vert(ca * d, y, sa * d, [c[0] + (far[0] - c[0]) * k, c[1] + (far[1] - c[1]) * k, c[2] + (far[2] - c[2]) * k], 1, t * 0.2, rise * 0.5);
     });
   }
