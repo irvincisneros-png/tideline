@@ -634,6 +634,7 @@ class Game {
     this.lastToast = text; this.lastToastT = now;
     const el = document.createElement('div');
     el.className = `toast ${kind}`; el.textContent = this.hint(text);
+    for (const old of box.children) if (old.textContent === el.textContent) return;   // the same message is still on screen (a long one lives longer than the 4 s window): never stack it twice
     if (kind === 'warn') this.audio.play('warn');
     box.appendChild(el);
     while (box.children.length > 2) box.firstChild.remove();
