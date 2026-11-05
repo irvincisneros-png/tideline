@@ -102,13 +102,32 @@ const BUILDERS = {
   },
 };
 
-/** Add the named props to a body (an Angler). Returns { stool } so the NPC can show the stool when it sits down. */
-export function buildProps(names, body, models, propMat) {
+/**
+ * Where a prop goes in a dialogue bust, so it is in frame even if the world has it on the ground or low in a hand: [x, y, z, rx, ry, rz, scale] on the torso (y up the body, +z in front).
+ * A prop missing from this list stays where it is (it already sits on the chest).
+ */
+const BUST = {
+  binoculars: [0, 0.2, 0.2, 0.15, 0, 0, 1.3],
+  clipboard: [0.19, 0.17, 0.2, -0.15, -0.1, -0.16, 1.05],
+  rescuetube: [-0.24, 0.22, 0.08, 0, 0, 0.42, 1],
+  litterpicker: [0.34, -0.4, 0.12, 0, 0, Math.PI, 1],
+  sack: [-0.32, 0.32, -0.16, 0, 0, 0.3, 0.72],
+  baittub: [0.2, 0.0, 0.25, 0.42, 0, 0, 0.72],
+  thermos: [-0.2, -0.02, 0.24, 0.12, 0, 0.1, 1.3],
+  bucket: [0.24, 0.0, 0.25, 0.4, 0, 0, 0.5],
+  crate: [0.02, -0.02, 0.3, 0.4, 0, 0, 0.66],
+};
+
+/** Add the named props to a body (an Angler). Returns { stool } so the NPC can show the stool when it sits down. `bust` lays them out for a dialogue portrait (no stool). */
+export function buildProps(names, body, models, propMat, { bust = false } = {}) {
   const out = {};
-  for (const n of [...names, 'stool']) {
+  for (const n of bust ? names : [...names, 'stool']) {
     const b = BUILDERS[n];
     if (!b) { console.warn('Unknown NPC prop', n); continue; }
-    for (const { parent, obj, name } of b(body, models, propMat)) {
+    for (const built of b(body, models, propMat)) {
+      const { obj, name } = built, B = bust && BUST[n];
+      let parent = built.parent;
+      if (B) { parent = 'torso'; obj.position.set(B[0], B[1], B[2]); obj.rotation.set(B[3], B[4], B[5]); obj.scale.setScalar(B[6]); }
       (parent === 'root' ? body.root : body.joints[parent]).add(obj);
       obj.traverse(o => { if (o.isMesh) { o.castShadow = body.shadowOn; o.userData.noOutline = true; } });
       if (name) out[name] = obj;

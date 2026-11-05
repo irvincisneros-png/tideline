@@ -3,12 +3,13 @@
 // once, so it never competes with the game for WebGL contexts.
 import * as THREE from 'three';
 import { Angler } from '../land/angler.js';
+import { buildProps } from './props.js';
 
 const SKIP_HULL = /_(face|sun|band|trim|dots|stubble)$/;
 const cache = new Map();
 
-/** The portrait for a person (cached by id). models = the tideline_cosy.glb parts; look = angler appearance. Returns a data URL, or null if WebGL fails. */
-export function portraitFor(id, models, look, { w = 360, h = 400, lo = false } = {}) {
+/** The portrait for a person (cached by id). models = the tideline_cosy.glb parts; look = angler appearance; props = their prop names (npc/props.js). Returns a data URL, or null if WebGL fails. */
+export function portraitFor(id, models, look, { w = 360, h = 400, lo = false, props = [], scale = 1 } = {}) {
   if (cache.has(id)) return cache.get(id);
   let url = null, renderer = null;
   try {
@@ -22,15 +23,19 @@ export function portraitFor(id, models, look, { w = 360, h = 400, lo = false } =
     const angler = new Angler(scene, models, look, { lo });
     angler.root.visible = true; angler.root.rotation.y = 0.28;     // a slight turn toward the speaker's right
     angler.update(1 / 60, 0, { state: 'off' });
+    // Their own things, laid out to sit inside the bust: a person is known by their hat and what they carry.
+    const propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+    buildProps(props, angler, models, propMat, { bust: true });
+    angler.root.updateMatrixWorld(true);
     // Ink outline: an inflated back-face copy of every part (the world uses a post effect this little scene does not have).
     const hullMat = new THREE.MeshBasicMaterial({ color: 0x1b4f5b, side: THREE.BackSide });
     hullMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normalize(normal) * 0.0105;'); };
     angler.root.traverse(o => { if (o.isMesh && !SKIP_HULL.test(o.name) && !o.userData.hull) { const hull = new THREE.Mesh(o.geometry, hullMat); hull.userData.hull = true; o.add(hull); } });
     const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 20);
-    cam.position.set(0.03, 1.2, 1.95); cam.lookAt(0, 1.1, 0);
+    cam.position.set(0.03, 1.2, 2.35); cam.lookAt(0, 1.05, 0);
     renderer.render(scene, cam);
     url = renderer.domElement.toDataURL('image/png');
-    hullMat.dispose();
+    hullMat.dispose(); propMat.dispose();
   } catch (e) { console.warn('Portrait failed for', id, e); }
   finally { renderer?.dispose(); renderer?.forceContextLoss?.(); }
   cache.set(id, url);

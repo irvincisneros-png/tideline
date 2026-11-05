@@ -139,7 +139,7 @@ export class NPCManager {
   /** The dialogue "who" for a person: name, role and their 3D portrait bust. */
   whoOf(id) {
     const def = NPCS[id], g = this.game;
-    return { name: def.name, role: def.role, portrait: PORTRAITS[id]?.portrait, portraitUrl: (() => { try { return portraitFor(id, g.world.models, sanitizeLook(def.look), { lo: g.settings.quality === 'low' }); } catch { return null; } })() };
+    return { name: def.name, role: def.role, portrait: PORTRAITS[id]?.portrait, portraitUrl: (() => { try { return portraitFor(id, g.world.models, sanitizeLook(def.look), { props: def.props ?? [], lo: g.settings.quality === 'low' }); } catch { return null; } })() };
   }
   nearestTo(pos, r, filter) {
     let best = null, bd = r;
