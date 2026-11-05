@@ -116,6 +116,7 @@ export class Terrain {
     this.shade = { value: Terrain.blankShade() };
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uShadeMap = this.shade; shader.uniforms.uShadeSize = { value: size };
+      if (quality.shadows) { shader.uniforms.uSchools = globalUniforms.uSchools; shader.fragmentShader = '#define USE_SCHOOLS\nuniform vec3 uSchools[6];\n' + shader.fragmentShader; }
       shader.vertexShader = 'varying vec2 vPlan;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvPlan = position.xz;');
       shader.fragmentShader = 'uniform sampler2D uShadeMap; uniform float uShadeSize; varying vec2 vPlan;\n' + shader.fragmentShader;
       if (ground) {
@@ -171,6 +172,13 @@ export class Terrain {
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 1.0, 0.98), clamp(max(line, film), 0.0, 0.92));
           }
         }
+        #ifdef USE_SCHOOLS
+          if (vWPos.y < uWaterLevel) {
+            float school = 1.0;
+            for (int si = 0; si < 6; si++) if (uSchools[si].z > 0.0) school *= 1.0 - 0.8 * (1.0 - smoothstep(0.1, 1.0, distance(vWPos.xz, uSchools[si].xy) / uSchools[si].z));
+            diffuseColor.rgb *= mix(vec3(0.3, 0.52, 0.6), vec3(1.0), school);
+          }
+        #endif
         // Baked soft shade under trees and houses: a cool teal tint of the ground, never grey.
         diffuseColor.rgb *= mix(vec3(0.5, 0.64, 0.74), vec3(1.0), texture2D(uShadeMap, vPlan / uShadeSize + 0.5).r);`);
       // Rock relief: perturb the normal with the rock texture's height (screen-space derivatives).

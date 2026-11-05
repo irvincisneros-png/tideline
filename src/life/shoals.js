@@ -29,13 +29,20 @@ export class Shoals {
     const mat = new THREE.MeshBasicMaterial({ color: 0x123a44, side: THREE.DoubleSide, fog: false });
     mat.onBeforeCompile = shader => {
       shader.uniforms.uTime = globalUniforms.uTime;
-      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      shader.vertexShader = 'uniform float uTime; varying vec2 vF;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vF = position.xz;
         float ph = instanceMatrix[3].x * 1.7 + instanceMatrix[3].z * 2.3;
         transformed.z += sin(uTime * 10.0 + ph - transformed.x * 9.0) * 0.07 * smoothstep(0.15, -0.5, transformed.x);`);
+      // Seen from above: a darker back, then a paler rim of flank catching the light down each side, so a fish reads as a fish and not as a speck.
+      shader.fragmentShader = 'varying vec2 vF;\n' + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        float wide = 0.145 * sqrt(max(0.0, 1.0 - pow((vF.x - 0.05) / 0.5, 2.0))) + 0.012;
+        float flank = smoothstep(0.42, 0.95, abs(vF.y) / wide) * smoothstep(-0.34, -0.18, vF.x);
+        diffuseColor.rgb = mix(diffuseColor.rgb * 0.82, vec3(0.42, 0.62, 0.64), flank * 0.75);`);
     };
     this.mesh = new THREE.InstancedMesh(fishGeometry(), mat, total);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = -1; this.mesh.userData.noShadow = true;
     scene.add(this.mesh);
+    this.castShade = !!quality.shadows;   // a soft shadow on the sand under each school: high and ultra, painted by the terrain shader (uSchools), so it follows the ground and lies under the fish
     let k = 0;
     for (const n of sizes) {
       const fish = Array.from({ length: n }, () => { const len = 0.42 + this.rnd() * 0.3; return { i: k++, ox: (this.rnd() - 0.5) * 2.2, oz: (this.rnd() - 0.5) * 2.2, len, base: len, x: 0, z: 0, hd: 0, ph: this.rnd() * 6 }; });
@@ -63,7 +70,7 @@ export class Shoals {
     return null;
   }
   update(dt, t, world, walker, eco, time) {
-    if (!walker || !world.terrain) { this.mesh.visible = false; return; }
+    if (!walker || !world.terrain) { this.mesh.visible = false; if (this.castShade) for (const u of globalUniforms.uSchools.value) u.z = 0; return; }
     this.mesh.visible = true;
     const p = walker.pos, m = this.m, q = this.q, e = this.e, v = this.v, sc = this.sc;
     for (const s of this.schools) {
@@ -101,11 +108,19 @@ export class Shoals {
         const y = Math.max(gr + 0.1, surf - 0.32);
         // Model faces +x; rotating about y by (heading - 90 degrees) points it along (sin hd, cos hd).
         e.set(0, f.hd - Math.PI / 2, 0); q.setFromEuler(e);
-        m.compose(v.set(f.x, y, f.z), q, sc.set(f.len, 1, f.len));
+        const shallow = 1 + 0.28 * (1 - Math.min(1, Math.max(0, (surf - gr - 0.6) / 1.8)));          // a touch bigger over the sand flats, where they are the thing to cast at; a shade fatter than life, so the shape carries at the play camera's distance
+        m.compose(v.set(f.x, y, f.z), q, sc.set(f.len * shallow, 1, f.len * shallow * 1.2));
         this.mesh.setMatrixAt(f.i, m);
       }
     }
     this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.castShade) {
+      const sd = globalUniforms.uSunDir.value, U = globalUniforms.uSchools.value;
+      this.schools.forEach((s, i) => {
+        const gr = world.groundAt(s.c.x, s.c.y), off = (world.surfaceAt(s.c.x, s.c.y) - gr) * 0.5;   // cast along the sun, by how far above the sand they swim
+        U[i].set(s.c.x - sd.x * off, s.c.y - sd.z * off, s.ready && off > 0.15 ? 1.5 + s.fish.length * 0.42 : 0);
+      });
+    }
   }
   dispose() { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }
 }

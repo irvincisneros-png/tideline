@@ -28,6 +28,7 @@ export const globalUniforms = {
   // Night (sites with eco.daylight): 0 day .. 1 night (stars, a bluish moon), and the wharf lamps: up to 6 pools of warm light (xyz + radius, radius 0 = unused).
   uNight: { value: 0 },
   uLamps: { value: Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+  uSchools: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0, 0, 0)) },   // the shoals' shadows on the sand (high and ultra): x, z, radius (0 = unused)
   uLampCol: { value: new THREE.Color(1.0, 0.72, 0.38) },
   uClear: { value: 0 },   // extra metres of see-through water (the offshore reef: you can see the reef from the surface)
   uHaze: { value: 0.06 }, // how fast the seabed fades to water colour with depth
@@ -320,6 +321,10 @@ export function patchUnderwater(material, opts = {}) {
         // Shadows are a cool blue-teal tint of the colour, never grey; light is warm.
         vec3 shadowTint = vec3(0.8, 0.92, 1.1);
         outgoingLight = diffuseColor.rgb * (amb * shadowTint + uStyleSun * (lit + hi)) + uStyleRim * rim * (0.3 + 0.7 * lit) + totalEmissiveRadiance;
+        #ifdef TL_FISH
+          // A soft highlight along the back from the sky above, in the water only (never on the brag mat or a card): separates a swimming fish from the sand and the water. It never touches the markings (added light, a pale line, not a colour).
+          outgoingLight += (uStyleSky + uStyleSun * lit) * smoothstep(0.55, 0.92, nS.y) * smoothstep(0.1, 0.6, 1.0 - abs(dot(nS, normalize(cameraPosition - vWPos)))) * 0.34 * step(vWPos.y, uWaterLevel - 0.02);
+        #endif
         // Wharf lamps (harbour at night): a warm pool of light on whatever is near each lamp, brightest on surfaces that face up toward it.
         if (uLampOn > 0.001) {
           float lampSum = 0.0;
