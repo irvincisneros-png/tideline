@@ -17,6 +17,8 @@ import { payRecord, payTag } from '../economy/coins.js';
 import { releaseSurvival, survivalNote, CUT_LINE, BAROTRAUMA_DEPTH } from '../economy/effects.js';
 import { RATES } from '../content/shop.js';
 import { pestVerdict, recordPest } from '../fishing/pest.js';
+import { INTRO } from '../content/teachers.js';
+import { teacherLine } from './introText.js';
 
 const AIR_LIMIT = 10; // seconds out of the water before it counts as too long
 const HOLD_S = 1.4;   // seconds to hold the unhook button
@@ -49,6 +51,7 @@ export class CatchFlow {
 
   run(landed, spot, done) {
     const g = this.game, p = this.p;
+    this.tut = !!landed.tutorial;   // the teachers' opening: the same flow, with Mr Wilson's inline tips, a Keep that is turned back, and a logbook row marked tutorial
     this.c = landed; this.id = landed.id; this.sp = SPECIES_BY_ID[landed.id]; this.spot = spot; this.done = done;
     this.tierBefore = G.tierOf(p, this.id);
     this.pb = G.isPersonalBest(p, this.id, landed.length) ? { prev: G.entryOf(p, this.id).best } : null;   // asked BEFORE recordCatch overwrites the best
@@ -106,7 +109,8 @@ export class CatchFlow {
     this.show(`<div class="flow measure">
       <h2>Measure it</h2>
       <p class="sub">Nice catch, ${esc(nameOf(p))}! ${esc(this.nameNow())}. Mouth closed, snout on the 0 stop, read the tip of the tail.</p>
-      ${first ? '<p class="tip">Tip: total length runs from the tip of the snout (mouth closed) to the tip of the tail. Slide the marker to the tail tip.</p>' : ''}
+      ${this.tut ? `<p class="tip">${teacherLine(INTRO.tips.measure)}</p>` : ''}
+      ${first && !this.tut ? '<p class="tip">Tip: total length runs from the tip of the snout (mouth closed) to the tip of the tail. Slide the marker to the tail tip.</p>' : ''}
       <div class="mat" id="mat">
         <svg class="mat-ruler" id="mat-ruler" aria-hidden="true"></svg>
         <div class="mat-board" id="mat-board">
@@ -221,6 +225,7 @@ export class CatchFlow {
     this.show(`<div class="flow decide">
       <h2>Keep it or release it?</h2>
       <div class="fish-chip">${e?.photo ? `<img src="${e.photo}" alt="Your catch">` : ''}<div><b>${esc(this.nameNow())}</b><span>${this.measured} cm (your measure)</span></div></div>
+      ${this.tut ? `<p class="tip">${teacherLine(INTRO.tips.decide, { min: RULES[id]?.min, cm: this.measured })}</p>` : ''}
       <p class="sub">The rules are hidden until you commit. Think: what do you remember about the legal length, the bag limit and whether this fish is protected? ${mastered ? 'You have mastered this fish, so you may check its guide entry first.' : ''}</p>
       <div class="decide-actions">
         <button class="btn primary big" id="fx-keep">Keep it</button>
@@ -244,6 +249,7 @@ export class CatchFlow {
     const v = this.verdict, legal = v.legal;
     this.keep = keep; this.correct = keep ? legal : !rule?.pest;   // returning a pest fish is allowed but is not best practice (a small Steward cost)
     const kind = v.kind, why = WHY[kind] ?? WHY.ok;
+    if (this.tut && keep && !legal) return this.tutorialKeep(rule, v, why);   // the opening: an illegal keep is shown the rule and turned back. Nothing is written
     const flipped = this.measured != null && this.measured !== c.length && judge(id, this.measured, this.keptToday, inPoss, this.jctx).legal !== legal;
     const pest = !!rule?.pest;
     const pv = pest ? pestVerdict(keep) : null;
@@ -273,6 +279,26 @@ export class CatchFlow {
     next.focus();
   }
 
+  /**
+   * The opening's undersize bream: the student tapped Keep. Show the rule card and go back to the choice. NO logbook row, no esky entry, no stock change,
+   * no Steward mark and no reaction from anyone nearby: it is a lesson, not a fine.
+   */
+  tutorialKeep(rule, v, why) {
+    const g = this.game, K = INTRO.keepCard;
+    g.audio.play('wrong');
+    this.show(`<div class="flow verdict bad tutorial-keep">
+      <h2>${esc(K.title)}</h2>
+      <p>${esc(K.text)}</p>
+      <div class="rule-card"><b>The rule</b>${esc(rule?.note ?? 'No specific limit in this game.')}</div>
+      <div class="rule-card bad"><b>This fish</b>${esc(v.reason)}</div>
+      <div class="rule-card why"><b>Why the rule exists</b>${esc(why)}</div>
+      <p><button class="btn primary" id="v-back">Back to the board</button></p>
+    </div>`);
+    const back = this.panel.body.querySelector('#v-back');
+    back.onclick = () => this.stepDecide();
+    back.focus();
+  }
+
   // ---------------------------------------------------------------- 4. the quick release
   stepRelease() {
     const g = this.game, depthM = this.c.ctx?.depth, deep = this.sp.deepWater && (depthM == null || depthM >= BAROTRAUMA_DEPTH), tagKit = hasItem(this.p, 'tool-tagkit'), weightKit = deep && hasItem(this.p, 'tool-releaseweight');
@@ -280,6 +306,7 @@ export class CatchFlow {
     this.show(`<div class="flow release">
       <h2>Quick release</h2>
       <p class="sub">Get ${esc(this.sp.name)} back in the water fast, and gently. The clock is running.</p>
+      ${this.tut ? `<p class="tip">${teacherLine(INTRO.tips.release)}</p>` : ''}
       <div class="air"><div class="air-bar"><i id="air-fill"></i><b></b></div><div class="air-t" id="air-t">0.0 s out of the water · aim for under ${AIR_LIMIT} s</div></div>
       <div class="rel-steps">
         <button class="btn" id="rel-wet" aria-pressed="false">💧 Wet your hands</button>
@@ -297,7 +324,14 @@ export class CatchFlow {
     const toggle = (id, on, label) => { const el = b.querySelector(id); if (el) el.onclick = () => { const v = on(); el.setAttribute('aria-pressed', v); el.classList.toggle('on', v); el.textContent = v ? `${label} ✓` : label; }; };
     toggle('#rel-tag', () => (tagged = !tagged), '🏷 Tag it'); toggle('#rel-weight', () => (weighted = !weighted), '⚖ Clip on the release weight');
     let wet = false, holdT = 0, holding = false, last = performance.now(), done = false;
-    const t0 = performance.now();
+    let t0 = performance.now(), hiddenAt = null;
+    // The air clock stops while the tab is hidden (a teacher talking to the class, a phone call): it must never cost a student their release.
+    const vis = () => {
+      const now = performance.now();
+      if (document.visibilityState === 'hidden') hiddenAt = now;
+      else if (hiddenAt != null) { t0 += now - hiddenAt; last = now; hiddenAt = null; }
+    };
+    document.addEventListener('visibilitychange', vis);
     wetBtn.onclick = () => { wet = !wet; wetBtn.setAttribute('aria-pressed', wet); wetBtn.classList.toggle('on', wet); wetBtn.textContent = wet ? '💧 Hands wet ✓' : '💧 Wet your hands'; g.audio.play('smallSplash'); };
     const down = () => { holding = true; };
     const up = () => { holding = false; };
@@ -308,6 +342,7 @@ export class CatchFlow {
     addEventListener('keydown', kd); addEventListener('keyup', ku);
     const tick = () => {
       if (done) return;
+      if (hiddenAt != null) { this.raf = requestAnimationFrame(tick); return; }   // hidden: the clock and the hold are paused
       const now = performance.now(), dt = (now - last) / 1000; last = now;
       const secs = (now - t0) / 1000 * airMul;
       air.style.width = `${Math.min(100, secs / AIR_LIMIT * 100)}%`; air.classList.toggle('late', secs > AIR_LIMIT);
@@ -318,7 +353,7 @@ export class CatchFlow {
       this.raf = requestAnimationFrame(tick);
     };
     const finish = secs => {
-      done = true; removeEventListener('keydown', kd); removeEventListener('keyup', ku);
+      done = true; removeEventListener('keydown', kd); removeEventListener('keyup', ku); document.removeEventListener('visibilitychange', vis);
       const ok = wet && secs <= AIR_LIMIT;
       g.audio.play(ok ? 'correct' : 'warn'); g.audio.play('splash');
       this.record({ wet, air: +secs.toFixed(1), tagged, weighted: weighted && deep, net });
@@ -340,7 +375,7 @@ export class CatchFlow {
       const nx = this.panel.body.querySelector('#r-next'); nx.onclick = () => this.closeFlow(); nx.focus();
     };
     this.raf = requestAnimationFrame(tick);
-    this.cleanup = () => { done = true; cancelAnimationFrame(this.raf); removeEventListener('keydown', kd); removeEventListener('keyup', ku); };
+    this.cleanup = () => { done = true; cancelAnimationFrame(this.raf); removeEventListener('keydown', kd); removeEventListener('keyup', ku); document.removeEventListener('visibilitychange', vis); };
     requestAnimationFrame(() => wetBtn.focus({ preventScroll: true }));
   }
 
@@ -355,7 +390,7 @@ export class CatchFlow {
     p.catches ??= [];
     const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net, depth: ctx.depth });
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), day: dayOf(p), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: RIGS[ctx.rig]?.lure ? undefined : ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
+      time: Date.now(), day: dayOf(p), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: RIGS[ctx.rig]?.lure ? undefined : ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct, tutorial: this.tut || undefined };
     p.catches.push(row);
     if (!this.sp.rules.pest) adjustStock(p, this.spot, id, stockDelta(keep, v.legal, surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay. A pest fish never moves a native stock: taking one out is rewarded in the Steward bonus (guide.js), putting it back changes nothing
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));

@@ -177,7 +177,7 @@ export class NPCManager {
     if (!busy && this.greetDelay > 0) this.greetDelay -= dt;
     if (!busy && !(this.greetDelay > 0)) {
       for (const n of this.npcs) {
-        if (n.away || n.dist > GREET_RANGE || (this.greeted[n.id] && t - this.greeted[n.id] < GREET_COOLDOWN)) continue;
+        if (n.away || n.def.teacher && this.game.intro?.active || n.dist > GREET_RANGE || (this.greeted[n.id] && t - this.greeted[n.id] < GREET_COOLDOWN)) continue;
         this.greeted[n.id] = t; this.greetDelay = 1.3;
         const list = n.def.react?.greet ?? REACT_FALLBACK.greet;
         n.say(fmt(list[Math.floor(Math.random() * list.length)], nameOf(this.p)), 3.2);
@@ -203,7 +203,7 @@ export class NPCManager {
   }
 
   /** "Press E to talk to Mitra" (or '' when nobody is close). */
-  promptText() { return this.near ? `Press <kbd>E</kbd> to talk to ${esc(this.near.def.name)}` : ''; }
+  promptText() { return this.near && !this.game.intro?.active ? `Press <kbd>E</kbd> to talk to ${esc(this.near.def.name)}` : ''; }
 
   async talkNearest() {
     const g = this.game, n = this.near;

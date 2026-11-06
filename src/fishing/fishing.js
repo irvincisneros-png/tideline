@@ -14,6 +14,8 @@ import { LureInterest, MoveReader, STYLES, styleOf } from './lure.js';
 import { RELEASE_AT } from '../land/anim.js';
 import { RIGS } from './gear.js';
 import { LURE_COLOURS } from '../npc/inventory.js';
+import { tutorialCatch, tutorialWait, TUTORIAL_MIN_DEPTH } from './tutorial.js';
+import { INTRO } from '../content/teachers.js';
 
 const $ = s => document.querySelector(s);
 const LINE_PTS = 20; // the line is drawn as a ribbon curve so it can sag and bend with the fight
@@ -66,6 +68,7 @@ export class Fishing {
     this.bar = new CatchBar(game);
     this.tipW = new THREE.Vector3();
     this.reel = false; this.fightT = 0;
+    this.tutorial = false;   // the teachers' opening (ui/intro.js): a bite within a few seconds, always the tutorial bream, no bait used, a fight that cannot be lost
     this.lineDir = new THREE.Vector3(0, 0, 1);   // unit bearing from the angler to the float while a line is out
   }
   get active() { return this.state !== 'off'; }
@@ -150,7 +153,7 @@ export class Fishing {
       if (!space) {
         this.castTarget(this.power);
         const depth = surf(this.target.x, this.target.z) - world.groundAt(this.target.x, this.target.z);
-        if (depth < 0.4) { this.state = 'ready'; g.toast('That cast would land on dry ground — face the water and cast again.', 'warn'); }
+        if (depth < (this.tutorial ? TUTORIAL_MIN_DEPTH : 0.4)) { this.state = 'ready'; g.toast('That cast would land on dry ground — face the water and cast again.', 'warn'); }
         else if (!g.baitReady()) { this.state = 'ready'; g.toast('No bait left in your box. Buy some at Mitra\'s shop, collect your own, or switch to a lure (tackle box, T).', 'warn'); }
         else { this.state = 'flying'; this.flyT = 0; this.from = tipW.clone(); this.setLure(this.onLure); }
       }
@@ -168,9 +171,9 @@ export class Fishing {
         const spot = g.fishingSpot(this.target);
         if (spot !== this.spot) { this.spot = spot; g.toast(`Fishing: ${SPOTS[spot].label}.`); }
         this.ctx = g.biteContext(this.target); // the tackle and conditions you cast with decide the wait and what bites
-        this.waitT = waitFor(this.spot, this.ctx);
+        this.waitT = this.tutorial ? tutorialWait() : waitFor(this.spot, this.ctx);
         this.mover = new MoveReader(); this.nearSp = null; this.sink = 0;
-        if (this.onLure) { this.state = 'retrieve'; this.hideShadow(); this.sh.wait = 0.8 + Math.random() * 1.8; this.lureTip(); }
+        if (this.onLure && !this.tutorial) { this.state = 'retrieve'; this.hideShadow(); this.sh.wait = 0.8 + Math.random() * 1.8; this.lureTip(); }
       }
     } else if (this.state === 'wait') {
       // Tap Space: wind in and cast again. Hold Space: draw the bait slowly toward you, to put it where the fish are (a school within a few metres bites sooner).
@@ -183,7 +186,7 @@ export class Fishing {
       fp.y = surf(fp.x, fp.z) + Math.sin(t * 2.2) * 0.02;
       prompt = this.nearSp ? 'Your bait is right by a school… (hold <kbd>Space</kbd> to draw it in, tap to wind in)' : 'Waiting for a bite… (hold <kbd>Space</kbd> to draw the bait in slowly, tap to wind in and cast again)';
       if (move === 'twitch' || this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; if (move === 'twitch') this.baitTip(); }
-      else if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = pickCatch(this.spot, this.nearSp ? { ...this.ctx, arch: this.nearSp } : this.ctx); g.audio.play('warn'); g.useBait(); }   // the fish takes the bait: one bait is used
+      else if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = this.tutorial ? tutorialCatch() : pickCatch(this.spot, this.nearSp ? { ...this.ctx, arch: this.nearSp } : this.ctx); g.audio.play('warn'); if (!this.tutorial) g.useBait(); }   // the fish takes the bait: one bait is used
     } else if (this.state === 'retrieve') {
       prompt = this.retrieve(dt, t, space, eye, surf, world);
     } else if (this.state === 'bite') {
@@ -312,6 +315,7 @@ export class Fishing {
   /** A missed strike: the fish took the bait and let go, so the bait is gone. The line comes in and you must bait up (checked again at the cast) and cast again; it never goes back to waiting with the old bait and old tackle context. */
   missStrike() {
     const g = this.game;
+    if (this.tutorial) { this.state = 'wait'; this.waitT = 1.2 + Math.random(); this.catch = null; g.toast(INTRO.missedStrike, 'warn'); return; }   // the opening: the bite comes back, and no bait is lost
     this.state = 'ready'; this.float.visible = false; this.catch = null; this.ctx = null;
     if (this.onLure) { g.toast('Too slow — it spat the lure out. Strike the moment it hits. Cast and work it again.', 'warn'); return; }
     g.toast(g.baitReady() ? 'Too slow — the fish took the bait and let go. Strike as soon as the float dips. Your bait is gone: hold Space to cast again.' : 'Too slow — the fish took the bait and let go, and that was your last bait. Buy or collect more (tackle box, T), or switch to a lure.', 'warn');
@@ -325,6 +329,7 @@ export class Fishing {
     this.bar.start({
       profile: F.profile, power: F.power, gear: c.gear, size: c.length,
       rod: gs.rod, line: gs.line,   // your rod and reel/line (economy/store.js): zone size, how fast the fish tires you out, how well the line holds a bolting fish
+      tutorial: this.tutorial,
       onSave: () => this.game.toast('Strong line held! You turned it just before the reef.', 'good'),
       onLitter: kind => this.game.onLitter(kind),
       onEnd: r => {
@@ -334,6 +339,7 @@ export class Fishing {
       },
     });
     this.game.audio.play('trick', { combo: 0 });
+    this.game.intro?.onStrike?.();
   }
   lost(msg) {
     this.bar.stop(); this.float.visible = false; this.state = 'ready'; this.game.walker.frozen = false;

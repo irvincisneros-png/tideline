@@ -16,8 +16,8 @@ export const FEATURES = { knots: false, snags: false };
 
 /** Who speaks on the radio for a giver that is not one of the coast's people. */
 export const GIVERS = {
-  mrcisneros: { name: 'Mr Cisneros', role: 'on the radio', portrait: { skin: '#b98560', hair: '#2f2118', hat: null, shirt: '#2f5496', collar: '#fff3d2', glasses: false, beard: false } },
-  mrwilson: { name: 'Mr Wilson', role: 'on the radio', portrait: { skin: '#e2b896', hair: '#6b4a2f', hat: null, shirt: '#3d7fa8', collar: '#fff3d2', glasses: true, beard: false } },
+  mrcisneros: { name: 'Mr Cisneros', role: 'on the radio', portrait: { skin: '#b98560', hair: '#2a2020', hat: null, shirt: '#1f2a44', collar: '#fff3d2', glasses: false, beard: false, smile: 'wide' } },
+  mrwilson: { name: 'Mr Wilson', role: 'on the radio', portrait: { skin: '#d9a67a', hair: '#3a2a1e', hat: null, shirt: '#2f9a9a', collar: '#fff3d2', glasses: true, beard: true } },
 };
 
 const T = id => MISSION_RADIO[id];

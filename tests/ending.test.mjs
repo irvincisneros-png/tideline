@@ -60,7 +60,7 @@ test('ending: the co-op licence is offered only after a real ceremony (the miles
 });
 
 // ---------------------------------------------------------------- the speeches
-test('ceremony: every NPC gives an award that quotes the player\'s OWN numbers, and the cast is the whole coast', () => {
+test('ceremony: every NPC gives an award that quotes the player\'s OWN numbers, and the cast is the whole coast plus the teachers', () => {
   const p = fresh();
   p.angler = { name: 'Kai' };
   p.catches = [
@@ -72,7 +72,7 @@ test('ceremony: every NPC gives an award that quotes the player\'s OWN numbers, 
   const s = E.playerStats(p);
   assert.equal(s.releases, 2); assert.equal(s.quickReleases, 1); assert.equal(s.accurate, 2); assert.equal(s.litter, 7); assert.equal(s.tags, 3); assert.equal(s.fish, 3); assert.equal(s.correct, 3);
   const lines = Object.fromEntries(AWARDS.map(a => [a.npc, a.line(s)]));
-  assert.deepEqual(Object.keys(lines).sort(), Object.keys(NPCS).sort(), 'all ten people give an award');
+  assert.deepEqual(Object.keys(lines).sort(), Object.keys(NPCS).sort(), 'everyone on the coast, and both teachers, give an award');
   assert.match(lines.fatima, /7 pieces/); assert.match(lines.priya, /2 measures/); assert.match(lines.priya, /3 tagged fish/); assert.match(lines.tam, /2 fish put back/); assert.match(lines.tam, /1 of them/);
   assert.match(lines.nell, new RegExp(`${Math.round(s.bay)}%`)); assert.match(lines.mitra, /3 right calls out of 3/); assert.match(lines.sione, /Not one safety mark/);
   assert.match(lines.officer, /stars/); assert.match(lines.jo, /2 fish/);

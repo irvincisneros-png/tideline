@@ -31,13 +31,16 @@ export function portraitSVG(p = {}) {
     <ellipse cx="45" cy="80" rx="6" ry="3.5" fill="#ff8a5c" opacity=".35"/><ellipse cx="83" cy="80" rx="6" ry="3.5" fill="#ff8a5c" opacity=".35"/>
     ${o.glasses ? `<rect x="43" y="63" width="18" height="14" rx="6" fill="none" stroke="${ink}" stroke-width="3"/><rect x="67" y="63" width="18" height="14" rx="6" fill="none" stroke="${ink}" stroke-width="3"/><path d="M61 69h6" stroke="${ink}" stroke-width="3"/>` : ''}
     ${o.beard ? `<path d="M36 76c2 24 14 32 28 32s26-8 28-32c-6 10-14 12-28 12s-22-2-28-12z" fill="${o.hair}" stroke="${ink}" stroke-width="3.5" stroke-linejoin="round"/>` : ''}
-    <path d="M54 86q10 8 20 0" fill="none" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>
+    ${o.smile === 'wide' ? `<path d="M46 84q18 22 36 0z" fill="#fff" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/><path d="M52 90q12 7 24 0" fill="none" stroke="#ff8a5c" stroke-width="3" stroke-linecap="round"/>` : `<path d="M54 86q10 8 20 0" fill="none" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>`}
   </svg>`;
 }
 
 /** Characters. The Fisheries Officer is the first; add NPCs to src/content/npcs.js next phase and pass them as `who`. */
 export const PORTRAITS = {
   officer: { name: 'Fisheries Officer', role: 'NSW DPIRD Fisheries', portrait: { skin: '#c99468', hair: '#3a2a1f', hat: 'cap', hatColor: '#2a5a82', shirt: '#3d7fa8', badge: true, glasses: true } },
+  // The two teachers (content/teachers.js): the same looks as their 3D characters in content/npcs.js. This SVG bust is the fallback and the radio portrait.
+  mrcisneros: { name: 'Mr Cisneros', role: 'Marine Studies teacher', portrait: { skin: '#b98560', hair: '#2a2020', hat: null, shirt: '#1f2a44', collar: '#fff3d2', smile: 'wide' } },
+  mrwilson: { name: 'Mr Wilson', role: 'Marine Studies teacher', portrait: { skin: '#d9a67a', hair: '#3a2a1e', hat: null, shirt: '#2f9a9a', collar: '#fff3d2', glasses: true, beard: true } },
 };
 
 export class Dialogue {

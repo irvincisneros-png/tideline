@@ -47,7 +47,7 @@ import { runCeremony, updateCeremony } from './ui/ceremony.js';
 import { openCredits } from './ui/credits.js';
 import { openMap, MiniMap } from './ui/mapUI.js';
 import { pendingCeremony } from './fishing/ending.js';
-import { firstRunDue, runFirstRun } from './ui/firstRun.js';
+import { Intro, introDue, bevCallDue, markBevCall, bevLines } from './ui/intro.js';
 import { ensureMissions, advanceMissions, hudInfo, radioLines, speakerOf, helloDue, markHello, HELLO_LINE } from './npc/missions.js';
 import { ITEMS } from './content/items.js';
 
@@ -83,6 +83,7 @@ class Game {
     this.panels = new Panels(this);
     this.dialogue = new Dialogue(this);
     this.catchFlow = new CatchFlow(this);
+    this.intro = new Intro(this);
     this.creator = new Creator(this); this.creatorOpen = false;
     this.outing = new Outing(this);
     this.npcs = new NPCManager(this);
@@ -101,7 +102,8 @@ class Game {
     if (!RIGS[this.gear.rig].lure && (!BAITS[this.gear.bait] || !baitUnlocked(this.progress, this.gear.bait))) this.gear.bait = 'prawn';
     ensureEcon(this.progress);
     this.mode = 'loading';
-    this.eco = ecoById(params.get('eco')) ?? ECOSYSTEMS[0];
+    // A new save (or one part-way through the teachers' opening) starts on Lake Illawarra, where the school's corner is; ?eco= always wins.
+    this.eco = ecoById(params.get('eco')) ?? (introDue(this.progress, params) ? ecoById('seagrass') : null) ?? ECOSYSTEMS[0];
     this.cond.setFresh(this.eco.fresh);   // a river has flow, not tide and swell
     this.frame = 0; this.time = 0;
     this.setupComposer();
@@ -178,7 +180,7 @@ class Game {
     this.enterMenu();
     // ?play skips the title (tests, teacher links) and the creator too (add ?creator to see it).
     if (params.has('ceremony')) runCeremony(this, params.get('ceremony') === 'milestone' ? 'milestone' : 'awards', { preview: true });   // ?ceremony=awards|milestone: the club ceremony straight away (teachers, tests)
-    else if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => { this.startLand(null); this.firstRun(); } }); else { this.startLand(null); this.firstRun(); } }
+    else if (params.has('play')) { if (params.has('creator') && !this.progress.angler) this.creator.open({ first: true, onDone: () => this.enterLand() }); else this.enterLand(); }
     this.renderer.setAnimationLoop(() => this.loop());
   }
 
@@ -196,7 +198,7 @@ class Game {
     $('#btn-logbook').onclick = () => openLogbook(this);
     $('#btn-settings').onclick = () => this.openSettings();
     $('#btn-help').onclick = () => this.panels.help();
-    $('#home-btn').onclick = () => this.outing.ask();
+    $('#home-btn').onclick = () => this.askHome();
     $('#quest-btn').onclick = () => this.questLog();
     $('#mission-btn').onclick = () => this.questLog();
     $('#view-btn').onclick = () => this.cycleView();
@@ -214,13 +216,20 @@ class Game {
   }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
   beginPlay() {
-    const go = () => { if (!this.progress.angler) this.creator.open({ first: true, onDone: () => { this.startLand(null); this.firstRun(); } }); else { this.startLand(null); this.firstRun(); } };
+    const go = async () => {
+      // A due opening is on the lake (the school's corner): a new save that picked another site is moved there first. ?eco= keeps the site it names.
+      if (introDue(this.progress, params) && this.eco.id !== 'seagrass' && !params.has('eco')) await this.loadSite('seagrass');
+      if (!this.progress.angler) this.creator.open({ first: true, onDone: () => this.enterLand() }); else this.enterLand();
+    };
     // A site you reach by boat (the offshore reef) starts with the safety beat (lifejacket, trip log) and the run out of the harbour; a ?play deep link skips it.
     if (this.eco.travel && !params.has('play')) runBoatTrip(this).then(trip => { if (trip) { this.pendingTrip = trip; go(); } });
     else go();
   }
-  /** The short skippable premise card for a brand-new player (ui/firstRun.js): once, never on a save with catches; a ?play link only with ?firstrun=1. */
-  firstRun() { if (firstRunDue(this.progress, params)) runFirstRun(this); }
+  /** Walk onto the shore. A new save (or one part-way through) gets the teachers' opening (ui/intro.js): once, never on a save with catches; a ?play link only with ?intro=1 (?firstrun=1 is an alias). */
+  enterLand() {
+    this.startLand(null);
+    if (introDue(this.progress, params)) this.intro.begin();
+  }
   /** Done in the character creator: save { name, ...look } and dress the angler in the world. */
   applyAngler(a) {
     this.progress.angler = a;
@@ -301,6 +310,7 @@ class Game {
   openGuide(opts = {}) { openGuide(this, opts); }
   enterMenu() {
     this.mode = 'menu';
+    this.intro?.abort();   // a half-finished opening is saved at its step: Continue resumes it
     this.fishing?.stop();
     document.body.classList.remove('land-mode'); $('#prompt').innerHTML = '';
     this.input.wantLock = false; this.input.unlock();
@@ -317,13 +327,14 @@ class Game {
       if (e.code === 'KeyM' && this.mapOpen && this.panels.isOpen) { this.panels.close(); return; }   // M opens and closes the map
       if (this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen || this.mode !== 'land') return;
       const c = e.code;
+      if (c === 'KeyE' && this.intro?.refuse(c)) return;   // the opening switches a few keys off (ui/intro.js lockReason); R, T, M and H check themselves below
       if (c === 'KeyP') this.pauseMenu();
       if (c === 'KeyR' && this.eco.fishing) this.toggleRod();
       if (c === 'KeyT' && this.eco.fishing) this.tackleBox();
       if (c === 'KeyJ') this.openGuide();
       if (c === 'KeyM') this.openMap();
       if (c === 'KeyL') openLogbook(this);
-      if (c === 'KeyH') this.outing.ask();
+      if (c === 'KeyH') this.askHome();
       if (c === 'KeyE') this.npcs.talkNearest();
       if (c === 'KeyB' && this.eco.toggleAnchor) this.eco.toggleAnchor(this);
       if (c === 'KeyQ') this.questLog();
@@ -340,7 +351,7 @@ class Game {
   }
   questLog() { openQuestLog(this); }
   /** The map (M): this place, or the whole coast (tab 'region'). */
-  openMap(tab = 'site') { openMap(this, tab); }
+  openMap(tab = 'site') { if (this.intro?.refuse('KeyM')) return; openMap(this, tab); }
   setKeys(list) { $('#keys').innerHTML = list.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join(''); }
   pauseMenu() {
     this.panels.open(`<h2>Paused</h2><p>${esc(this.eco.name)}</p>
@@ -444,7 +455,7 @@ class Game {
     this.eco.tick?.(this, paused ? 0 : dt);   // a site with moving parts (the offshore reef's drifting boat and fish finder)
     if (!paused) {
       w.viewYaw = this.rig.yaw;
-      w.update(dt, this.world, this.eco.land.bounds);
+      w.update(dt, this.world, this.intro?.bounds ?? this.eco.land.bounds);
       for (const c of this.input.takeClicks()) {
         if (c.button !== 0 || c.x == null) continue;
         const ray = this.mouseRay(c.x, c.y), hit = this.world.pick(ray.origin, ray.direction, 80);
@@ -459,6 +470,7 @@ class Game {
     this.world.waveMesh.update(null, this.time);
     if (!paused) this.cond.update(dt);
     if (this.frame % 6 === 0) this.updateChip();
+    this.intro?.update(paused ? 0 : dt, this.time);
     if (this.frame % 30 === 0) this.missionPump();
     if (f.active) {
       if (!paused) f.update(dt, this.time, this.input, this.world);
@@ -493,7 +505,9 @@ class Game {
     const p = this.walker.pos, t = target ?? p;
     return this.eco.fishing?.spotAt?.(p.x, p.z, t.x, t.z) ?? 'beach';
   }
-  toggleRod() { this.fishing.toggle(this.fishingSpot()); }
+  toggleRod() { if (this.intro?.refuse('KeyR')) return; this.fishing.toggle(this.fishingSpot()); }
+  /** Head home (H): ask first, then end the outing. */
+  askHome() { if (this.intro?.refuse('KeyH')) return; this.outing.ask(); }
   /** The tackle and conditions the bite model uses (catches.js pickCatch). */
   biteContext(target) {
     const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink', t = target ?? this.walker.pos;
@@ -534,6 +548,7 @@ class Game {
   }
   /** T: open the tackle box (rig and bait). Not while a fish is on. */
   tackleBox() {
+    if (this.intro?.refuse('KeyT')) return;
     if (!this.fishing.canChangeGear) { this.toast('Land or lose this fish first, then change your tackle.', 'warn'); return; }
     const render = () => {
       this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond);
@@ -573,7 +588,8 @@ class Game {
   }
   /** A fish is in your hands: identify it (key), measure it (brag mat), decide keep or release, write it to the logbook (ui/catchFlow.js). */
   onFishLanded(c, spot, done) {
-    this.catchFlow.run(c, spot, done);
+    if (c.tutorial) this.intro?.onLanded();   // the teachers' opening: the same flow, then the send-off
+    this.catchFlow.run(c, spot, c.tutorial ? () => { done(); this.intro?.onFlowDone(); } : done);
   }
   /**
    * A squid or cuttlefish squirts ink as it is landed: dark splotches splash across the screen (and fade), and ink spots the deck round the angler's feet
@@ -647,8 +663,9 @@ class Game {
       if (done.length) { this.persist(); this.missionsDirty = false; this.missionQueue.push(...done); }
       this.updateMissionHud();
     }
-    if (this.radioBusy || !this.missionSafe()) return;
+    if (this.radioBusy || this.intro?.active || !this.missionSafe()) return;
     if (this.missionQueue.length) this.playRadio(this.missionQueue.shift());
+    else if (bevCallDue(p) && this.fishing.state === 'ready') this.playBev();
     else if (helloDue(p, this.eco.id)) this.playHello();
   }
   /** The voice for a radio call: a teacher's SVG bust, or one of the coast's people with their rendered portrait. */
@@ -663,6 +680,15 @@ class Game {
       dlg.hide();
       this.toast(`🧢 Mission done: ${m.title}. New hat: ${ITEMS[m.reward]?.name}. Wear it from the quest log (Q).`, 'good');
     } finally { this.radioBusy = false; this.missionsDirty = true; }
+  }
+  /** Bev's first radio call (the old premise card's four tiers): once, the first time the student is ready to fish after the opening. */
+  async playBev() {
+    this.radioBusy = true; markBevCall(this.progress); this.persist();
+    try {
+      const dlg = this.dialogue, lines = bevLines(esc(nameOf(this.progress))), who = { ...this.npcs.whoOf('bev'), name: 'Bev', role: 'on the club radio' };
+      for (let i = 0; i < lines.length; i++) await dlg.say({ who, text: this.hint(lines[i].text), button: i === lines.length - 1 ? 'Thanks!' : 'Continue' });
+      dlg.hide();
+    } finally { this.radioBusy = false; }
   }
   /** The one welcome call for a save that played before missions existed. */
   async playHello() {

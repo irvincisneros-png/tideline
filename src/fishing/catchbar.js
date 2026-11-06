@@ -4,6 +4,8 @@
 // tackle = big and steady, mismatched = small and jittery. Litter drifts through; catch it with the zone for a steward point.
 // Coordinates are fractions of the track: 0 = bottom, 1 = top.
 
+import { INTRO } from '../content/teachers.js';
+
 /** Tuning constants (exported so the tests and the notes can quote them). */
 export const TUNING = {
   lift: 2.6,           // upward acceleration while held (track heights / s^2)
@@ -27,6 +29,7 @@ export const TUNING = {
   zoneCap: 0.6,        // the zone never grows past this fraction of the track, however good the rod
 };
 
+export const TUTORIAL_FLOOR = 0.15;   // the lowest the catch meter can fall to in the teachers' opening
 const $ = (s, r = document) => r.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -138,7 +141,7 @@ function el_setProfile(bar, profile) {
 
 export class CatchBar {
   constructor(game) {
-    this.game = game; this.active = false; this.held = false;
+    this.game = game; this.active = false; this.held = false; this.tutorial = false; 
     const el = this.el = document.createElement('div');
     el.id = 'catchbar'; el.className = 'hidden';
     el.setAttribute('role', 'application');
@@ -172,7 +175,8 @@ export class CatchBar {
     this.zy = 0.5; this.zv = 0; this.jt = 0.2;
     this.fy = 0.5; this.fv = 0; this.meter = TUNING.startMeter; this.time = 0;
     this.warn = false; this.squeeze = false; this.inZone = true; this.activity = 0; this.litter = null;
-    this.litterT = rand(...TUNING.litterFirst); this.litterCount = 0;
+    this.tutorial = !!opts.tutorial;   // the teachers' opening: a floor under the meter so the fish cannot be lost, no litter, two lines of help
+    this.litterT = this.tutorial ? 1e9 : rand(...TUNING.litterFirst); this.litterCount = 0;
     this.s = {}; PROFILES[profile].init(this.s, this);
     this.structEl.style.display = profile === 'bolt' ? '' : 'none';
     el_setProfile(this, profile);
@@ -188,6 +192,7 @@ export class CatchBar {
   hint(kind) {
     if (this.hintKind === kind) return; this.hintKind = kind;
     const squid = this.profile === 'jet';
+    if (this.tutorial && kind === 'hold') { this.hintEl.innerHTML = this.game.hint(`<b>Fish on!</b> ${INTRO.fight[0]}<br>${INTRO.fight[1]}`); return; }
     const t = { hold: squid ? '<b>Squid on!</b> It pulls softly, then <b>jets</b>. Follow it gently and keep it in the green zone.' : '<b>Fish on!</b> Hold <kbd>Space</kbd> to lift the green zone. Keep the fish inside it!',
       warn: squid ? 'It is squeezing to JET! Get ready to follow it.' : 'It is heading for the reef! Cover it with the zone!' }[kind];
     this.hintEl.innerHTML = this.game.hint(t);
@@ -216,6 +221,11 @@ export class CatchBar {
     // ---- catch meter
     if (this.inZone) this.meter += T.gain * (0.85 + 0.3 * this.q) * dt;
     else this.meter -= (T.drainBase + T.drainPower * this.power) * dt * this.drainMul;
+    if (this.tutorial) {
+      // The fish cannot be lost: the meter never drops below a floor, and a fish that has been left alone for a while tires on its own.
+      if (!this.inZone && this.time > 8) this.meter += 0.13 * dt;   // beats the drain (about 0.09 a second): about 20 s to land it
+      this.meter = Math.max(this.meter, TUTORIAL_FLOOR);
+    }
     this.meter = Math.min(1, this.meter);
     // ---- litter drifts down through the bar; the zone collects it
     this.updateLitter(dt, h);

@@ -3,6 +3,7 @@
 // on the left only, and a plank wooden jetty with posts out to the channel (walkable; casts off its end count as the 'jetty' spot).
 // Near the jetty base: a bait-shop hut, a fish-cleaning table, a moored tinnie; casuarinas, Norfolk Island pines and pelicans on the posts.
 import * as THREE from 'three';
+import { buildCornerModels, addCornerSign } from '../world/cornerProps.js';
 import { makeNoise, smoothstep, lerp } from '../core/noise.js';
 import { smoothPath, DistField } from '../world/shape.js';
 import { species as speciesInfo } from '../content/seagrass.js';
@@ -52,6 +53,23 @@ const isletAt = (x, z) => { let m = 0; for (const [ix, iz, r] of ISLETS) m = Mat
 // The jetty: deck at y, running from the bank (z0) out toward the channel (z1 < z0).
 export const JETTY = { x: 16, w: 2.4, y: 0.95, len: 2 };
 JETTY.z0 = shoreZ(JETTY.x) + 3.6;
+/**
+ * The school's corner by the cleaning table (the teachers' opening, ui/intro.js): a trailer box with a "WHS Marine Studies" sign behind the table,
+ * a rod rack in front of it, a measuring board on the table, the two teachers between the table and the water, the place a new save starts, and the
+ * glowing ring on the shore where the first cast is made. The table itself is at (tableX, tableZ), as placed in decorate().
+ */
+const TABLE_X = JETTY.x + 7.5;
+export const CORNER = (() => {
+  const tz = shoreZ(TABLE_X) + 9, S = shoreZ(TABLE_X);
+  return {
+    table: { x: TABLE_X, z: tz, rot: Math.PI - 0.15 },
+    trailer: { x: TABLE_X + 5.2, z: tz + 3.2, rot: Math.PI + 0.22 },
+    teacherC: { x: TABLE_X - 2.3, z: S + 6.2 },
+    teacherW: { x: TABLE_X + 0.9, z: S + 6.2 },
+    start: { x: TABLE_X - 0.7, z: S + 3.3, heading: 0 },   // heading 0 faces +z: up the bank toward the teachers (the camera sits behind, so they are in front of you)
+    ring: { x: TABLE_X - 3.2, z: S - 2.6, heading: Math.PI, r: 1.1 },   // heading PI faces the water
+  };
+})();
 JETTY.z1 = chanZ(JETTY.x) + 5;
 export const deckAt = (x, z) => (Math.abs(x - JETTY.x) < JETTY.w / 2 - 0.05 && z < JETTY.z0 + 0.4 && z > JETTY.z1 - 0.9 ? JETTY.y : null);
 
@@ -183,6 +201,13 @@ function decorate(world) {
   pr.place('cleaning_table', tx, tz, { rot: Math.PI - 0.15, shadow: 1.6, tall: 1.3 });
   pr.place('bucket', tx + 2.2, tz + 0.1, { rot: 0.5 }); pr.place('esky', tx - 1.8, tz + 0.8, { rot: 0.9 });
   world.addCollider(tx + 0.3, T.heightAt(tx, tz) + 0.6, tz, 2.4);
+  // The school's corner: a Marine Studies trailer box and rod rack (one merged model), a measuring board on the table and the trailer's sign (cornerProps.js).
+  for (const [k, g] of buildCornerModels()) world.models.set(k, g);
+  const C = CORNER;
+  pr.place('wh_trailer', C.trailer.x, C.trailer.z, { rot: C.trailer.rot, shadow: 3.6, tall: 2.4 });
+  pr.place('wh_board', C.table.x, C.table.z, { rot: C.table.rot });
+  addCornerSign(pr.group, C.trailer, T.heightAt(C.trailer.x, C.trailer.z));
+  world.addCollider(C.trailer.x, T.heightAt(C.trailer.x, C.trailer.z) + 1, C.trailer.z, 2.6);
   // Hero trees around the hut and along the bank.
   for (const [x, dz, m, s] of [[-30, 12, 'casuarina_0', 1.0], [-22, 19, 'norfolk_pine_1', 1.0], [-3, 16, 'casuarina_1', 1.05], [30, 20, 'norfolk_pine_0', 1.05], [38, 12, 'casuarina_0', 0.95], [-44, 6, 'casuarina_1', 1.0], [52, 14, 'casuarina_1', 1.0]]) {
     const z = shoreZ(x) + dz, y = T.heightAt(x, z);

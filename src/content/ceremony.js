@@ -2,6 +2,7 @@
 // Every line is a function of the stats so it always quotes the player's real record. Original characters; nothing here teaches a rule.
 // Sea Country note: Ranger Jo's line is about looking after fish (releases) in general words only. All Sea Country content still needs review by the school AEO / local AECG.
 import { SPECIES_BY_ID } from '../fishing/species.js';
+import { WILSON_OK } from './teachers.js';
 
 export const TAGLINE = 'Gotta catch ’em all… and release the small.';
 export const CLUB = "Illawarra Anglers' Club";
@@ -10,7 +11,7 @@ const pct = x => `${Math.round(x)}%`;
 const bayText = v => `${(Math.floor(v * 10 + 1e-9) / 10).toFixed(1)}%`;   // one decimal, rounded down (never reads as the target while still short)
 
 /** Awards night: one speech per person. `title` is the award; `line` is what they say. {name} is filled in by the runner. */
-export const AWARDS = [
+const COAST_AWARDS = [
   { npc: 'bev', title: 'Fish Guide Champion', line: s => `Welcome, everyone! Our Fish Guide Champion has Mastered all ${s.total} kinds of fish on this coast. Every one measured, named and handled by the rules. {name}, that is the whole guide!` },
   { npc: 'mitra', title: 'Rules and Rigs', line: s => `I have watched you make ${n(s.correct, 'right call')} out of ${s.fish} catches. Size, bag and rigs: you know them better than some of my regulars. The Rules and Rigs award is yours, {name}.` },
   { npc: 'tam', title: 'Gentle Hands', line: s => `${n(s.releases, 'fish')} put back, and ${s.quickReleases} of them wet-handed and back in the water in ten seconds or less. That is how it is done, {name}. Gentle Hands.` },
@@ -22,6 +23,15 @@ export const AWARDS = [
   { npc: 'mika', title: 'Best Fishing Buddy', line: s => `You found all ${s.total} kinds of fish, and your biggest was a ${s.best.cm} cm ${s.best.id ? SPECIES_BY_ID[s.best.id].name.toLowerCase() : 'fish'}! I am only a little bit jealous. Best Fishing Buddy, {name}!` },
   { npc: 'officer', title: 'Steward of the Coast', line: s => `A Steward rating of ${s.stars.toFixed(1)} stars${s.fines ? `, even after ${n(s.fines, 'illegal keep')} on the way` : ', and a clean record'}. You follow the rules and you know why they are there. Steward of the Coast, {name}.` },
 ];
+
+/** The two teachers close the loop the opening started (Mr Wilson only while WILSON_OK is true). */
+const TEACHER_AWARDS = [
+  { npc: 'mrcisneros', title: 'Marine Studies Thanks', line: s => `${s.fish ? `${n(s.fish, 'fish', 'fish')} landed` : 'A whole coast explored'}, and every one measured and handled with care. {name}, you started with one small bream on the lake and finished here. Thank you from Marine Studies.` },
+  { npc: 'mrwilson', title: 'Wet Hands Award', line: s => `${n(s.releases, 'fish')} put back, and I never once had to remind you to wet your hands. That is how good anglers behave, {name}.` },
+];
+/** The awards-night speeches: the ten people of the coast, then the teachers. Mr Wilson is left out when WILSON_OK is false (tests pass the flag). */
+export const awardsFor = (wilsonOk = WILSON_OK) => [...COAST_AWARDS, ...TEACHER_AWARDS.filter(a => a.npc !== 'mrwilson' || wilsonOk)];
+export const AWARDS = awardsFor();
 
 /** The softer ceremony at 100% Caught: four friends, a lighter speech. */
 export const MILESTONE = [

@@ -74,7 +74,7 @@ await session('seagrass', '', async H => {
   const { t, page, ev } = H;
   // --- everyone is there, with their labels
   const present = await ev(() => window.__game.npcs.npcs.filter(n => !n.away && n.root.visible !== undefined).map(n => n.id).sort());
-  check(JSON.stringify(present) === JSON.stringify(['jo', 'mika', 'mitra', 'officer', 'priya', 'tam']), `by day the lake has Mitra, Tam, Dr Priya, Ranger Jo, Mika and the officer (${present})`);
+  check(JSON.stringify(present) === JSON.stringify(['jo', 'mika', 'mitra', 'mrcisneros', 'mrwilson', 'officer', 'priya', 'tam']), `by day the lake has Mitra, Tam, Dr Priya, Ranger Jo, Mika, the officer and the two teachers at the school corner (${present})`);
   const kinds = await ev(() => window.__game.npcs.npcs.map(n => `${n.id}:${n.act}`).sort().join(' '));
   check(/mika:fishing/.test(kinds) && /tam:sitting/.test(kinds) && /officer:walking/.test(kinds) && /mitra:standing/.test(kinds), `schedule by day: ${kinds}`);
   check(await ev(() => window.__game.npcs.birds.pelicans.length === 3), 'three pelicans hang around the fish-cleaning table');

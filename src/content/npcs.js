@@ -19,6 +19,7 @@
 // `species` (a species id): telling it marks that fish Seen in the Fish Guide (guide.markSeen(id, 'gossip')) and it must say where and when.
 
 import { COIN, RATES } from './shop.js';
+import { WILSON_OK } from './teachers.js';
 
 export const RANGER_NOTE = 'Sea Country dialogue: worksheet-sourced only. Needs review by the school AEO / local AECG before classroom release.';
 
@@ -677,6 +678,61 @@ export const NPCS = {
     },
   },
 };
+
+// ------------------------------------------------------------------ the teachers (Lake Illawarra corner, opening scene: ui/intro.js)
+// Original stylised characters. Their colours are their own (not limited to the creator's swatches). Mr Wilson exists only while WILSON_OK is true.
+const ALL_DAY = slot => ({ dawn: slot, day: slot, dusk: slot, night: slot });
+/** The teachers' definitions. With wilsonOk false there is no Mr Wilson at all (tests flip it). */
+export function teacherNpcs(wilsonOk = WILSON_OK) {
+  const out = {
+    mrcisneros: {
+      name: 'Mr Cisneros', role: 'Marine Studies teacher', where: 'the school corner by the cleaning table, Lake Illawarra', teacher: true,
+      look: { skin: 0xb98560, hairStyle: 'short', hair: 0x2a2020, hatStyle: 'none', sunnies: 'none', pattern: 'fishing', shirt: 0x1f2a44, shorts: 0x3b4a5c },
+      portraitSmile: 'wide',
+      props: ['clipboard'],
+      sites: { seagrass: ALL_DAY({ act: 'standing', at: 'teacherC', face: 'water' }) },
+      intro: ["G'day, {name}! I'm Mr Cisneros, your Marine Studies teacher.", 'Fish carefully, measure properly and look after what you catch.'],
+      greet: ["Good to see you, {name}. How's the fishing?", 'Keep going, {name}. Every careful record counts.', "Nice work out there, {name}. Don't forget to release the small ones."],
+      topics: [],
+      tips: [
+        { t: 'Measure from the snout, mouth closed, to the tip of the tail. One centimetre under is still undersize.' },
+        { t: 'Why does the club care about size limits? A fish needs to breed at least once before it is kept, so there are fish for next season.' },
+        { t: 'A good record has a name from the key, a careful measure and the right call. Do all three and the Fish Guide fills up fast.' },
+      ],
+      gossip: [], trades: [],
+      react: {
+        illegal: { undersize: "That one is under the limit, {name}. Have a look at the board and put it back.", oversize: 'That is over the slot, {name}. The big ones are the best breeders, so let her go.', bag: 'That is over your bag limit, {name}. Enough is enough.', possession: 'Careful, {name}. Count what is in the freezer too.', protected: 'That one is protected, {name}. Wet your hands and release it at once.' },
+        cheer: ['What a fish, {name}! Measure it carefully.', 'Beauty, {name}! Now the careful part.'],
+        first: ['Your first catch, {name}! Measure it, then make the call.'],
+        greet: ["G'day, {name}.", 'Morning, {name}.'],
+      },
+    },
+  };
+  if (wilsonOk) out.mrwilson = {
+    name: 'Mr Wilson', role: 'Marine Studies teacher', where: 'the school corner by the cleaning table, Lake Illawarra', teacher: true, scale: 1.08,
+    look: { skin: 0xd9a67a, hairStyle: 'long', hair: 0x3a2a1e, beard: 'big', beardColor: 0x3a2a1e, hatStyle: 'none', sunnies: 'sport', pattern: 'flowers', shirt: 0x2f9a9a, shorts: 0xc9b27a },
+    props: [],
+    sites: { seagrass: ALL_DAY({ act: 'standing', at: 'teacherW', face: 'water' }) },
+    intro: ["Mr Wilson. Pleased to meet you, {name}.", 'I look after the rigs, the knots and the ocean stories.'],
+    greet: ["G'day, {name}. Rod still in one piece?", 'Hands first, rod second, {name}. Good fishing.', 'The water tells you plenty, {name}, if you watch it.'],
+    topics: [],
+    tips: [
+      { t: 'Watch the float, not the horizon. When it dips, strike straight away.' },
+      { t: 'A rig is chosen for the fish. A running sinker lets a bream pick up the bait and feel almost no weight.' },
+      { t: 'Wet your hands before you touch a fish. Dry hands rub off the slime that keeps it healthy.' },
+    ],
+    gossip: [], trades: [],
+    react: {
+      illegal: { undersize: "That's a little one, {name}. Back it goes.", oversize: 'Too big, {name}. Those are the breeders. Let it go.', bag: 'That is your bag for that fish, {name}.', possession: 'Mind the possession limit, {name}.', protected: 'Protected, {name}! Wet hands, quick release.' },
+      cheer: ['That is a beauty, {name}!', 'Lovely fish, {name}. Wet hands for the release!'],
+      first: ["There's your first one, {name}. Well played."],
+      greet: ["G'day, {name}.", 'Hello, {name}.'],
+    },
+  };
+  return out;
+}
+
+Object.assign(NPCS, teacherNpcs());
 
 export const NPC_ORDER = ['mitra', 'tam', 'priya', 'jo', 'mika', 'sione', 'bev', 'fatima', 'nell', 'officer'];
 export const NPC_LIST = NPC_ORDER.map(id => ({ id, ...NPCS[id] }));

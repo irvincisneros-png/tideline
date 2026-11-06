@@ -1,7 +1,7 @@
 // Named places where people stand, sit, fish and walk, per site (the names the schedules in src/content/npcs.js use). They are computed from the
 // site's own landmarks (the jetty, the shoreline, the lifeguard tower) so they stay right if a site is reshaped.
 import { smoothstep } from '../core/noise.js';
-import { shoreZ, JETTY } from '../ecosystems/seagrass.js';
+import { shoreZ, JETTY, CORNER } from '../ecosystems/seagrass.js';
 import { BEACH_SPOTS, beachAt, S_TOWER, BOARD } from '../world/bellambi.js';
 import { T as quayT } from '../world/belmore.js';
 const qp = (a, b) => { const [x, z] = quayT(a, b); return { x, z }; };   // a spot on Belmore Basin's quay, in the quay frame (world/belmore.js)
@@ -25,6 +25,8 @@ export const PLACES = {
     bankEast: { x: 41, z: shoreZ(41) + 1.1 },
     patrolA: { x: 34, z: shoreZ(34) + 6 },
     patrolB: { x: 64, z: shoreZ(64) + 6 },
+    teacherC: { x: CORNER.teacherC.x, z: CORNER.teacherC.z },   // the school's corner by the cleaning table (the teachers' opening)
+    teacherW: { x: CORNER.teacherW.x, z: CORNER.teacherW.z },
   },
   harbour: {
     wharfEnd: qp(11.6, 14.4),

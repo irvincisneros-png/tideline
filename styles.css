@@ -881,3 +881,15 @@ body.touch .mission-chip .m-text { font-size: 12px; }
 @keyframes pbIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #pb-card { animation: none; } }
 @media (max-height: 520px) { body.touch #site-name { display: none; } }   /* a phone held sideways: the place name is in the opening toast and the map, and the mission line needs the row */
+
+/* ---- the teachers' opening (ui/intro.js) ---- */
+#intro-fade { position: fixed; inset: 0; z-index: 60; background: #0d2b33; opacity: 0; pointer-events: none; }
+#intro-goal { position: fixed; left: 50%; top: 24%; transform: translateX(-50%); z-index: 12; display: none; max-width: min(520px, 86vw); text-align: center; pointer-events: none;
+  font-family: var(--font-display); font-size: clamp(15px, 1.9vw, 21px); font-weight: 800; color: var(--teal-ink); background: #fff3d2; border: 3px solid var(--teal-ink); border-radius: 16px; padding: 7px 16px; box-shadow: 0 4px 0 rgba(31, 95, 107, 0.35); }
+#intro-goal.show { display: block; }
+#intro-goal kbd { background: #fff; color: var(--teal-ink); border-color: var(--teal-ink); }
+#intro-skip { position: fixed; left: calc(12px + env(safe-area-inset-left)); top: 44%; z-index: 13; opacity: 0.9; min-height: 40px; }   /* above the touch look layer (z 12) so a finger can reach it */
+#intro-skip[hidden] { display: none; }
+body.flow-open #intro-skip, body.flow-open #intro-goal { display: none; }
+body.intro-on #home-btn { opacity: 0.45; }
+@media (max-height: 460px) { #intro-goal { top: 19%; font-size: 14px; padding: 5px 12px; } }
