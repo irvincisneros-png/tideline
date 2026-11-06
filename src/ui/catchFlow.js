@@ -51,6 +51,7 @@ export class CatchFlow {
     const g = this.game, p = this.p;
     this.c = landed; this.id = landed.id; this.sp = SPECIES_BY_ID[landed.id]; this.spot = spot; this.done = done;
     this.tierBefore = G.tierOf(p, this.id);
+    this.pb = G.isPersonalBest(p, this.id, landed.length) ? { prev: G.entryOf(p, this.id).best } : null;   // asked BEFORE recordCatch overwrites the best
     G.recordCatch(p, this.id, { length: landed.length });
     this.entry = G.entryOf(p, this.id);
     G.setPhoto(p, this.id, fishPhoto(this.id), landed.length);   // the Fish Guide picture: a close-up render of the fish itself on the brag mat
@@ -180,13 +181,37 @@ export class CatchFlow {
       G.recordMeasure(p, this.id, acc);
       p.tips ??= {}; p.tips.measure = true; g.persist();
       g.audio.play(acc ? 'correct' : 'wrong');
-      b.querySelector('#m-next').onclick = () => { this.cleanup?.(); this.stepDecide(); };
+      b.querySelector('#m-next').onclick = () => { this.cleanup?.(); if (this.pb) this.showPersonalBest(() => this.stepDecide()); else this.stepDecide(); };
       b.querySelector('#m-next').focus();
     };
     // Lay out after the panel has its real width.
     requestAnimationFrame(() => { draw(); });
     this.onResize = () => draw(); addEventListener('resize', this.onResize);
     const prevCleanup = this.cleanup; this.cleanup = () => { prevCleanup(); removeEventListener('resize', this.onResize); };
+  }
+
+  /** A fish longer than the player's record for the species: a full-screen card (kept or released alike, so it never rewards keeping). Tap, Space, Enter or Esc carries on. */
+  showPersonalBest(next) {
+    const g = this.game, e = G.entryOf(this.p, this.id), pb = this.pb; this.pb = null;
+    const el = document.createElement('div');
+    el.id = 'pb-card'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Personal best');
+    el.innerHTML = `<h2>⭐ Personal best!</h2><div class="pb-photo" role="img" aria-label="Your fish"></div><div class="pb-name">${esc(this.nameNow())}</div><div class="pb-len">${this.c.length} cm</div><div class="pb-prev">Your longest before was ${pb.prev} cm.</div><button class="btn primary big" id="pb-ok">Nice!</button>`;
+    const photo = e?.photo || fishPhoto(this.id);
+    if (photo) el.querySelector('.pb-photo').style.backgroundImage = `url("${photo}")`;
+    const close = ev => {
+      if (ev?.type === 'keydown') { if (!['Space', 'Enter', 'Escape'].includes(ev.code)) return; ev.preventDefault(); ev.stopPropagation(); }
+      removeEventListener('keydown', close, true); el.remove(); next();
+    };
+    addEventListener('keydown', close, true); el.onclick = () => close();
+    document.body.appendChild(el);
+    g.audio.play('missionDone');
+    el.querySelector('#pb-ok').focus({ preventScroll: true });
+  }
+
+  /** "Guide 7/25 · Next up: Dusky flathead: measured. Needs a legal keep." for the last card of the flow (after the logbook is written). */
+  nextUpHTML() {
+    const nu = G.nextUp(this.p);
+    return `<p class="nextup">📗 <b>${esc(G.guideCountText(this.p))}</b>${nu ? ` · Next up: ${esc(nu.text)}` : ''}</p>`;
   }
 
   // ---------------------------------------------------------------- 3. keep or release
@@ -240,6 +265,7 @@ export class CatchFlow {
       ${pest ? `<p class="muted">Pest fish taken out of the river so far: ${p.pest?.removed ?? 0}.</p>` : `<p class="muted">Kept today ${rule?.bagLabel ? `(${esc(rule.bagLabel)})` : 'of this species'}: ${this.keptToday}${rule?.bag ? ` of ${rule.bag}` : ''}.</p>`}
       ${pest ? '' : (n => n ? `<p class="muted">${esc(n)}</p>` : '')(stockNote(p, this.spot, id))}
       ${keep ? this.payHTML() : ''}
+      ${keep ? this.nextUpHTML() : ''}
       <p><button class="btn primary" id="v-next">${keep ? 'Continue' : pest ? 'Put it back' : 'Release it now'}</button></p>
     </div>`);
     const next = this.panel.body.querySelector('#v-next');
@@ -309,6 +335,7 @@ export class CatchFlow {
           ${deep && !sv.bayBonus ? `<p class="surv-bay">${weightKit ? 'You did not clip on the release weight, so the gas bladder swelled.' : 'A release weight would have returned this fish to depth (buy one at Mitra\'s shop, or earn one from Dr Priya).'}</p>` : ''}
         </div>
         ${this.payHTML()}
+        ${this.nextUpHTML()}
         <p><button class="btn primary" id="r-next">Continue</button></p></div>`);
       const nx = this.panel.body.querySelector('#r-next'); nx.onclick = () => this.closeFlow(); nx.focus();
     };

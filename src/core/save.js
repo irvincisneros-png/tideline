@@ -21,6 +21,10 @@ const KEY = 'tideline.progress.v1';
 //   ending: { milestone: t | null, awards: t | null } — the club ceremonies already shown (fishing/ending.js). A save that already meets a trigger shows its ceremony at the next head-home.
 //   coop: the co-op licence, co-op credits (a SEPARATE currency from Club credits), the hold, quota counters, boat upgrades and the chosen fishing method (economy/commercial.js ensureCoop).
 //   fridge (release fixes): fish taken home from the esky { id, label, length, legal, day, time }; they count toward possession for FRIDGE_DAYS simulated days (economy/possession.js). catches rows also gain `day` (the simulated day the fish was handled on).
+//   missions (Day 1, additive, no version bump): { cur: mission id | null, done: { missionId: t }, pin: trade id | null, legacy?: true } — the mission spine (npc/missions.js).
+//   `legacy` marks a save that already had catches or Guide entries before missions existed (it gets one welcome radio line at the lake, tips.missionsHello).
+//   skills (additive): { knots: { knotId: { best, ... } }, lostLine: {}, snagFreed?: n } — written by the knot and snag mechanics when they are built.
+//   intro (additive): { step } — where the teachers' opening is up to ('meet' for a new save; 'done' for a save that already has catches or Guide entries).
 //   catches rows gain `flow` (low | normal | high) on the river, where there is no tide: the logbook column "tide or flow" reads r.tide ?? r.flow.
 import { RATES, START_BAIT_STOCK } from '../content/shop.js';
 import { BEARD_IDS } from '../land/angler-defaults.js';
@@ -28,7 +32,7 @@ export const SAVE_VERSION = 4;
 const blankEcon = () => ({ day: 1, speciesToday: {}, tagsToday: 0, litterToday: 0, litterPaid: 0, first: {}, combos: {}, collected: {}, comp: null, compDone: null, tags: [], lastLetterDay: 0, earned: 0, log: [] });
 const blankCoop = () => ({ licence: null, credits: 0, earned: 0, hold: [], landed: {}, yearStart: 1, haulsDay: { day: 0, n: 0 }, hauls: 0, upgrades: {}, method: null, labPassed: {}, log: [] });
 const blankShop = () => ({ owned: {}, equip: { rod: 'rod-1', line: 'line-std' }, worn: {}, bait: { ...START_BAIT_STOCK } });
-const blank = () => ({ v: SAVE_VERSION, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], fridge: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} }, coins: RATES.startGrant, econ: blankEcon(), shop: blankShop(), ending: { milestone: null, awards: null }, coop: blankCoop() });
+const blank = () => ({ v: SAVE_VERSION, journal: {}, catches: [], stock: {}, steward: { points: 0, litter: 0, checks: 0, clean: 0, fines: 0 }, gear: null, guide: { nextN: 1, e: {} }, esky: [], fridge: [], outing: null, tips: {}, angler: null, inventory: { have: {}, cards: {}, worn: null, lure: null }, npc: { day: 1, met: {}, accepted: {}, done: {}, quizFail: {}, rot: {} }, coins: RATES.startGrant, econ: blankEcon(), shop: blankShop(), ending: { milestone: null, awards: null }, coop: blankCoop(), missions: { cur: null, done: {}, pin: null }, skills: { knots: {}, lostLine: {} }, intro: { step: 'meet' } });
 
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
@@ -109,6 +113,23 @@ export function migrateProgress(saved) {
     p.shop.equip = { ...b.shop.equip, ...mapOf(v.equip, x => typeof x === 'string', notes, 'shop.equip') };
     p.shop.owned = mapOf(v.owned, any, notes, 'shop.owned'); p.shop.worn = mapOf(v.worn, any, notes, 'shop.worn');
     p.shop.bait = isObj(v.bait) ? mapOf(v.bait, isNum, notes, 'shop.bait') : { ...START_BAIT_STOCK };
+  });
+  // --- missions, skills and the intro (added after v4; each field is checked on its own, a bad one falls back to its blank value)
+  run('missions', () => {
+    const v = objOr(saved.missions, {}, notes, 'missions'), had = p.catches.length > 0 || Object.keys(p.guide?.e ?? {}).length > 0;
+    p.missions = { cur: typeof v.cur === 'string' ? v.cur : null, done: mapOf(v.done, isNum, notes, 'missions.done'), pin: typeof v.pin === 'string' ? v.pin : null };
+    if (v.legacy === true || (!isObj(saved.missions) && !fresh && had)) p.missions.legacy = true;
+  });
+  run('skills', () => {
+    const v = objOr(saved.skills, {}, notes, 'skills');
+    p.skills = { ...v, knots: mapOf(v.knots, isObj, notes, 'skills.knots'), lostLine: mapOf(v.lostLine, any, notes, 'skills.lostLine') };
+    if (v.snagFreed !== undefined) { if (isNum(v.snagFreed) && v.snagFreed >= 0) p.skills.snagFreed = v.snagFreed; else { delete p.skills.snagFreed; note(notes, 'skills.snagFreed'); } }
+  });
+  run('intro', () => {
+    const v = objOr(saved.intro, null, notes, 'intro');
+    const had = p.catches.length > 0 || Object.keys(p.guide?.e ?? {}).length > 0;
+    p.intro = v && typeof v.step === 'string' ? { ...v } : { step: had ? 'done' : 'meet' };
+    if (v && v.step !== undefined && typeof v.step !== 'string') note(notes, 'intro.step');
   });
   run('ending', () => {
     const v = objOr(saved.ending, {}, notes, 'ending');

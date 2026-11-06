@@ -134,7 +134,12 @@ export class TouchControls {
       const p = ptrs.get(e.pointerId);
       if (!p) return;
       ptrs.delete(e.pointerId);
-      if (e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 12 && performance.now() - p.t < 350) this.input.clicks.push({ button: 0, x: e.clientX, y: e.clientY });
+      if (e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 12 && performance.now() - p.t < 350) {
+        // The look layer sits over the HUD, so a tap on the mission line (the one tappable HUD chip) is passed on to it; any other tap picks something in the world.
+        const m = document.getElementById('mission-btn'), r = m && !m.classList.contains('hidden') ? m.getBoundingClientRect() : null;
+        if (r && e.clientX >= r.left - 6 && e.clientX <= r.right + 6 && e.clientY >= r.top - 6 && e.clientY <= r.bottom + 6) m.click();
+        else this.input.clicks.push({ button: 0, x: e.clientX, y: e.clientY });
+      }
     };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   }

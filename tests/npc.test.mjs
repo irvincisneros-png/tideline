@@ -230,7 +230,7 @@ test('every reward, quiz and giver in the trade list exists', () => {
   }
   for (const [id, def] of Object.entries(NPCS)) assert.ok(def.trades.length <= 3, `${id} gives 1-3 requests`);
   for (const id of ['mitra', 'tam', 'priya', 'jo', 'sione', 'bev', 'fatima', 'mika']) assert.ok(NPCS[id].trades.length >= 1, `${id} has a request`);
-  for (const id of Object.keys(ITEMS)) assert.ok(rewards.has(id), `${id} is a reward of some trade`);
+  for (const [id, it] of Object.entries(ITEMS)) assert.ok(rewards.has(id) || it.mission, `${id} is a reward of some trade (or a mission hat: tests/missions.test.mjs)`);
 });
 
 test('the quiz bank: 30 questions, one right answer each, worksheet cited', () => {
@@ -256,7 +256,7 @@ test('every NPC looks right: a valid look, props, and a full set of reactions', 
 
 test('items: hats are real hat looks, and every rig/bait unlock names a real rig or bait', () => {
   for (const [id, it] of Object.entries(ITEMS)) {
-    assert.ok(NPCS[it.from], `${id} from ${it.from}`); assert.ok(it.ask.length > 5 && it.blurb.length > 10);
+    assert.ok(NPCS[it.from] || it.mission, `${id} from ${it.from}`); assert.ok(it.ask.length > 5 && it.blurb.length > 10);
     if (it.hat) { assert.ok(STYLES.hatStyle.some(s => s.id === it.hat.hatStyle && s.id !== 'none')); assert.ok(PALETTES.hat.some(c => c.v === it.hat.hat), `${id} hat colour`); }
     if (it.unlocks?.rig) assert.ok(RIGS[it.unlocks.rig], id); if (it.unlocks?.bait) assert.ok(BAITS[it.unlocks.bait], id);
   }

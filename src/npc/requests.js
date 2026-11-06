@@ -4,6 +4,9 @@
 //   need types:  mastered {id} · masteredCount {n} · identifiedCount {n} · caughtSpecies {n} · releases {n, maxAir} (logbook rows released with
 //   no more than maxAir seconds out of the water) · accurateMeasures {n} · accurateSlot {id} (an accurate measure of a fish inside its legal
 //   slot) · identified {id} (that species is Identified or Mastered) · protectedRelease · taggedReleases {n} · catchSize {id, minCm} · litter {n}
+//   Mission needs (npc/missions.js): rigCatch {rig, label?} (a logbook row landed on that rig) · undersizeRelease {n, maxAir} (rows that were undersize,
+//   released with wet hands and no more than maxAir seconds out of the water; unlike `releases` it ignores dry hands) · knot {id, result} (p.skills.knots[id].best
+//   is at least that result: hold > slip > break; stub until the knot game writes it) · snagFreed {n} (p.skills.snagFreed; stub until snags exist)
 //   progress.npc = { day, met: {npcId: t}, accepted: {tradeId: t}, done: {tradeId: t}, quizFail: {tradeId: day}, rot: {key: n}, heard: {key: n} }
 import { SPECIES, SPECIES_BY_ID } from '../fishing/species.js';
 import * as G from '../fishing/guide.js';
@@ -18,6 +21,9 @@ export const ensureNpc = p => {
 };
 
 const rows = p => p.catches ?? [];
+/** Knot pull-test results, best last: break < slip < hold (stored as 'hold'/'slip'/'break' or the worksheet's H/S/B). Anything else ranks below break. */
+const KNOT_RANK = { b: 0, s: 1, h: 2 }, KNOT_WORD = ['breaks', 'slips', 'holds'];
+export const knotRank = r => KNOT_RANK[String(r ?? '').charAt(0).toLowerCase()] ?? -1;
 const count = (list, n) => ({ have: Math.min(n, list), need: n, done: list >= n });
 const tiers = (p, min) => SPECIES.filter(s => G.atLeast(G.tierOf(p, s.id), min)).length;
 
@@ -40,6 +46,10 @@ export function progressOf(need, p) {
     case 'taggedReleases': return { ...count(rows(p).filter(c => c.kept === false && c.tagged === true).length, need.n), text: `Tag and release ${need.n} fish` };
     case 'catchSize': { const ok = rows(p).some(c => c.id === need.id && c.length >= need.minCm); return { have: +ok, need: 1, done: ok, text: `Catch a ${SPECIES_BY_ID[need.id].name.toLowerCase()} of ${need.minCm} cm or more` }; }
     case 'litter': return { ...count(p.steward?.litter ?? 0, need.n), text: `Pull ${need.n} pieces of litter out of the water` };
+    case 'rigCatch': { const ok = rows(p).some(c => c.rig === need.rig); return { have: +ok, need: 1, done: ok, text: `Land a fish on the ${need.label ?? need.rig}` }; }
+    case 'undersizeRelease': return { ...count(rows(p).filter(c => c.kind === 'undersize' && c.kept === false && c.wet !== false && typeof c.air === 'number' && c.air <= need.maxAir).length, need.n), text: `Release ${need.n} undersize fish with wet hands, each out of the water ${need.maxAir} s or less` };
+    case 'knot': { const best = p.skills?.knots?.[need.id]?.best, ok = knotRank(best) >= knotRank(need.result); return { have: +ok, need: 1, done: ok, text: `Tie the ${need.id} knot so it ${KNOT_WORD[knotRank(need.result)] ?? 'holds'} in the pull test` }; }
+    case 'snagFreed': return { ...count(p.skills?.snagFreed ?? 0, need.n), text: `Free your rig from ${need.n} snag${need.n > 1 ? 's' : ''}` };
     default: throw new Error(`Unknown need type "${need.type}"`);
   }
 }

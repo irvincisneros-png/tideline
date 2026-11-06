@@ -7,10 +7,11 @@ import { ensureInventory, ownedItems, rewardName } from '../npc/inventory.js';
 import { esc } from './panels.js';
 import { missionCoins } from '../economy/coins.js';
 import { COIN } from '../content/shop.js';
+import { missionsView, setPin, speakerOf } from '../npc/missions.js';
 
 const reward = (id, t) => esc(rewardName(id)) + (t ? ` + ${COIN.icon} ${missionCoins(t)} credits` : '');
 
-function card(e, kind) {
+function card(e, kind, pinned, accepted = {}) {
   const def = NPCS[e.npc], t = e.trade, pr = e.progress;
   const what = t.kind === 'quiz'
     ? `Quiz: ${t.quiz.length} question${t.quiz.length > 1 ? 's' : ''} from your worksheets. All right to win it.`
@@ -23,6 +24,7 @@ function card(e, kind) {
     <div class="q-what">${what}</div>${bar}
     <div class="q-rew">Reward: ${reward(t.reward, t)}</div>
     ${kind === 'ready' ? `<div class="q-hint">Talk to ${esc(def.name)} (<kbd>E</kbd>) and choose Jobs and trades.</div>` : ''}
+    ${accepted[t.id] && (kind === 'ready' || kind === 'active' || kind === 'wait') ? `<div class="q-pin"><button class="btn small" data-pin="${esc(t.id)}" aria-pressed="${pinned === t.id}">${pinned === t.id ? '📌 On my HUD (tap to remove)' : '📌 Show on my HUD'}</button></div>` : ''}
   </li>`;
 }
 
@@ -30,11 +32,21 @@ export function openQuestLog(game) {
   const p = game.progress, panels = game.panels;
   const render = () => {
     const q = questLog(p), inv = ensureInventory(p), n = ensureNpc(p);
-    const sec = (title, list, kind, empty) => `<h3>${title}</h3>${list.length ? `<ul class="quests">${list.map(e => card(e, kind)).join('')}</ul>` : `<p class="muted">${empty}</p>`}`;
+    const mv = missionsView(p), pinned = p.missions?.pin ?? null;
+    const sec = (title, list, kind, empty) => `<h3>${title}</h3>${list.length ? `<ul class="quests">${list.map(e => card(e, kind, pinned, n.accepted)).join('')}</ul>` : `<p class="muted">${empty}</p>`}`;
+    const stepLi = st => `<li class="${st.done ? 'done' : ''}"><span aria-hidden="true">${st.done ? '✔' : '○'}</span><span>${esc(st.text)}${!st.done && st.need > 1 ? ` <small>(${st.have} of ${st.need})</small>` : ''}${!st.done && st.hint ? `<br><small class="muted">${esc(st.hint)}</small>` : ''}</span></li>`;
+    const missionsHTML = `<section class="missions" aria-label="Missions">
+        <h3>🎯 ${mv.current ? `Mission ${mv.current.mission.chapter}: ${esc(mv.current.mission.title)}` : 'Missions'}</h3>
+        ${mv.current ? `<p class="muted">From ${esc(speakerOf(mv.current.mission.giver).name)}. Reward: ${esc(ITEMS[mv.current.mission.reward].name)} (a hat for your kit).</p>
+          <ul class="m-steps">${mv.current.steps.map(stepLi).join('')}</ul>` : `<p class="muted">${mv.allDone ? 'Every mission is done. Well done!' : 'No missions right now.'}</p>`}
+        ${mv.pin ? `<p class="muted">📌 On your HUD: <b>${esc(mv.pin.trade.title)}</b></p>` : ''}
+        <ul class="m-chain" aria-label="The missions so far">${mv.chain.map(c => `<li class="${c.done ? 'done' : c.current ? 'cur' : ''}">${c.done ? '✔ ' : ''}${esc(c.title)}</li>`).join('')}</ul>
+      </section>`;
     const hats = ownedItems(p, 'hat'), gear = ownedItems(p).filter(id => ITEMS[id].kind !== 'hat');
     panels.body.innerHTML = `<div class="questlog">
       <h2>📜 Quest log</h2>
       <p class="sub">Day ${n.day}. Talk to the people along the shore: ask about "Jobs and trades". Anything you have already done in your Fish Guide or logbook counts.</p>
+      ${missionsHTML}
       ${sec('Ready', q.ready, 'ready', 'Nothing to hand in yet.')}
       ${sec('In progress', q.active, 'active', 'No requests in progress. Find a person with a <b>!</b> over their head.')}
       ${q.waiting.length ? sec('Try again tomorrow', q.waiting, 'wait', '') : ''}
@@ -46,6 +58,7 @@ export function openQuestLog(game) {
       <p><button class="btn primary" id="q-done">Done</button></p>
     </div>`;
     panels.body.querySelector('#q-done').onclick = () => panels.close();
+    panels.body.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => { setPin(p, b.dataset.pin); game.persist(); game.updateMissionHud?.(); render(); panels.body.querySelector(`[data-pin="${b.dataset.pin}"]`)?.focus({ preventScroll: true }); });
     panels.body.querySelectorAll('[data-hat]').forEach(b => b.onclick = () => {
       const id = b.dataset.hat, look = ITEMS[id].hat;
       if (inv.worn === id) { game.setAppearance(inv.before ?? { hatStyle: 'bucket', hat: 0xe9d9a6 }); inv.worn = null; }
@@ -55,4 +68,5 @@ export function openQuestLog(game) {
   };
   panels.open('', null);
   render();
+  requestAnimationFrame(() => { panels.modal.querySelector('.panel').scrollTop = 0; });   // panels.open focuses the first button after this frame: start at the top, where the missions are
 }

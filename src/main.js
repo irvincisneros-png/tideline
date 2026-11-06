@@ -48,6 +48,8 @@ import { openCredits } from './ui/credits.js';
 import { openMap, MiniMap } from './ui/mapUI.js';
 import { pendingCeremony } from './fishing/ending.js';
 import { firstRunDue, runFirstRun } from './ui/firstRun.js';
+import { ensureMissions, advanceMissions, hudInfo, radioLines, speakerOf, helloDue, markHello, HELLO_LINE } from './npc/missions.js';
+import { ITEMS } from './content/items.js';
 
 const $ = s => document.querySelector(s);
 /** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
@@ -59,6 +61,8 @@ class Game {
     this.settings = loadSettings();
     this.quality = TIERS[this.settings.quality];
     this.progress = loadProgress();
+    ensureMissions(this.progress);   // an older save: finished missions are marked done and their hats given silently, no scenes
+    this.missionQueue = []; this.missionsDirty = true;
     const canvas = $('#gl');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality.antialias, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatio));
@@ -194,6 +198,7 @@ class Game {
     $('#btn-help').onclick = () => this.panels.help();
     $('#home-btn').onclick = () => this.outing.ask();
     $('#quest-btn').onclick = () => this.questLog();
+    $('#mission-btn').onclick = () => this.questLog();
     $('#view-btn').onclick = () => this.cycleView();
     this.updateProgressSummary();
   }
@@ -254,7 +259,7 @@ class Game {
       <p class="muted">Want to keep your records? Export your logbook first (Logbook, then Export CSV).</p>
       <p><button class="btn primary" id="ng-yes">Delete and start again</button> <button class="btn" id="ng-no">Keep my game</button></p>`);
     $('#ng-no').onclick = () => this.panels.close();
-    $('#ng-yes').onclick = () => { resetProgress(); this.progress = loadProgress(); ensureEcon(this.progress); this.gear = { rig: 'runningsinker', bait: 'prawn' }; this.panels.close(); this.updateProgressSummary(); this.bindMenu(); };
+    $('#ng-yes').onclick = () => { resetProgress(); this.progress = loadProgress(); ensureEcon(this.progress); ensureMissions(this.progress); this.missionQueue = []; this.missionsDirty = true; this.gear = { rig: 'runningsinker', bait: 'prawn' }; this.panels.close(); this.updateProgressSummary(); this.bindMenu(); };
   }
   /** The co-op panel (Nell): resolves when it closes. */
   openCoop(opts = {}) { return new Promise(res => openCoop(this, { ...opts, onClose: res })); }
@@ -349,7 +354,7 @@ class Game {
   openSettings() {
     this.panels.settings(this.settings, (k, v) => {
       if (k === 'editAngler') { this.panels.close(true); this.creator.open({}); return; }
-      if (k === 'resetProgress') { resetProgress(); this.progress = loadProgress(); this.panels.close(); this.updateProgressSummary(); return; }
+      if (k === 'resetProgress') { resetProgress(); this.progress = loadProgress(); ensureMissions(this.progress); this.missionQueue = []; this.missionsDirty = true; this.panels.close(); this.updateProgressSummary(); return; }
       this.settings[k] = v; saveSettings(this.settings);
       if (k === 'minimap') this.mini?.update(1);
       if (k === 'volume') this.audio.setVolume(v);
@@ -412,7 +417,7 @@ class Game {
     this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Drag / Z / C', 'look around'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / work lure / strike'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
     if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
-    this.updateStats();
+    this.updateStats(); this.updateMissionHud();
     this.toast(L.intro);
     this.eco.onStart?.(this);   // a site's opening card (the river's freshwater licence note)
     // A tag recapture letter, now and then, from a fish you tagged on an earlier day.
@@ -454,6 +459,7 @@ class Game {
     this.world.waveMesh.update(null, this.time);
     if (!paused) this.cond.update(dt);
     if (this.frame % 6 === 0) this.updateChip();
+    if (this.frame % 30 === 0) this.missionPump();
     if (f.active) {
       if (!paused) f.update(dt, this.time, this.input, this.world);
       const talk = !paused && ['ready', 'wait'].includes(f.state) ? this.npcs.promptText() : '';
@@ -609,13 +615,65 @@ class Game {
   }
   /** HUD chips: the esky and the Steward rating. */
   updateStats() {
+    this.missionsDirty = true;
     const p = this.progress, esky = p.esky ?? [], bad = esky.filter(x => !x.legal).length, st = G.stewardRating(p);
     const el = $('#stat-chip');
     if (!el) return;
     const html = `<b>🧊 Esky ${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''} <span class="coin" title="${COIN.name}">${COIN.icon} ${p.coins ?? 0}</span></b><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span>`;
     if (el.dataset.v !== html) { el.dataset.v = html; el.innerHTML = html; el.classList.toggle('has-bad', bad > 0); }
   }
-  persist() { if (this.noSave) return; if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
+  // ------------------------------------------------------------------ missions (npc/missions.js): the HUD line and the radio hand-ins
+  /** The one HUD line under the chips: the pinned request, else the current mission's next step. Written only when the text changes. */
+  updateMissionHud() {
+    const el = $('#mission-btn');
+    if (!el) return;
+    const h = hudInfo(this.progress), key = (h.pinned ? 'P' : 'M') + h.text;
+    if (el.dataset.v === key) return;
+    el.dataset.v = key;
+    el.classList.toggle('hidden', !h.text); el.classList.toggle('pinned', h.pinned);
+    el.querySelector('.m-text').textContent = h.text; el.querySelector('.m-ico').textContent = h.pinned ? '📌' : '🎯';
+    el.title = h.text; el.setAttribute('aria-label', `${h.pinned ? 'Your pinned request' : 'Your mission'}: ${h.text}. Tap to open the quest log`);
+  }
+  /** Is it a quiet moment for a radio call? On land with the rod put away or ready (not casting, waiting, on a bite or fighting), and nothing open. */
+  missionSafe() {
+    return this.mode === 'land' && !this.loading && !this.panels.isOpen && !this.dialogue.isOpen && !this.creatorOpen && ['ready', 'off'].includes(this.fishing.state) && this.time - this.modeSince > 2.5;
+  }
+  /** About twice a second (and only if something changed): finish any missions the player has just completed, refresh the HUD line, and play queued radio calls when it is safe. */
+  missionPump() {
+    const p = this.progress;
+    if (this.missionsDirty) {
+      this.missionsDirty = false;
+      const done = advanceMissions(p);
+      if (done.length) { this.persist(); this.missionsDirty = false; this.missionQueue.push(...done); }
+      this.updateMissionHud();
+    }
+    if (this.radioBusy || !this.missionSafe()) return;
+    if (this.missionQueue.length) this.playRadio(this.missionQueue.shift());
+    else if (helloDue(p, this.eco.id)) this.playHello();
+  }
+  /** The voice for a radio call: a teacher's SVG bust, or one of the coast's people with their rendered portrait. */
+  radioWho(id) { const s = speakerOf(id); return s.npc ? { ...(this.npcs?.whoOf(s.npc) ?? {}), name: s.name, role: s.role } : s; }
+  /** A finished mission's radio lines (its hat was given when it was marked done; this only tells the player). */
+  async playRadio(m) {
+    this.radioBusy = true;
+    try {
+      const dlg = this.dialogue, lines = radioLines(m, esc(nameOf(this.progress)));
+      this.audio.play('missionDone');
+      for (let i = 0; i < lines.length; i++) await dlg.say({ who: this.radioWho(lines[i].who), text: this.hint(lines[i].text), button: i === lines.length - 1 ? 'Thanks!' : 'Continue' });
+      dlg.hide();
+      this.toast(`🧢 Mission done: ${m.title}. New hat: ${ITEMS[m.reward]?.name}. Wear it from the quest log (Q).`, 'good');
+    } finally { this.radioBusy = false; this.missionsDirty = true; }
+  }
+  /** The one welcome call for a save that played before missions existed. */
+  async playHello() {
+    this.radioBusy = true; markHello(this.progress); this.persist();
+    try {
+      const dlg = this.dialogue;
+      await dlg.say({ who: this.radioWho('mrcisneros'), text: this.hint(HELLO_LINE.replaceAll('{name}', esc(nameOf(this.progress)))), button: 'Thanks!' });
+      dlg.hide();
+    } finally { this.radioBusy = false; }
+  }
+  persist() { this.missionsDirty = true; if (this.noSave) return; if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
   download(name, text) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));

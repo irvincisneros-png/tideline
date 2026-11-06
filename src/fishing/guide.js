@@ -146,6 +146,45 @@ export function keyedAs(p, id) {
   return SPECIES_BY_ID[e.keys.at(-1).as]?.name ?? null;
 }
 
+/** "Guide 7/25": species Identified or better, out of every species in the game (SPECIES.length, never a typed number). */
+export function guideCount(p) {
+  return { n: SPECIES.filter(s => atLeast(tierOf(p, s.id), 'identified')).length, total: SPECIES.length };
+}
+export const guideCountText = p => { const c = guideCount(p); return `Guide ${c.n}/${c.total}`; };
+
+/** Would a fish of this length beat the player's longest of the species? There must be an earlier record to beat (the first catch is not a "personal best").
+ *  Ask BEFORE recordCatch, which overwrites the best. */
+export function isPersonalBest(p, id, length) {
+  const best = entryOf(p, id)?.best ?? 0;
+  return best > 0 && length > best;
+}
+
+/**
+ * The closest Mastery for a species the player has already caught: what is done and what is still missing.
+ * Mastery needs the key solved with no help, an accurate measure and a qualifying keep-or-release (checkMastery). Fewest things missing wins;
+ * a tie goes to the species caught most recently, then guide order. Returns null when every caught species is Mastered (or none is caught).
+ *   { id, name, done: [..], missing: [..], text: 'Dusky flathead: measured. Needs a legal keep.' }
+ * The name is the Guide's own label, so an unnamed fish stays "Unknown fish #n" and nothing is given away.
+ */
+export function nextUp(p) {
+  let best = null;
+  for (const s of SPECIES) {
+    const e = entryOf(p, s.id);
+    if (!e?.caught || e.mastered) continue;
+    const done = [], missing = [];
+    if (e.ident && !e.assisted) done.push('keyed'); else missing.push(e.ident ? 'one unaided key' : 'to be keyed');
+    if ((e.meas?.acc ?? 0) > 0) done.push('measured'); else missing.push('an accurate measure');
+    if ((e.dec?.ok ?? 0) > 0) done.push('decided'); else missing.push(s.rules.protected ? 'a correct release' : 'a legal keep');
+    if (!missing.length) continue;
+    const t = e.caught.t ?? 0;
+    if (!best || missing.length < best.missing.length || (missing.length === best.missing.length && t > best.t)) best = { id: s.id, done, missing, t };
+  }
+  if (!best) return null;
+  const name = labelOf(p, best.id), joinWords = a => (a.length > 1 ? `${a.slice(0, -1).join(', ')} and ${a.at(-1)}` : a[0]);
+  const needs = best.missing, start = best.done.length ? `${name}: ${joinWords(best.done)}.` : `${name}: caught.`;
+  return { id: best.id, name, done: best.done, missing: best.missing, text: `${start} Needs ${joinWords(needs)}.` };
+}
+
 /** Per-region counters ("Lake Illawarra 3/12": species Identified or better) and the overall completion % (tier points, 0..100). */
 export function regionCounts(p) {
   return Object.entries(REGIONS).map(([key, r]) => {

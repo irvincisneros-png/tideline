@@ -852,3 +852,32 @@ body.touch #minimap { left: calc(12px + env(safe-area-inset-left)); top: calc(56
 @media (max-height: 480px) { .panel[data-flow="map"] .sub { display: none; } .panel[data-flow="map"] h2 { display: inline-block; margin-right: 12px; } .map-tabs { display: inline-flex; margin: 0 0 6px; } }
 
 #gl.dragging { cursor: grabbing; }
+
+/* Day 1 missions: one tappable HUD line under the chips (opens the quest log), the quest log's missions section, the personal best card, the Guide counter */
+.mission-chip { flex: 0 1 auto; flex-direction: row; align-items: center; gap: 6px; max-width: min(540px, 100%); min-height: 32px; margin-top: 2px; pointer-events: auto; cursor: pointer; text-align: left; font-family: inherit; -webkit-tap-highlight-color: transparent; }
+.mission-chip .m-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 800; color: var(--teal-deep); }
+.mission-chip.pinned { background: #fff7d9; }
+body.touch .mission-chip { min-height: 36px; }
+body.touch .mission-chip .m-text { font-size: 12px; }
+@media (max-width: 560px) { .mission-chip { max-width: 100%; } }
+.missions { background: #eefaf7; border: 3px solid var(--teal-ink); border-radius: 18px; padding: 10px 14px; margin: 8px 0 12px; }
+.missions h3 { margin: 0 0 4px; }
+.missions .m-steps { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.missions .m-steps li { display: flex; gap: 8px; align-items: baseline; font-weight: 700; }
+.missions .m-steps li.done { color: var(--muted); text-decoration: line-through; }
+.missions .m-chain { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.missions .m-chain li { font-size: 12px; font-weight: 800; border: 2px solid var(--teal-ink); border-radius: 99px; padding: 1px 10px; background: var(--cream); }
+.missions .m-chain li.done { background: #d9f3dd; }
+.missions .m-chain li.cur { background: #ffe9a8; }
+.q-pin { margin-top: 6px; }
+.guide-count { font-size: 13px; font-weight: 800; color: var(--teal-deep); background: #d9f3dd; border: 2px solid var(--teal-ink); border-radius: 99px; padding: 1px 10px; margin-left: 8px; vertical-align: middle; }
+.nextup { margin: 8px 0 0; padding: 6px 10px; border: 2px dashed var(--teal-ink); border-radius: 12px; background: #eefaf7; font-weight: 700; }
+#pb-card { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; background: radial-gradient(circle at 50% 30%, #fff3d2, #bfe9f5 70%); color: var(--teal-ink); cursor: pointer; animation: pbIn 0.3s ease-out; }
+#pb-card h2 { margin: 0; font-family: var(--font-display); font-size: clamp(26px, 6vh, 44px); color: #c2570a; }
+#pb-card .pb-photo { width: min(420px, 60vw, 52vh * 1.6); aspect-ratio: 16 / 10; background-size: contain; background-position: center; background-repeat: no-repeat; border: var(--outline); border-radius: 22px; background-color: #fff9e8; box-shadow: var(--shadow); }
+#pb-card .pb-name { font-weight: 800; font-size: clamp(18px, 4vh, 26px); }
+#pb-card .pb-len { font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 8vh, 56px); line-height: 1; }
+#pb-card .pb-prev { color: var(--muted); font-weight: 700; }
+@keyframes pbIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #pb-card { animation: none; } }
+@media (max-height: 520px) { body.touch #site-name { display: none; } }   /* a phone held sideways: the place name is in the opening toast and the map, and the mission line needs the row */

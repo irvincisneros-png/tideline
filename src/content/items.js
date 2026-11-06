@@ -28,6 +28,18 @@ export const ITEMS = {
   'hat-coop': { kind: 'hat', name: 'Co-op beanie', hat: { hatStyle: 'beanie', hat: 0xf0715a }, blurb: 'Coral red, worn on the trawlers out of Belmore Basin.', from: 'nell', ask: 'Nell at the co-op, Belmore Basin' },
   'hat-oilskin': { kind: 'hat', name: 'Oilskin hat', hat: { hatStyle: 'wide', hat: 0xf4c84a }, blurb: 'A bright yellow sou\'wester for wet days on the water.', from: 'nell', ask: 'Nell at the co-op, Belmore Basin' },
   'hat-greenteam': { kind: 'hat', name: 'Green Team sun hat', hat: { hatStyle: 'wide', hat: 0x8fbf8a }, blurb: 'A sage wide-brim for beach clean-ups.', from: 'fatima', ask: 'Fatima, the clean-up volunteer on Bellambi beach' },
+  // Mission cosmetics (content/missions.js): one hat per chapter, given by the mission, never for credits and never a functional item.
+  // `mission: true` marks them (they are not the reward of any trade, and `from` names the mission's giver, who may not be one of the NPCs).
+  'hat-measuring': { kind: 'hat', mission: true, name: 'Measuring cap', hat: { hatStyle: 'cap', hat: 0xfaf6ea }, blurb: 'A crisp white cap for careful measurers.', from: 'mrcisneros', ask: 'Finish the mission "First lines"' },
+  'hat-tackle': { kind: 'hat', mission: true, name: 'Tackle bucket hat', hat: { hatStyle: 'bucket', hat: 0x35b3ad }, blurb: 'Teal, with a hook-safe patch on the brim.', from: 'mrwilson', ask: 'Finish the mission "Know your tackle"' },
+  'hat-fairgo': { kind: 'hat', mission: true, name: 'Fair-go straw hat', hat: { hatStyle: 'straw', hat: 0x8fbf8a }, blurb: 'Sage green, for people who know the rules and keep them.', from: 'mrcisneros', ask: 'Finish the mission "The rules"' },
+  'hat-structure': { kind: 'hat', mission: true, name: 'Snag-free beanie', hat: { hatStyle: 'beanie', hat: 0x4a5560 }, blurb: 'Charcoal grey, warm on early starts.', from: 'mrwilson', ask: 'Finish the mission "Structure"' },
+  'hat-guide': { kind: 'hat', mission: true, name: 'Fish Guide wide-brim', hat: { hatStyle: 'wide', hat: 0x2f5496 }, blurb: 'Navy blue, for someone who has named five fish.', from: 'mrcisneros', ask: 'Finish the mission "The Guide"' },
+  'hat-rocksafe': { kind: 'hat', mission: true, name: 'Rock-safe bucket hat', hat: { hatStyle: 'bucket', hat: 0xf4c84a }, blurb: 'Sunny yellow, easy to spot from the tower.', from: 'sione', ask: 'Finish the mission "Rock safe"' },
+  'hat-cleanshore': { kind: 'hat', mission: true, name: 'Clean shore cap', hat: { hatStyle: 'cap', hat: 0x8fbf8a }, blurb: 'Sage green, for people who leave a beach cleaner.', from: 'fatima', ask: 'Finish the mission "A cleaner shore"' },
+  'hat-wharf': { kind: 'hat', mission: true, name: 'Wharf beanie', hat: { hatStyle: 'beanie', hat: 0x2f5496 }, blurb: 'Navy blue, for nights under the wharf lamps.', from: 'nell', ask: 'Finish the mission "Lights on the wharf"' },
+  'hat-citizen': { kind: 'hat', mission: true, name: 'Citizen scientist hat', hat: { hatStyle: 'straw', hat: 0xfaf6ea }, blurb: 'Pale straw, for people who record things properly.', from: 'priya', ask: 'Finish the mission "Citizen science"' },
+  'hat-tagrelease': { kind: 'hat', mission: true, name: 'Tag-and-release wide-brim', hat: { hatStyle: 'wide', hat: 0xf0715a }, blurb: 'Coral red, for careful hands.', from: 'priya', ask: 'Finish the mission "Tag and release"' },
 };
 
 /** Sea Country story cards (the guide's "Sea Country" tab). Every sentence comes from a dataset section D row tagged [worksheet] and is

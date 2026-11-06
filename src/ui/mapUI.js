@@ -7,6 +7,7 @@ import { ecoById } from '../ecosystems/index.js';
 import { siteLock } from '../ecosystems/unlock.js';
 import { SPECIES_BY_ID, SPOT_INFO } from '../fishing/species.js';
 import { esc } from './panels.js';
+import { guideCountText } from '../fishing/guide.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const INK = '#1f5f6b', DEEP = '#14434d', CREAM = '#fff3d2', CORAL = '#e8553d', HALO = 'rgba(255,248,226,0.96)';
@@ -341,7 +342,7 @@ export function openMap(game, tab = 'site') {
   const aspect = (view.x1 - view.x0) / (view.z1 - view.z0);
   const onResize = () => { if (current === 'site' && cv) { fit(); redraw?.(); } };
   addEventListener('resize', onResize);
-  panels.open(`<div class="mapview"><h2>🗺 Map</h2>
+  panels.open(`<div class="mapview"><h2>🗺 Map <span class="guide-count" title="Species Identified or better, out of every species in the game">${esc(guideCountText(game.progress))}</span></h2>
     <div class="map-tabs" role="tablist"><button class="btn small" id="mt-site" role="tab">This place</button><button class="btn small" id="mt-region" role="tab">Illawarra coast</button></div>
     <div id="map-body"></div></div>`, () => { clearInterval(timer); removeEventListener('resize', onResize); game.mapOpen = false; }, { flow: 'map' });
   game.mapOpen = true;
