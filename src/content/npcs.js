@@ -141,7 +141,7 @@ export const NPCS = {
       ] },
       { q: 'Why do you fish the harbour wharf at night?', a: [
         'Because that is when the squid come up. The wharf lamps light the water, tiny plankton drifts into the light, the baitfish come for the plankton, and the squid come for the baitfish. It is a food chain lit up like a stage.',
-        'I use a squid jig. It is a prawn-shaped lure with a ring of spikes and no barbed hook. Let it sink, lift it slowly, and when you feel a soft weight, strike. Then hold on: a squid pulls softly and then JETS.',
+        'I use a squid jig. It is a lure, not bait: a plastic jig that looks like a prawn, with a ring of spikes and no barbed hook. Let it sink, lift it slowly, and when you feel a soft weight, strike. Then hold on: a squid pulls softly and then JETS.',
         'Bag limit is 20, and that counts squid and cuttlefish together.',
       ] },
       { q: 'Any jetty manners?', a: [

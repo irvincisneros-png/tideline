@@ -182,7 +182,7 @@ export class Fishing {
       this.waitT -= dt * (this.nearSp ? 2.2 : 1);
       fp.y = surf(fp.x, fp.z) + Math.sin(t * 2.2) * 0.02;
       prompt = this.nearSp ? 'Your bait is right by a school… (hold <kbd>Space</kbd> to draw it in, tap to wind in)' : 'Waiting for a bite… (hold <kbd>Space</kbd> to draw the bait in slowly, tap to wind in and cast again)';
-      if (move === 'twitch' || this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; }
+      if (move === 'twitch' || this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; if (move === 'twitch') this.baitTip(); }
       else if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = pickCatch(this.spot, this.nearSp ? { ...this.ctx, arch: this.nearSp } : this.ctx); g.audio.play('warn'); g.useBait(); }   // the fish takes the bait: one bait is used
     } else if (this.state === 'retrieve') {
       prompt = this.retrieve(dt, t, space, eye, surf, world);
@@ -277,6 +277,12 @@ export class Fishing {
       }
     }
     return sh.on ? 'Something is following… keep the rhythm' : 'Work the lure: tap <kbd>Space</kbd> twitch · hold reel · let go pause';
+  }
+  /** The first time a bait rig is tapped in: one tip on why it wound in (a lure twitches, bait does not). */
+  baitTip() {
+    const p = this.game.progress; if (p.baitTip) return;
+    p.baitTip = true; this.game.persist?.();
+    this.game.toast(`Bait sits still and waits: a tap winds it in, a hold draws it slowly closer. Lures are the rigs you work with taps (tackle box, T).`, 'good');
   }
   /** The first time a lure goes in: one tip. */
   lureTip() {

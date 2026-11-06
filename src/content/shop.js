@@ -72,7 +72,7 @@ export const SHOP = [
   { id: 'pack-squid', cat: 'bait', name: 'Squid strips x10', price: 12, bait: 'squidstrip', qty: 10, grants: 'bait-squidstrip', blurb: 'Tough strips that stay on the hook for snapper, mulloway and morwong.', why: 'Brined or tough bait stays on the hook, so fewer wasted casts.' },
 
   // ------------------------------------------------------------ lures (the squid jig opens the night squid at Belmore Basin; Mitra's lake quiz gives one free)
-  { id: 'rig-squidjig', cat: 'lure', name: 'Squid jig', price: 14, grants: 'rig-squidjig', blurb: 'A prawn-shaped jig with a ring of spikes and no barbed hook. Squid and cuttlefish take it at dusk and night.',
+  { id: 'rig-squidjig', cat: 'lure', name: 'Squid jig', price: 14, grants: 'rig-squidjig', blurb: 'A lure, not bait: a plastic jig that looks like a prawn, with a ring of spikes and no barbed hook. Squid and cuttlefish take it at dusk and night.',
     why: 'In NSW a squid jig must have spikes only, no barbed hook (DPIRD, worksheet 2.1.4). The daily bag limit is 20, squid and cuttlefish together.' },
 
   // ------------------------------------------------------------ conservation gear: it helps the fish, not just you

@@ -12,6 +12,7 @@ import { fishOnMat, fishPhoto } from './fishView.js';
 import { matFishBox } from './matMath.js';
 import { nameOf } from '../core/anglerData.js';
 import { hasItem } from '../npc/inventory.js';
+import { RIGS } from '../fishing/gear.js';
 import { payRecord, payTag } from '../economy/coins.js';
 import { releaseSurvival, survivalNote, CUT_LINE, BAROTRAUMA_DEPTH } from '../economy/effects.js';
 import { RATES } from '../content/shop.js';
@@ -327,7 +328,7 @@ export class CatchFlow {
     p.catches ??= [];
     const surv = keep ? null : releaseSurvival(id, { wet, air, weighted, net, depth: ctx.depth });
     const row = { eco: g.eco.id, id, label, n: e.caught.n, length: c.length, measured: this.measured, accurate: this.accurate, kept: keep, legal: v.legal, kind: v.kind, correct: this.correct,
-      time: Date.now(), day: dayOf(p), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
+      time: Date.now(), day: dayOf(p), spot: this.spot, tide: ctx.tide ?? undefined, flow: ctx.flow, daytime: ctx.time, rig: ctx.rig, bait: RIGS[ctx.rig]?.lure ? undefined : ctx.bait, outing: p.outing?.id ?? null, wet, air, deep: (this.sp.deepWater && (ctx.depth == null || ctx.depth >= BAROTRAUMA_DEPTH)) || undefined, depth: ctx.depth != null ? +ctx.depth.toFixed(1) : undefined, pest: this.sp.rules.pest || undefined, tagged: tagged || undefined, weighted: weighted || undefined, net: net || undefined, survival: surv?.pct };
     p.catches.push(row);
     if (!this.sp.rules.pest) adjustStock(p, this.spot, id, stockDelta(keep, v.legal, surv?.bayBonus ?? 0));   // a weighted deep-water release is worth a little extra to the bay. A pest fish never moves a native stock: taking one out is rewarded in the Steward bonus (guide.js), putting it back changes nothing
     G.recordDecision(p, id, this.correct, G.masteryDecision(keep, v.legal));

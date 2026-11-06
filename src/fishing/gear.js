@@ -16,7 +16,7 @@ export const RIGS = {
   unweighted: { name: 'Unweighted', lure: false, blurb: 'Just a hook and bait on the line. The bait sinks slowly and naturally.' },
   softplastic: { name: 'Soft plastic', lure: true, blurb: 'A lure: a rubber tail on a weighted jig head. You work it with the rod tip. No bait needed.' },
   metalslug: { name: 'Metal slug', lure: true, blurb: 'A lure: a heavy shiny slug that you cast a long way and retrieve fast. No bait needed.' },
-  squidjig: { name: 'Squid jig', lure: true, blurb: 'A lure: a prawn-shaped jig with a ring of spikes (no barbed hook). No bait needed.' },
+  squidjig: { name: 'Squid jig', lure: true, blurb: 'A lure (no bait): a plastic jig shaped and coloured like a prawn, with a ring of spikes instead of a barbed hook. Squid grab it as it sinks.' },
 };
 export const RIG_ORDER = ['paternoster', 'runningsinker', 'float', 'unweighted', 'softplastic', 'metalslug', 'squidjig'];
 

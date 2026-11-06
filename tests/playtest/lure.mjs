@@ -68,7 +68,7 @@ if (b.f.state === 'bite' || b.f.state === 'fight') fail('wrong cadence still got
 if (!spooked) fail('wrong cadence did not spook the fish');
 await t.shot('after-spook');
 // Run 3: bait, hold to draw in.
-await t.page.evaluate(() => { const g = window.__game; g.fishing.stop(); g.gear.rig = 'runningsinker'; g.gear.bait = 'prawn'; g.progress.bait ??= {}; });
+await t.page.evaluate(() => { const g = window.__game; g.fishing.stop(); g.gear.rig = 'runningsinker'; g.gear.bait = 'prawn'; g.progress.bait ??= {}; g.progress.baitTip = false; });
 await t.wait(200); await t.tap('KeyR'); await t.wait(300);
 await press(true); await t.wait(700); await press(false);
 let d0 = null;
@@ -76,6 +76,9 @@ for (let i = 0; i < 40; i++) { await t.wait(100); const f = await fish(); if (f.
 if (d0 == null) fail('bait cast did not reach wait');
 else { await press(true); await t.wait(1500); await press(false); const d1 = (await fish()).dist; log.push(['draw', `${d0} -> ${d1} m`]); if (!(d1 < d0 - 0.6)) fail(`holding Space did not draw the bait in (${d0} -> ${d1})`); if ((await fish()).state !== 'wait') fail('a long hold wound the bait right in'); }
 await t.shot('bait-drawn');
+// A tap on a bait rig winds in, and the first time says why (bait is not worked like a lure).
+await press(true); await t.wait(80); await press(false); await t.wait(400);
+{ const f = await fish(); if (f.state !== 'ready') fail(`a tap on bait did not wind in (${f.state})`); if (!f.toasts.some(x => /Bait sits still/.test(x))) fail('no bait-vs-lure tip on the first tap'); }
 const errs = t.errors.filter(e => !/favicon/.test(e)); if (errs.length) fail('console: ' + errs.slice(0, 3).join(' | '));
 for (const l of log) console.log(...l);
 console.log(ok ? 'lure ok' : 'lure FAILED');
