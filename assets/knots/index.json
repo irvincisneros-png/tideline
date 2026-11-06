@@ -1,0 +1,262 @@
+{
+  "canvas": "960x540 WebP, transparent background",
+  "knots": [
+    {
+      "id": "uni",
+      "name": "Uni knot",
+      "turns": "6 wraps through the loop",
+      "stages": [
+        {
+          "n": 1,
+          "img": "uni-1.webp",
+          "name": "Thread the tag through the eye"
+        },
+        {
+          "n": 2,
+          "img": "uni-2.webp",
+          "name": "Lay the tag back to make a loop"
+        },
+        {
+          "n": 3,
+          "img": "uni-3.webp",
+          "name": "Wrap 1 through the loop"
+        },
+        {
+          "n": 4,
+          "img": "uni-4.webp",
+          "name": "Wrap 2 through the loop"
+        },
+        {
+          "n": 5,
+          "img": "uni-5.webp",
+          "name": "Wrap 3 through the loop"
+        },
+        {
+          "n": 6,
+          "img": "uni-6.webp",
+          "name": "Wrap 4 through the loop"
+        },
+        {
+          "n": 7,
+          "img": "uni-7.webp",
+          "name": "Wrap 5 through the loop"
+        },
+        {
+          "n": 8,
+          "img": "uni-8.webp",
+          "name": "Wrap 6 through the loop"
+        },
+        {
+          "n": 9,
+          "img": "uni-9.webp",
+          "name": "Wet the knot"
+        },
+        {
+          "n": 10,
+          "img": "uni-10.webp",
+          "name": "Pull the tag: the coils close up"
+        },
+        {
+          "n": 11,
+          "img": "uni-11.webp",
+          "name": "Pull the main line: knot slides to the eye"
+        },
+        {
+          "n": 12,
+          "img": "uni-12.webp",
+          "name": "Trim the tag"
+        }
+      ],
+      "source": "Animated Knots (Uni Knot); Vic Dunaway's original uni knot instructions (six turns)",
+      "overUnder": [
+        "Eye: standing line OVER the near rim, U-turn in the hole, tag back UNDER the near rim (line wraps the eye wire once).",
+        "Loop: tag runs back along the standing line, turns up OVER the standing line, arcs back towards the eye and comes down OVER both lines (closes the loop).",
+        "Each of 6 wraps: UNDER (behind) both lines going up, OVER (in front of) both lines coming down, always inside the loop, working away from the eye.",
+        "Tight: coils sit round standing line + tag + loop remnant; tag exits at the end away from the eye."
+      ]
+    },
+    {
+      "id": "blood",
+      "name": "Blood knot",
+      "turns": "5 wraps each side",
+      "stages": [
+        {
+          "n": 1,
+          "img": "blood-1.webp",
+          "name": "Overlap the two ends"
+        },
+        {
+          "n": 2,
+          "img": "blood-2.webp",
+          "name": "Tag A: wrap 1 round line B"
+        },
+        {
+          "n": 3,
+          "img": "blood-3.webp",
+          "name": "Tag A: wrap 2 round line B"
+        },
+        {
+          "n": 4,
+          "img": "blood-4.webp",
+          "name": "Tag A: wrap 3 round line B"
+        },
+        {
+          "n": 5,
+          "img": "blood-5.webp",
+          "name": "Tag A: wrap 4 round line B"
+        },
+        {
+          "n": 6,
+          "img": "blood-6.webp",
+          "name": "Tag A: wrap 5 round line B"
+        },
+        {
+          "n": 7,
+          "img": "blood-7.webp",
+          "name": "Tag A back DOWN through the centre gap"
+        },
+        {
+          "n": 8,
+          "img": "blood-8.webp",
+          "name": "Tag B: wrap 1 round line A"
+        },
+        {
+          "n": 9,
+          "img": "blood-9.webp",
+          "name": "Tag B: wrap 2 round line A"
+        },
+        {
+          "n": 10,
+          "img": "blood-10.webp",
+          "name": "Tag B: wrap 3 round line A"
+        },
+        {
+          "n": 11,
+          "img": "blood-11.webp",
+          "name": "Tag B: wrap 4 round line A"
+        },
+        {
+          "n": 12,
+          "img": "blood-12.webp",
+          "name": "Tag B: wrap 5 round line A"
+        },
+        {
+          "n": 13,
+          "img": "blood-13.webp",
+          "name": "Tag B back UP through the same gap"
+        },
+        {
+          "n": 14,
+          "img": "blood-14.webp",
+          "name": "Wet the knot"
+        },
+        {
+          "n": 15,
+          "img": "blood-15.webp",
+          "name": "Pull both main lines: wraps close up"
+        },
+        {
+          "n": 16,
+          "img": "blood-16.webp",
+          "name": "Trim both tags"
+        }
+      ],
+      "source": "Animated Knots (Blood Knot: five to seven turns each side, tags through the centre gap in opposite directions)",
+      "overUnder": [
+        "Tag A wraps line B 5 times going right: OVER B coming down, UNDER B going up.",
+        "Tag A returns above its wraps, goes OVER line A, DOWN through the centre gap, UNDER line B.",
+        "Tag B wraps line A 5 times going left, same twist direction: OVER A going up, UNDER A coming down.",
+        "Tag B returns below its wraps, goes UNDER line B, UP through the same gap, OVER line A. Tags exit in opposite directions."
+      ]
+    },
+    {
+      "id": "palomar",
+      "name": "Palomar knot",
+      "turns": "overhand tied once with the doubled line",
+      "stages": [
+        {
+          "n": 1,
+          "img": "palomar-1.webp",
+          "name": "Double the line, push the loop through the eye"
+        },
+        {
+          "n": 2,
+          "img": "palomar-2.webp",
+          "name": "Tie a loose overhand knot"
+        },
+        {
+          "n": 3,
+          "img": "palomar-3.webp",
+          "name": "Pass the loop over the hook"
+        },
+        {
+          "n": 4,
+          "img": "palomar-4.webp",
+          "name": "Wet the knot"
+        },
+        {
+          "n": 5,
+          "img": "palomar-5.webp",
+          "name": "Pull tight"
+        },
+        {
+          "n": 6,
+          "img": "palomar-6.webp",
+          "name": "Trim the tag"
+        }
+      ],
+      "source": "Animated Knots (Palomar Knot): double the line, through the eye, overhand, loop over the hook, tighten, trim",
+      "overUnder": [
+        "Doubled line through the eye: OVER the near rim, UNDER the far rim.",
+        "Overhand: the doubled line rises and goes round to make a ring above the line, and crosses OVER the incoming line.",
+        "The bight end goes UNDER the incoming line into the ring, up through the middle, and out OVER the top of the ring.",
+        "Loop over the hook: the bight surrounds the hook's bend and passes OVER the shank, so the hook goes through it.",
+        "Finished: the bight sits round the shank by the eye (front leg OVER the shank, back leg UNDER)."
+      ]
+    },
+    {
+      "id": "surgeon",
+      "name": "Surgeon's loop",
+      "turns": "loop passed through the ring twice (double overhand)",
+      "stages": [
+        {
+          "n": 1,
+          "img": "surgeon-1.webp",
+          "name": "Double the end back"
+        },
+        {
+          "n": 2,
+          "img": "surgeon-2.webp",
+          "name": "Tie an overhand knot"
+        },
+        {
+          "n": 3,
+          "img": "surgeon-3.webp",
+          "name": "Loop through a second time"
+        },
+        {
+          "n": 4,
+          "img": "surgeon-4.webp",
+          "name": "Wet the knot"
+        },
+        {
+          "n": 5,
+          "img": "surgeon-5.webp",
+          "name": "Pull tight"
+        },
+        {
+          "n": 6,
+          "img": "surgeon-6.webp",
+          "name": "Trim the tag"
+        }
+      ],
+      "source": "Animated Knots (Surgeon's Loop: a double overhand knot tied in a bight)",
+      "overUnder": [
+        "The doubled line goes down and round to make a ring, and crosses OVER the incoming line.",
+        "Pass 1: the bight end goes UNDER the incoming line, down through the ring, out OVER the bottom of the ring.",
+        "It comes back up BEHIND the bottom of the ring, then pass 2 goes down through the same ring and out OVER the bottom.",
+        "Crossings alternate under/over all the way along (5 crossings: a double overhand)."
+      ]
+    }
+  ]
+}
