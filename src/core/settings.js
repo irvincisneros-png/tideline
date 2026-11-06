@@ -11,6 +11,7 @@ export const TIERS = {
 export const DEFAULTS = {
   quality: null, // auto-detected on first run
   style: 'stylised', // 'stylised' (cosy, default) or 'realistic'
+  knots: 'full',     // the knot game: 'full' (guided first time, quick re-tie after a Hold), 'quick' (always the short version) or 'off' (skipped, a Hold is credited)
   sensitivity: 1, invertY: false, volume: 0.8, reducedMotion: false,
   subtitles: true, minimap: false, fightCam: true,   // fightCam: ease the camera lower and side-on while a fish is on
   musicOn: true, musicVolume: 0.5,
@@ -38,6 +39,8 @@ export function loadSettings() {
   const out = { ...DEFAULTS, ...s };
   const st = new URLSearchParams(location.search).get('style');
   if (st) out.style = st; // 'stylised' (Abzû / Alba-like) or 'realistic'
+  const kn = new URLSearchParams(location.search).get('knots');
+  if (kn === 'full' || kn === 'quick' || kn === 'off') out.knots = kn;   // teacher control (?knots=): the full guided knot, the quick re-tie only, or skip the knot game
   const q = new URLSearchParams(location.search).get('quality');
   if (q && TIERS[q]) out.quality = q;
   if (!out.quality || !TIERS[out.quality]) out.quality = guessTier();

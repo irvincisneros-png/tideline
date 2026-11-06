@@ -21,6 +21,9 @@
 import { COIN, RATES } from './shop.js';
 import { WILSON_OK } from './teachers.js';
 
+/** What a fishing person says when your line crosses theirs at the cast (fishing/snags.js, 1c). Kind: nobody is ever blamed. A person may carry their own `tangle` array. */
+export const TANGLE_DEFAULT = ['Oops, our lines got friendly! Wind in and have another go.', 'No worries, mate. It happens to everyone. Take your time.', 'Ha! Crossed lines. Wind yours in and I will keep mine still.'];
+
 export const RANGER_NOTE = 'Sea Country dialogue: worksheet-sourced only. Needs review by the school AEO / local AECG before classroom release.';
 
 export const NPCS = {
@@ -111,6 +114,7 @@ export const NPCS = {
     name: 'Old Tam', role: 'Jetty regular', where: 'the jetty, Lake Illawarra',
     look: { skin: 0xe0a97c, hairStyle: 'short', hair: 0xc9ced2, beard: 'big', beardColor: 0xf6f4ee, hatStyle: 'straw', hat: 0xe9d9a6, sunnies: 'none', pattern: 'fishing', shirt: 0xf6f1e6, shorts: 0xc9b27a, rod: 0x8a5230 },
     props: ['bucket', 'thermos'],
+    tangle: ['Ah, our lines have met. Old friends! Wind in slowly, mate.', 'Easy does it. A tangle is just the fish telling us to slow down.', 'Happens to me every week. Take your time, I am in no hurry.'],
     sites: {
       // Old Tam fishes the lake jetty by day and dusk, then walks up to Belmore Basin for the squid, so at night he is on the harbour wharf, under the lamps.
       seagrass: {
@@ -504,6 +508,7 @@ export const NPCS = {
     name: 'Mika', role: 'Kid angler', where: 'the shore (moves between spots)',
     look: { skin: 0xefc19c, hairStyle: 'curly', hair: 0x2a2020, hatStyle: 'none', sunnies: 'none', pattern: 'plain', shirt: 0xf0715a, shorts: 0x6f92c4, rod: 0xd9503f },
     props: ['bucket'], scale: 0.82,
+    tangle: ['Whoa, you got my line! It is okay, I am not even cross.', 'Haha, tangled! That has happened to me heaps. Wind in!', 'Oops, my bad too. Let us untangle together.'],
     sites: {
       seagrass: {
         dawn: { act: 'fishing', at: 'jettyEnd2', face: 'water' }, day: { act: 'fishing', at: 'bankEast', face: 'water' },

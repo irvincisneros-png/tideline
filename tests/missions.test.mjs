@@ -45,7 +45,7 @@ test('missions: ids are unique, chapters ascend, every step names a real trade o
   assert.equal(MISSIONS.length, 10, 'missions 1 to 5 and the five coast chapters');
   assert.deepEqual(MISSIONS.slice(5).flatMap(m => m.steps.map(s => s.trade)), ['sione-rock', 'fatima-litter3', 'nell-squid', 'priya-measure', 'priya-tag']);
   assert.deepEqual(Object.keys(FEATURES).sort(), ['knots', 'snags']);
-  assert.equal(FEATURES.knots, false); assert.equal(FEATURES.snags, false);
+  assert.equal(FEATURES.knots, true, 'Day 4: the knot game is built, so Mission 2 is on'); assert.equal(FEATURES.snags, true, 'Day 3: snags are built, so Mission 4 is on');
 });
 
 test('missions: every reward is one cosmetic hat in ITEMS, not a trade reward, not functional, and each is used once', () => {
@@ -98,9 +98,9 @@ test('missions: the words are kind, never about selling a catch, and keep clear 
 
 test('missions: steps that need unbuilt mechanics hide their mission until FEATURES say so (Mr Wilson missions 2 and 4)', () => {
   const ids = () => M.chain().map(m => m.id);
-  assert.deepEqual(ids(), ['first-lines', 'the-rules', 'the-guide', 'coast-rock', 'coast-litter', 'coast-squid', 'coast-measure', 'coast-tag']);
-  withFeatures({ knots: true }, () => assert.ok(ids().includes('know-tackle') && !ids().includes('structure')));
-  withFeatures({ snags: true }, () => assert.ok(ids().includes('structure') && !ids().includes('know-tackle')));
+  assert.deepEqual(ids(), ['first-lines', 'know-tackle', 'the-rules', 'structure', 'the-guide', 'coast-rock', 'coast-litter', 'coast-squid', 'coast-measure', 'coast-tag']);
+  withFeatures({ knots: false }, () => assert.ok(!ids().includes('know-tackle') && ids().includes('structure')));
+  withFeatures({ snags: false, knots: false }, () => assert.ok(!ids().includes('structure') && !ids().includes('know-tackle')));
   withFeatures({ knots: true, snags: true }, () => assert.equal(ids().length, 10));
   assert.deepEqual(M.chain(false).map(m => m.id).filter(id => MISSION_BY_ID[id].giver === 'mrwilson'), [], 'no Wilson missions when WILSON_OK is off');
   withFeatures({ knots: true, snags: true }, () => assert.deepEqual(M.chain(false).map(m => m.id), ['first-lines', 'the-rules', 'the-guide', 'coast-rock', 'coast-litter', 'coast-squid', 'coast-measure', 'coast-tag']));
@@ -207,7 +207,7 @@ test('advanceMissions: returns the newly finished missions once, grants only the
   assert.equal(p.coins, coins, 'the mission pays no credits'); assert.equal(JSON.stringify(p.econ), econ, 'and records no earnings');
   assert.deepEqual(Object.keys(p.inventory.have).sort(), [...Object.keys(had), 'hat-measuring'].sort(), 'it adds only its hat');
   assert.ok(hasItem(p, 'bait-nipper') && hasItem(p, 'hat-measuring'));
-  assert.equal(p.missions.cur, 'the-rules'); assert.ok(p.missions.done['first-lines'] > 0);
+  assert.equal(p.missions.cur, 'know-tackle'); assert.ok(p.missions.done['first-lines'] > 0);
   assert.deepEqual(M.advanceMissions(p), [], 'once only'); assert.deepEqual(M.ensureMissions(p), []);
   assert.equal(p.coins, coins); assert.equal(Object.keys(p.inventory.have).length, Object.keys(had).length + 1);
   // The mission's own hat is never the trade's reward, and the trade's reward is unchanged.
@@ -236,13 +236,13 @@ test('old saves v1 to v4 fast-forward silently: finished missions marked done wi
   // v2: 3 accurate measures + the licence quiz handed in: Mission 1 is done.
   const p2 = migrateProgress(OLD_SAVES.v2()), c2 = p2.coins;
   assert.deepEqual(M.ensureMissions(p2), ['first-lines']);
-  assert.equal(p2.missions.cur, 'the-rules'); assert.ok(hasItem(p2, 'hat-measuring')); assert.equal(p2.coins, c2, 'no credits');
+  assert.equal(p2.missions.cur, 'know-tackle'); assert.ok(hasItem(p2, 'hat-measuring')); assert.equal(p2.coins, c2, 'no credits');
   const snap = JSON.stringify(p2); assert.deepEqual(M.ensureMissions(p2), []); assert.equal(JSON.stringify(p2), snap, 'idempotent');
   // v3: Mission 1 and Mission 5 trades done, plus the flathead quiz trade without its undersize releases: missions 1 and 5 are done, 3 is not.
   const p3 = migrateProgress(OLD_SAVES.v3());
   assert.deepEqual(M.ensureMissions(p3), ['first-lines', 'the-guide']);
   assert.deepEqual(Object.keys(p3.inventory.have).sort(), ['hat-guide', 'hat-measuring']);
-  assert.equal(p3.missions.cur, 'the-rules'); assert.equal(p3.coins, 120);
+  assert.equal(p3.missions.cur, 'know-tackle'); assert.equal(p3.coins, 120);
   // v4 with nothing done.
   const p4 = migrateProgress(OLD_SAVES.v4());
   assert.deepEqual(M.ensureMissions(p4), []); assert.equal(p4.missions.cur, 'first-lines');
@@ -254,17 +254,20 @@ test('an old save with everything done ends with cur null and an empty HUD line,
   const p = fresh();
   p.catches.push(...acc(3), ...[1, 2].map(() => row({ kind: 'undersize', kept: false, wet: true, air: 3 })));
   for (const { trade } of allTrades()) complete(p, trade.id);
+  p.skills.snagFreed = 1;   // Mission 4 (Structure) is on now that snags are built
+  p.skills.knots.uni = { best: 'hold', n: 1 }; p.catches.push(row({ rig: 'float' }));   // Mission 2 (Know your tackle) is on now that the knot game is built
   const marked = M.ensureMissions(p);
   assert.equal(marked.length, M.chain().length); assert.equal(p.missions.cur, null);
   assert.equal(M.hudLine(p), ''); assert.equal(M.missionsView(p).allDone, true);
   assert.equal(ownedItems(p, 'hat').length, M.chain().length);
   // Switching a feature on later adds a mission that is not done yet; the older ones stay done.
-  withFeatures({ knots: true }, () => { M.ensureMissions(p); assert.equal(p.missions.cur, 'know-tackle'); assert.ok(p.missions.done['first-lines']); });
+  // A feature switched off later hides its mission; the older ones stay done and the chain still ends.
+  withFeatures({ knots: false }, () => { M.ensureMissions(p); assert.equal(p.missions.cur, null); assert.ok(p.missions.done['first-lines']); });
 });
 
 test('a mission that was done keeps its hat even if the inventory lost it (ensureMissions re-grants, once)', () => {
   const p = fresh(); p.missions.done['first-lines'] = 5; p.missions.cur = 'x';
-  M.ensureMissions(p); assert.ok(hasItem(p, 'hat-measuring')); assert.equal(p.missions.cur, 'first-lines'.replace('first-lines', 'the-rules'));
+  M.ensureMissions(p); assert.ok(hasItem(p, 'hat-measuring')); assert.equal(p.missions.cur, 'know-tackle');
 });
 
 // ---------------------------------------------------------------- pin, HUD, quest log

@@ -148,7 +148,7 @@ export class CatchBar {
     el.setAttribute('aria-label', 'Catch bar. Hold Space, or press and hold here, to lift the green zone and keep the fish inside it.');
     el.innerHTML = `<div class="cb-card">
         <div class="cb-cols">
-          <div class="cb-track"><div class="cb-struct"><span>reef</span></div><div class="cb-zone"></div><div class="cb-litter"></div><div class="cb-fish">${FISH_SVG}</div><div class="cb-ink"></div></div>
+          <div class="cb-track"><div class="cb-struct"><span>reef · rock</span></div><div class="cb-zone"></div><div class="cb-litter"></div><div class="cb-fish">${FISH_SVG}</div><div class="cb-ink"></div></div>
           <div class="cb-meter" title="Catch meter"><i></i></div>
         </div>
       </div>
@@ -176,7 +176,8 @@ export class CatchBar {
     this.fy = 0.5; this.fv = 0; this.meter = TUNING.startMeter; this.time = 0;
     this.warn = false; this.squeeze = false; this.inZone = true; this.activity = 0; this.litter = null;
     this.tutorial = !!opts.tutorial;   // the teachers' opening: a floor under the meter so the fish cannot be lost, no litter, two lines of help
-    this.litterT = this.tutorial ? 1e9 : rand(...TUNING.litterFirst); this.litterCount = 0;
+    this.litterT = this.tutorial ? 1e9 : rand(...TUNING.litterFirst); this.litterCount = 0; this.litterSpawns = 0;
+    this.forceLine = !!opts.lostLine && !this.tutorial;   // a line you cut at this site is still down here: the first litter is that line (fishing/snags.js)
     this.s = {}; PROFILES[profile].init(this.s, this);
     this.structEl.style.display = profile === 'bolt' ? '' : 'none';
     el_setProfile(this, profile);
@@ -246,8 +247,9 @@ export class CatchBar {
     const T = TUNING;
     if (!this.litter) {
       if ((this.litterT -= dt) <= 0) {
-        const kind = Math.random() < 0.5 ? 'line' : 'bag';
-        this.litter = { kind, y: 1.06, x: rand(0.2, 0.8), vy: -rand(...T.litterSpeed), ph: rand(0, 6) };
+        const lost = this.forceLine && this.litterSpawns === 0, kind = lost || Math.random() < 0.5 ? 'line' : 'bag';
+        this.litterSpawns++;
+        this.litter = { kind, lost, y: 1.06, x: rand(0.2, 0.8), vy: -rand(...T.litterSpeed), ph: rand(0, 6) };
         this.litterEl.innerHTML = LITTER[kind].svg; this.litterEl.classList.add('on');
       }
       return;
@@ -257,7 +259,7 @@ export class CatchBar {
     if (Math.abs(L.y - this.zy) <= h + 0.035) {
       this.litterCount++; this.litterEl.classList.remove('on'); this.litter = null; this.litterT = rand(...T.litterEvery);
       this.zoneEl.classList.add('pop'); setTimeout(() => this.zoneEl.classList.remove('pop'), 350);
-      this.onLitter?.(L.kind);
+      this.onLitter?.(L.kind, { lost: !!L.lost });
     } else if (L.y < -0.05) { this.litterEl.classList.remove('on'); this.litter = null; this.litterT = rand(...T.litterEvery); }
   }
 

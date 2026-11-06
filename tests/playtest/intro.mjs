@@ -27,7 +27,7 @@ const SX = 22.8;   // the corner sits at x ~ 22.8 (CORNER.start)
 
 async function sayMeet(t) { for (let i = 0; i < 4; i++) await next(t); await wf(t, () => window.__game.progress.intro.step === 'cast'); }
 async function toRing(t) {
-  await G(t, async () => { const { CORNER } = await import('/src/ecosystems/seagrass.js'), g = window.__game, w = g.walker, R = CORNER.ring; w.pos.set(R.x + 0.2, g.world.walkAt(R.x, R.z), R.z + 0.2); w.vel.set(0, 0, 0); g.rig.focus.set(w.pos.x, w.pos.y + 0.9, w.pos.z); });
+  await G(t, async () => { const { CORNER } = await import(new URL('src/ecosystems/seagrass.js', location.href).href), g = window.__game, w = g.walker, R = CORNER.ring; w.pos.set(R.x + 0.2, g.world.walkAt(R.x, R.z), R.z + 0.2); w.vel.set(0, 0, 0); g.rig.focus.set(w.pos.x, w.pos.y + 0.9, w.pos.z); });
   await t.wait(500);
 }
 async function rodOutAndCast(t) {
@@ -60,7 +60,7 @@ async function winFight(t) {
 }
 async function doKey(t) {
   await t.page.waitForSelector('.key-grid', { timeout: 15000 });
-  const path = await G(t, async () => { const { KEY } = await import('/src/fishing/key.js'); const target = 'yellowfinbream'; const go = (at, trail) => { if (at.leaf) return at.leaf === target ? trail : null; for (const a of ['a', 'b']) { const r = go(KEY.couplets[at.couplet][a].to, [...trail, a]); if (r) return r; } return null; }; return go({ couplet: KEY.first }, []); });
+  const path = await G(t, async () => { const { KEY } = await import(new URL('src/fishing/key.js', location.href).href); const target = 'yellowfinbream'; const go = (at, trail) => { if (at.leaf) return at.leaf === target ? trail : null; for (const a of ['a', 'b']) { const r = go(KEY.couplets[at.couplet][a].to, [...trail, a]); if (r) return r; } return null; }; return go({ couplet: KEY.first }, []); });
   for (const a of path) { await t.page.click(`.opt[data-a="${a}"]`); await t.wait(160); }
   await t.page.click('#key-ok'); await t.wait(300);
 }

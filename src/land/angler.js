@@ -337,7 +337,7 @@ export class Angler {
     const omega = dt > 0 ? (this.rodPhi - this.prevPhi) / dt : 0; this.prevPhi = this.rodPhi;
     this.whip.zeta = rm ? 1 : 0.28;
     const whip = this.whip.step(dt, clamp(omega * 0.045, -0.5, 0.5));
-    this.bendS = damp(this.bendS, bendT, 7, dt);
+    this.bendS = damp(this.bendS, bendT + (ctx.extraBend ?? 0), 7, dt);   // extraBend: the rod loaded by a snag (fishing.js)
     this.setBend(this.bendS + whip, t, this.shake);
     // Hat and hair lag the head by a fraction of each turn, then spring back.
     J.head.updateWorldMatrix(true, false);

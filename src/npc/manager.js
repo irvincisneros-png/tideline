@@ -208,7 +208,7 @@ export class NPCManager {
   async talkNearest() {
     const g = this.game, n = this.near;
     if (!n || g.dialogue.isOpen || g.panels.isOpen || g.mode !== 'land') return;
-    if (['bite', 'fight', 'landed', 'charge', 'flying'].includes(g.fishing.state)) { g.toast('Land or lose this fish first, then chat.', 'warn'); return; }
+    if (['bite', 'fight', 'landed', 'charge', 'flying', 'snagged'].includes(g.fishing.state)) { g.toast(g.fishing.state === 'snagged' ? 'Free your line first, then chat.' : 'Land or lose this fish first, then chat.', 'warn'); return; }
     await this.talk.run(n);
     this.refreshMarkers();
     if (this.ceremonyPending) { const kind = this.ceremonyPending; this.ceremonyPending = null; g.runCeremony(kind); }   // Bev: "start the ceremony" 

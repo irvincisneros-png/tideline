@@ -121,10 +121,10 @@ if (!onlyMobile) {
   check(!d.open, 'the call ends and does not repeat');
   check(after.coins === before.coins, 'the mission paid no credits');
   check(after.have.includes('hat-measuring') && after.have.length === before.have.length + 1, `it added one hat only: ${after.have.filter(x => !before.have.includes(x))}`);
-  check(after.cur === 'the-rules', `the next mission is The rules (Mission 2 and 4 stay hidden): ${after.cur}`);
+  check(after.cur === 'know-tackle', `the next mission is Know your tackle (Mission 2, now that knots are built): ${after.cur}`);
   await t.wait(800);
   h = await hud(page);
-  check(/^The rules: /.test(h.text), `the HUD line moves to the next mission: "${h.text}"`);
+  check(/^Know your tackle: /.test(h.text), `the HUD line moves to the next mission: "${h.text}"`);
   check(t.errors.length === 0, `new save: zero console errors ${t.errors.slice(0, 2)}`);
   await t.close();
 }
@@ -138,7 +138,7 @@ if (!onlyMobile) {
   const page = t.page, ev = (f, a) => page.evaluate(f, a);
   await reloadWith(t, OLD); await t.wait(500);
   const early = await ev(() => { const g = window.__game, p = g.progress; return { done: Object.keys(p.missions.done), cur: p.missions.cur, hats: Object.keys(p.inventory.have).filter(k => k.startsWith('hat-')), coins: p.coins, toasts: [...document.querySelectorAll('.toast')].map(x => x.textContent), intro: p.intro.step, legacy: p.missions.legacy }; });
-  check(early.done.join() === 'first-lines' && early.cur === 'the-rules', `old save: Mission 1 is already done, the pointer is on Mission 3 (The rules): ${early.done} -> ${early.cur}`);
+  check(early.done.join() === 'first-lines' && early.cur === 'know-tackle', `old save: Mission 1 is already done, the pointer is on Mission 2 (Know your tackle): ${early.done} -> ${early.cur}`);
   check(early.hats.join() === 'hat-measuring' && early.coins === 77, `its hat is in the kit and no credits were paid (${early.hats}, ${early.coins} credits)`);
   check(early.intro === 'done' && early.legacy === true, 'an old save never sees the intro');
   check(!early.toasts.some(x => /Mission done|New hat|🎁/.test(x)), 'no reward toast storm');
@@ -151,7 +151,7 @@ if (!onlyMobile) {
   check(!d.open, 'and nothing else follows it (no mission radio calls for the fast-forwarded mission)');
   const hello = await ev(() => ({ tip: window.__game.progress.tips.missionsHello, hats: Object.keys(window.__game.progress.inventory.have).filter(k => k.startsWith('hat-')), line: document.querySelector('#mission-btn .m-text').textContent }));
   check(hello.tip === true && hello.hats.join() === 'hat-measuring', 'the hello is remembered and no further hat was given');
-  check(/^The rules: /.test(hello.line), `the HUD line is on Mission 3: "${hello.line}"`);
+  check(/^Know your tackle: /.test(hello.line), `the HUD line is on Mission 2: "${hello.line}"`);
   await page.reload(); await page.waitForFunction(() => window.__game && window.__game.mode === 'land', null, { timeout: 120000 });
   await t.wait(4500);
   d = await dlgOpen(page);

@@ -19,6 +19,7 @@ import { CameraRig } from './land/cameraRig.js';
 import { Angler } from './land/angler.js';
 import { Shoals } from './life/shoals.js';
 import { Fishing } from './fishing/fishing.js';
+import { collectLostLine, SNAG_TEXT } from './fishing/snags.js';
 import { SPECIES_BY_ID, SPOT_INFO } from './fishing/catches.js';
 import * as G from './fishing/guide.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -50,6 +51,8 @@ import { pendingCeremony } from './fishing/ending.js';
 import { Intro, introDue, bevCallDue, markBevCall, bevLines } from './ui/intro.js';
 import { ensureMissions, advanceMissions, hudInfo, radioLines, speakerOf, helloDue, markHello, HELLO_LINE } from './npc/missions.js';
 import { ITEMS } from './content/items.js';
+import { openKnot, openKnotsList } from './ui/knotUI.js';
+import { canPromptRetie, markRetie, chooseMode, knotsMode, SPARE_TOAST } from './fishing/knots.js';
 
 const $ = s => document.querySelector(s);
 /** Which Fish Guide region (fishing/species.js REGIONS) each site belongs to. */
@@ -351,7 +354,7 @@ class Game {
   }
   questLog() { openQuestLog(this); }
   /** The map (M): this place, or the whole coast (tab 'region'). */
-  openMap(tab = 'site') { if (this.intro?.refuse('KeyM')) return; openMap(this, tab); }
+  openMap(tab = 'site') { if (this.intro?.refuse('KeyM')) return; if (this.fishing.state === 'snagged') { this.toast('Free your line first, then open the map.', 'warn'); return; } openMap(this, tab); }
   setKeys(list) { $('#keys').innerHTML = list.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join(''); }
   pauseMenu() {
     this.panels.open(`<h2>Paused</h2><p>${esc(this.eco.name)}</p>
@@ -483,14 +486,14 @@ class Game {
       $('#prompt').innerHTML = this.hint([talk, near && !paused ? `Press <kbd>H</kbd> to head home from ${hz.label}` : ''].filter(Boolean).join('<br>')); w.frozen = false;
     }
     // Camera: follows the angler, frames the float too while a line is out.
-    const also = f.active && f.float.visible && ['wait', 'retrieve', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
+    const also = f.active && f.float.visible && ['wait', 'retrieve', 'snagged', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
     this.rig.update(dt, this.world, w.pos, also, !paused, { fight: f.active && f.state === 'fight', line: f.lineDir, heading: w.heading });
     this.focus.copy(this.rig.focus);
     // The angler: stand, walk and fish.
     const a = this.angler;
     a.place(w.pos, w.heading);
-    const lineOut = f.active && ['flying', 'wait', 'retrieve', 'bite', 'fight', 'landed'].includes(f.state);   // feet planted while a line is out: no walk cycle
-    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? f.state : 'off', power: f.power, act: f.act, reel: (f.state === 'fight' || f.state === 'retrieve') && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, look: lineOut ? f.lookAt() : null, reducedMotion: this.settings.reducedMotion });
+    const lineOut = f.active && ['flying', 'wait', 'retrieve', 'snagged', 'bite', 'fight', 'landed'].includes(f.state);   // feet planted while a line is out: no walk cycle
+    a.update(dt, this.time, { speed: lineOut ? 0 : w.speed, state: f.active ? (f.state === 'snagged' ? 'wait' : f.state) : 'off', extraBend: f.state === 'snagged' ? f.bendX : 0, power: f.power, act: f.act, reel: (f.state === 'fight' || f.state === 'retrieve') && f.reel, fightT: f.fightT, side: lineOut ? f.side : 0, look: lineOut ? f.lookAt() : null, reducedMotion: this.settings.reducedMotion });
     if (this.frame % 5 === 0 && !paused) {
       const m = this.input.mouse, lbl = $('#target-label');
       const hit = !this.touch && performance.now() - m.t < 2500 ? (() => { const r = this.mouseRay(m.x, m.y); return this.world.pick(r.origin, r.direction, 80); })() : null;
@@ -549,7 +552,7 @@ class Game {
   /** T: open the tackle box (rig and bait). Not while a fish is on. */
   tackleBox() {
     if (this.intro?.refuse('KeyT')) return;
-    if (!this.fishing.canChangeGear) { this.toast('Land or lose this fish first, then change your tackle.', 'warn'); return; }
+    if (!this.fishing.canChangeGear) { this.toast(this.fishing.state === 'snagged' ? 'Free your line first (tap Space), then change your tackle.' : 'Land or lose this fish first, then change your tackle.', 'warn'); return; }
     const render = () => {
       this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond);
       const lockedMsg = (kind, id, name) => { this.panels.body.querySelector(kind === 'rig' ? '#tb-desc' : '#tb-note').innerHTML = `🔒 <b>${esc(name)}</b> is locked. ${esc(lockHint(this.progress, kind, id))}.`; };
@@ -571,14 +574,34 @@ class Game {
         if (baitCount(this.progress, b.dataset.bait) <= 0) { this.panels.body.querySelector('#tb-note').innerHTML = `You have no ${esc(BAITS[b.dataset.bait].name.toLowerCase())} left. ${COLLECT[b.dataset.bait] ? 'Collect some below (free, inside the daily limit)' : 'Buy more at Mitra\'s shop'}.`; return; }
         this.gear.bait = this.lastBait = b.dataset.bait; this.saveGear(); render(); this.panels.body.querySelector(`.tb-bait[data-bait="${this.gear.bait}"]`)?.focus({ preventScroll: true }); };
       this.panels.body.querySelector('#tb-done').onclick = () => this.panels.close();
+      this.panels.body.querySelector('#tb-knots').onclick = () => {
+        this.tackleOpen = false;   // the knots page replaces the panel body and its onClose, so the "Tackle set" toast is not wanted here
+        openKnotsList(this, { onBack: () => this.tackleBox() });
+      };
     };
     this.tackleOpen = true;
     this.panels.open(tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond), () => { this.tackleOpen = false; this.toast(`Tackle set: ${RIGS[this.gear.rig].name}${RIGS[this.gear.rig].lure ? '' : ' + ' + (BAITS[this.gear.bait]?.name ?? 'no bait')}. It applies to your next cast.`); });
     render();
   }
   saveGear() { this.progress.gear = { ...this.gear }; this.persist(); }
+  /** A line was cut (a snag, or a fish that dived for structure): offer the re-tie. One prompt per 3 minutes; inside that window the toast says a spare was already tied. Never on a rig change, never in a fight. */
+  onLineCut(reason) {
+    const p = this.progress, now = Date.now(), setting = knotsMode(this.settings, new URLSearchParams(location.search));
+    if (setting === 'off') return;
+    if (!canPromptRetie(p, now)) { this.toast(SPARE_TOAST); return; }
+    const open = () => {
+      if (this.panels.isOpen || this.dialogue.isOpen) { setTimeout(open, 600); return; }   // after the catch flow or any other panel
+      markRetie(p, now); this.persist();
+      openKnot(this, { id: 'uni', mode: chooseMode({ setting, reason: 'retie', p, id: 'uni' }), reason: 'retie' });
+    };
+    setTimeout(open, 900);   // let the cut-line toast land first
+  }
   /** The catch bar's zone touched a piece of litter. */
-  onLitter(kind) {
+  onLitter(kind, meta) {
+    if (meta?.lost) {   // the line you cut at this site (fishing/snags.js): it comes off the count, and pays nothing and counts for nothing (no credits, no Steward points, no litter tally)
+      if (collectLostLine(this.progress, this.eco.id)) { this.persist(); this.audio.play('correct'); this.toast(SNAG_TEXT.lostLine, 'good'); }
+      return;
+    }
     const st = this.progress.steward ??= { points: 0, litter: 0 };
     st.points++; st.litter++; this.persist();
     this.audio.play('correct');

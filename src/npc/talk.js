@@ -12,6 +12,8 @@ import { tradeStatus, progressOf, accept, complete, failQuiz, ensureNpc } from '
 import { grant, rewardName } from './inventory.js';
 import { nameOf } from '../core/anglerData.js';
 import { esc } from '../ui/panels.js';
+import { KNOTS, KNOT_ORDER } from '../content/knots.js';
+import { openKnotCard } from '../ui/knotUI.js';
 import { payMission, missionCoins, enterComp, compStanding, payLitter, litterUnpaid, today as econToday, compOfDay, RIVALS } from '../economy/coins.js';
 import { RATES, COIN } from '../content/shop.js';
 import { addBait } from '../economy/store.js';
@@ -70,6 +72,7 @@ export class Talk {
     if (npc.id === 'bev') { out.push({ id: 'comp', label: "Today's club comp" }); out.push({ id: 'awards', label: pendingCeremony(p) ? '\ud83c\udfc6 Awards night is ready!' : 'Awards night' }); }
     if (npc.id === 'nell' && (hasLicence(p) || coopEligible(p))) out.push({ id: 'coop', label: hasLicence(p) ? '\ud83d\udea2 The co-op' : '\ud83d\udea2 Co-op licence' });
     if (npc.id === 'fatima') out.push({ id: 'tally', label: 'Clean-up tally' });
+    if (npc.id === 'mrwilson') out.push({ id: 'knots', label: '\ud83e\udea2 The knot board' });
     if (npc.id === 'mitra' && (p.esky?.length ?? 0) > 0) out.push({ id: 'sell', label: 'Sell my fish' });
     out.push({ id: 'bye', label: 'Bye' });
     return out;
@@ -155,6 +158,14 @@ export class Talk {
   }
 
   /** Fatima: pays credits for the pieces of litter you have pulled out of the water (the green zone catches it on the catch bar). */
+  /** Mr Wilson's knot board: pick a knot, open its card, tie it (the board is always the full guided version). */
+  async knots(npc, who) {
+    const g = this.game, dlg = g.dialogue;
+    const i = await dlg.say({ who, text: this.fmt('Four knots on the board, {name}. Which one will you tie?'), choices: [...KNOT_ORDER.map(id => KNOTS[id].name), 'Back'], cancel: KNOT_ORDER.length });
+    if (i >= KNOT_ORDER.length) return;
+    dlg.hide();
+    await new Promise(done => openKnotCard(g, KNOT_ORDER[i], { onClose: done }));
+  }
   async tally(npc, who) {
     const g = this.game, p = this.p, dlg = g.dialogue, total = p.steward?.litter ?? 0;
     if (!total) { await dlg.say({ who, text: this.fmt(`Nothing on your tally yet, {name}. Next time a fish is on, steer the green zone over any tangled line or plastic bag that drifts down the bar. I pay ${RATES.litterPiece} credits a piece, up to ${RATES.litterDailyCap} pieces a day.`), button: 'Will do' }); return; }

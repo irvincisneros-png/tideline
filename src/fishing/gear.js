@@ -109,7 +109,7 @@ export function tackleBoxHTML(gear, p = null, site = null, cond = null) {
     ${lure && owns('tool-lurecolours') ? `<h3>Lure colour</h3><div class="tb-baits" id="tb-lures">${LURE_COLOURS.map(c => `<button class="tb-bait tb-lurecol ${colour === c.id ? 'sel' : ''}" data-lure="${c.id}" aria-pressed="${colour === c.id}"><i style="background:${c.css}"></i>${esc(c.name)}</button>`).join('')}</div>
       <p class="tb-note">${esc(LURE_FX[colour]?.hint ?? '')} In ${esc(CLARITY_LABEL[clarity])} at ${esc(time)} it changes the bite by ${(() => { const m = Math.round((lureMod(colour, clarity, time) - 1) * 100); return `${m >= 0 ? '+' : '−'}${Math.abs(m)}%`; })()}.</p>` : ''}
     ${kit.length ? `<p class="tb-note">In your kit: ${kit.join(' · ')}</p>` : ''}
-    <p class="tb-actions"><button class="btn primary" id="tb-done">Done <kbd>T</kbd></button></p>
+    <p class="tb-actions"><button class="btn" id="tb-knots">🪢 Knots</button> <button class="btn primary" id="tb-done">Done <kbd>T</kbd></button></p>
   </div>`;
 }
 

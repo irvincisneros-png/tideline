@@ -52,6 +52,7 @@ export class NPC {
     this.talking = false; this.faceAt = null;
     this.s = 0; this.dir = 1; this.pause = 0; this.sit = 0;
     this.fishes = Object.values(def.sites).some(s => Object.values(s).some(x => x.act === 'fishing'));
+    this.tipPos = new THREE.Vector3();   // the rod tip while the line is out (lineSeg)
     this.fish = { phase: 'rest', t: 0, wait: 0, power: 0, target: new THREE.Vector3(), floatPos: new THREE.Vector3(), got: null };
     if (this.fishes) this.buildLine();
     this.el = mgr.labels.make(def.name, def.role); this.bubbleT = 0; this.markerKind = null;
@@ -189,7 +190,7 @@ export class NPC {
     const F = this.fish, body = this.body;
     F.t -= dt;
     let state = 'ready', power = 0, act = 0;
-    const tip = body.rodTip.getWorldPosition(_tip);
+    const tip = body.rodTip.getWorldPosition(_tip); this.tipPos.copy(tip);
     const cast = this.def.cast ?? 9;
     const surf = (x, z) => world.surfaceAt(x, z);
     switch (F.phase) {
@@ -254,6 +255,9 @@ export class NPC {
     }
     return { state, power, act };
   }
+
+  /** The line this person has in the water as { a: rod tip, b: float } (x, z used) while they wait on a bite, else null: what your cast is checked against (fishing/snags.js crosses). */
+  lineSeg() { const F = this.fish; return this.fishes && !this.away && this.root.visible && F.phase === 'wait' ? { a: this.tipPos, b: F.floatPos } : null; }
 
   // ------------------------------------------------------------------ labels, talking
   say(text, secs = 4.2) {

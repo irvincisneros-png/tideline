@@ -31,7 +31,7 @@ export class Outing {
   ask() {
     const g = this.game, f = g.fishing;
     if (this.busy) return;
-    if (['bite', 'fight', 'landed', 'charge', 'flying'].includes(f.state)) { g.toast('Land or lose this fish first, then head home.', 'warn'); return; }
+    if (['bite', 'fight', 'landed', 'charge', 'flying', 'snagged'].includes(f.state)) { g.toast(f.state === 'snagged' ? 'Free your line first, then head home.' : 'Land or lose this fish first, then head home.', 'warn'); return; }
     const esky = this.p.esky ?? [], bad = esky.filter(x => !x.legal).length;
     g.panels.open(`<h2>Head home?</h2>
       <p>That ends today's outing. ${esky.length ? `You have <b>${esky.length}</b> fish in the esky${bad ? `, <b>${bad} marked ILLEGAL</b>` : ''}.` : 'Your esky is empty: all catch and release.'}</p>

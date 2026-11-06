@@ -12,7 +12,7 @@
 import { MISSION_RADIO } from './teachers.js';
 
 /** Switch these on when the mechanic exists (knots: Day 4, snags: Day 3 of the build plan). Plain object so tests can flip them. */
-export const FEATURES = { knots: false, snags: false };
+export const FEATURES = { knots: true, snags: true };
 
 /** Who speaks on the radio for a giver that is not one of the coast's people. */
 export const GIVERS = {
@@ -37,7 +37,7 @@ export const MISSIONS = [
             { trade: 'mitra-flathead' }],
     reward: 'hat-fairgo', radio: T('the-rules'), next: 'structure' },
   { id: 'structure', giver: 'mrwilson', title: 'Structure', chapter: 4,
-    steps: [{ need: { type: 'snagFreed', n: 1 }, requires: 'snags', hint: 'Free your rig from a snag by tapping, not pulling.' },
+    steps: [{ need: { type: 'snagFreed', n: 1 }, requires: 'snags', hint: 'Fish near structure (rocks, reef, jetty) with a weighted rig or a lure, and free a snag by tapping, not pulling.' },
             { trade: 'mika-flathead' }],
     reward: 'hat-structure', radio: T('structure'), next: 'the-guide' },
   { id: 'the-guide', giver: 'mrcisneros', title: 'The Guide', chapter: 5,

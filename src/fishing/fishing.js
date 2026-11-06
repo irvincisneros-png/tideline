@@ -16,6 +16,9 @@ import { RIGS } from './gear.js';
 import { LURE_COLOURS } from '../npc/inventory.js';
 import { tutorialCatch, tutorialWait, TUTORIAL_MIN_DEPTH } from './tutorial.js';
 import { INTRO } from '../content/teachers.js';
+import { TANGLE_DEFAULT } from '../content/npcs.js';
+import { SnagRoll, SnagState, TangleState, SNAG_TEXT, crosses, bookSnagFreed, bookLineCut, lostLineCount } from './snags.js';
+import { missionsView } from '../npc/missions.js';
 
 const $ = s => document.querySelector(s);
 const LINE_PTS = 20; // the line is drawn as a ribbon curve so it can sag and bend with the fight
@@ -25,7 +28,7 @@ export const CAST_MIN = 5, CAST_MAX = 20; // metres from the angler at 0 and 100
 export class Fishing {
   constructor(game) {
     this.game = game;
-    this.state = 'off'; // off | ready | charge | flying | wait | retrieve | bite | fight | landed
+    this.state = 'off'; // off | ready | charge | flying | wait | retrieve | snagged | bite | fight | landed
     // The line: a camera-facing ribbon (2 vertices per point), dark and thin.
     const pos = new Float32Array(LINE_PTS * 2 * 3), idx = [];
     for (let i = 0; i < LINE_PTS - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -70,6 +73,9 @@ export class Fishing {
     this.reel = false; this.fightT = 0;
     this.tutorial = false;   // the teachers' opening (ui/intro.js): a bite within a few seconds, always the tutorial bream, no bait used, a fight that cannot be lost
     this.lineDir = new THREE.Vector3(0, 0, 1);   // unit bearing from the angler to the float while a line is out
+    // Snags (snags.js): the roll runs while the rig moves, 'snagged' is the state; forceSnag guarantees the next eligible roll (the Structure mission sets it, so do tests).
+    this.snagRoll = new SnagRoll(); this.snag = null; this.snagKind = null; this.snagFrom = 'wait'; this.snagWho = null; this.forceSnag = false; this.bendX = 0;
+    this.tangled = new Set(); this._outingRef = null;   // fishing NPCs whose lines you have crossed this outing (one tangle each)
   }
   get active() { return this.state !== 'off'; }
   /** Is a lure tied on (the retrieve replaces the wait)? */
@@ -89,15 +95,16 @@ export class Fishing {
 
   /** R: take the rod out or put it away. spot: a key of SPOTS (the cast re-checks it where the float lands). */
   toggle(spot) {
+    if (this.state === 'snagged') { this.game.toast(this.snagKind === 'tangle' ? 'Wind the lines clear first: hold Space.' : 'Snagged! Tap Space to let it drop off before you put the rod away.', 'warn'); return; }
     if (this.active) { this.stop(); return; }
     this.spot = spot; this.state = 'ready';
     this.game.toast(`Rod out (${SPOTS[spot].label}). Hold Space to wind up, release to cast. Press T for your tackle box. R puts the rod away.`);
   }
   /** Can the player change tackle right now? Not while a fish is on. */
-  get canChangeGear() { return !['bite', 'fight'].includes(this.state); }
+  get canChangeGear() { return !['bite', 'fight', 'snagged'].includes(this.state); }
   stop() {
     this.bar.stop(); this.angler?.setBend(0);
-    this.state = 'off'; this.landT = 0; this.line.visible = false; this.float.visible = false; this.ripple.visible = false; this.aim.visible = false; this.aimLine.visible = false; this.bang.visible = false;
+    this.snag = null; this.state = 'off'; this.landT = 0; this.line.visible = false; this.float.visible = false; this.ripple.visible = false; this.aim.visible = false; this.aimLine.visible = false; this.bang.visible = false;
     this.hideShadow();
     this.game.walker.frozen = false;
     this.angler?.hold(null); this.disposeHeld();
@@ -132,17 +139,18 @@ export class Fishing {
     let prompt = '';
     const surf = (x, z) => world.surfaceAt(x, z);
     // On a drifting boat the bait drifts with it: carry the float and the cast target along (g.carry is set each frame by the site, eco.tick).
-    if (g.carry && (g.carry.x || g.carry.z) && ['flying', 'wait', 'retrieve', 'bite'].includes(this.state)) { this.float.position.x += g.carry.x; this.float.position.z += g.carry.z; this.target.x += g.carry.x; this.target.z += g.carry.z; if (this.from) { this.from.x += g.carry.x; this.from.z += g.carry.z; } }
+    if (g.carry && (g.carry.x || g.carry.z) && ['flying', 'wait', 'retrieve', 'snagged', 'bite'].includes(this.state)) { this.float.position.x += g.carry.x; this.float.position.z += g.carry.z; this.target.x += g.carry.x; this.target.z += g.carry.z; if (this.from) { this.from.x += g.carry.x; this.from.z += g.carry.z; } }
     // Once the line is out the angler plants their feet and faces the float: the bearing is locked (see lineDir), walk input is ignored.
-    w.frozen = ['charge', 'flying', 'wait', 'retrieve', 'bite', 'fight', 'landed'].includes(this.state);
+    w.frozen = ['charge', 'flying', 'wait', 'retrieve', 'snagged', 'bite', 'fight', 'landed'].includes(this.state);
     if (this.state === 'flying') this.lineDir.set(this.target.x - w.pos.x, 0, this.target.z - w.pos.z).normalize();
-    else if (this.state === 'wait' || this.state === 'retrieve' || this.state === 'bite') { this.lineDir.set(this.float.position.x - w.pos.x, 0, this.float.position.z - w.pos.z); if (this.lineDir.lengthSq() > 0.25) this.lineDir.normalize(); else this.lineDir.copy(w.facing); }
+    else if (this.state === 'wait' || this.state === 'retrieve' || this.state === 'snagged' || this.state === 'bite') { this.lineDir.set(this.float.position.x - w.pos.x, 0, this.float.position.z - w.pos.z); if (this.lineDir.lengthSq() > 0.25) this.lineDir.normalize(); else this.lineDir.copy(w.facing); }
     if (LINE_OUT.includes(this.state)) w.face(this.lineDir.x, this.lineDir.z, dt, 10);
     if (this.state === 'ready' || this.state === 'charge') g.aimAtCursor(dt); // desktop: face the pointer while the rod is out
     this.aim.visible = this.aimLine.visible = this.state === 'charge';
     if (this.state === 'ready') {
       prompt = 'Hold <kbd>Space</kbd> to wind up a cast';
-      if (space) { this.state = 'charge'; this.power = 0; }
+      if (!space) this.needRelease = false;
+      if (space && !this.needRelease) { this.state = 'charge'; this.power = 0; }   // (needRelease: the Space that cut a line or wound in a tangle does not start the next cast)
     } else if (this.state === 'charge') {
       this.power = Math.min(1, this.power + dt * 0.85);
       this.castTarget(this.power, this._aim ??= new THREE.Vector3());
@@ -174,6 +182,8 @@ export class Fishing {
         this.waitT = this.tutorial ? tutorialWait() : waitFor(this.spot, this.ctx);
         this.mover = new MoveReader(); this.nearSp = null; this.sink = 0;
         if (this.onLure && !this.tutorial) { this.state = 'retrieve'; this.hideShadow(); this.sh.wait = 0.8 + Math.random() * 1.8; this.lureTip(); }
+        this.snagRoll.newCast(); this.snagRoll.force = this.forceSnag || this.missionWantsSnag();
+        if (!this.tutorial && this.checkTangle(tipW, this.float.position)) this.enterSnag('tangle', 'wait');
       }
     } else if (this.state === 'wait') {
       // Tap Space: wind in and cast again. Hold Space: draw the bait slowly toward you, to put it where the fish are (a school within a few metres bites sooner).
@@ -187,6 +197,7 @@ export class Fishing {
       prompt = this.nearSp ? 'Your bait is right by a school… (hold <kbd>Space</kbd> to draw it in, tap to wind in)' : 'Waiting for a bite… (hold <kbd>Space</kbd> to draw the bait in slowly, tap to wind in and cast again)';
       if (move === 'twitch' || this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; if (move === 'twitch') this.baitTip(); }
       else if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = this.tutorial ? tutorialCatch() : pickCatch(this.spot, this.nearSp ? { ...this.ctx, arch: this.nearSp } : this.ctx); g.audio.play('warn'); if (!this.tutorial) g.useBait(); }   // the fish takes the bait: one bait is used
+      else if (move === 'reel' && this.trySnag(dt, move, 'wait')) prompt = SNAG_TEXT.prompt;   // drawing the bait in over structure can snag it (never a still wait)
     } else if (this.state === 'retrieve') {
       prompt = this.retrieve(dt, t, space, eye, surf, world);
     } else if (this.state === 'bite') {
@@ -199,6 +210,8 @@ export class Fishing {
       if (this.landT > 0 && (this.landT -= dt) <= 0) {
         g.onFishLanded(this.landed, this.spot, () => { g.angler.hold(null); this.disposeHeld(); g.walker.frozen = false; this.state = this.state === 'off' ? 'off' : 'ready'; });
       }
+    } else if (this.state === 'snagged') {
+      prompt = this.snagStep(dt, t, space, surf);
     } else if (this.state === 'fight') {
       // The catch bar runs the fight; the line, float and rod follow what the fish does.
       const bar = this.bar;
@@ -215,7 +228,7 @@ export class Fishing {
       this.sag = 0.04 + 0.2 * (1 - act);
     }
     // Float extras: ripple ring on the water, "!" over a bite.
-    const fl = this.float.visible && ['wait', 'retrieve', 'bite', 'fight'].includes(this.state);
+    const fl = this.float.visible && ['wait', 'retrieve', 'snagged', 'bite', 'fight'].includes(this.state);
     this.ripple.visible = fl;
     if (fl) {
       const fp = this.float.position, ph = (t * 0.9) % 1, k = this.state === 'wait' ? 1 : 1.6;
@@ -224,9 +237,101 @@ export class Fishing {
     this.bang.visible = this.state === 'bite';
     if (this.bang.visible) { const fp = this.float.position; this.bang.position.set(fp.x, fp.y + 1.5 + Math.abs(Math.sin(t * 9)) * 0.3, fp.z); }
     // Line from the rod tip to the float / fish.
-    this.line.visible = this.float.visible && ['flying', 'wait', 'retrieve', 'bite', 'fight'].includes(this.state);
+    this.line.visible = this.float.visible && ['flying', 'wait', 'retrieve', 'snagged', 'bite', 'fight'].includes(this.state);
     if (this.line.visible) this.drawLine(tipW, this.float.position);
     $('#prompt').innerHTML = g.hint(prompt);
+  }
+
+
+  // ------------------------------------------------------------------ snags and tangles (snags.js)
+  /** Roll for a snag this frame (called while the rig moves). Returns true if the rig has just snagged. Never in the teachers' opening. */
+  trySnag(dt, move, from) {
+    if (this.tutorial) return false;
+    const hit = this.snagRoll.step(dt, { spot: this.spot, rig: this.game.gear.rig, state: from, move, sink: this.sink ?? 0, shadow: this.sh.on, speed: from === 'wait' ? DRAW_SPEED : REEL_SPEED });
+    if (hit) this.enterSnag('snag', from);
+    return hit;
+  }
+  /** Is the current mission "Structure" waiting for its first freed snag? Then the next eligible roll is guaranteed (it does not depend on luck). */
+  missionWantsSnag() {
+    try { const c = missionsView(this.game.progress).current; return !!c && c.mission.steps.some((st, i) => st.need?.type === 'snagFreed' && !c.steps[i].done); } catch { return false; }
+  }
+  /** A one-time tip (saved in p.tips). */
+  tipOnce(key, text, kind = 'good') { const p = this.game.progress; if (p.tips?.[key]) return; (p.tips ??= {})[key] = true; this.game.persist?.(); this.game.toast(text, kind); }
+  /** The rig is stuck (kind 'snag': tap to free it, hold to cut it) or crossed with an NPC's line (kind 'tangle': hold to wind in). from: the state to go back to. */
+  enterSnag(kind, from) {
+    const g = this.game;
+    this.snagKind = kind; this.snagFrom = from; this.state = 'snagged'; this.forceSnag = false; this.reel = false; this.bendX = 0;
+    this.hideShadow();
+    this.snag = kind === 'tangle' ? new TangleState() : new SnagState();
+    this.snagTaps = 0; this.yankTipped = false;
+    g.audio.play('warn'); g.fx.splash?.(this.float.position, 3);
+    if (kind === 'tangle') {
+      const n = this.snagWho, lines = n?.def?.tangle ?? TANGLE_DEFAULT;
+      g.toast(`Your line has crossed ${n?.def?.name ?? 'someone'}'s! Hold Space to wind in and untangle.`, 'warn');
+      n?.say?.(lines[Math.floor(Math.random() * lines.length)], 4.5);
+    } else this.tipOnce('snagStructure', SNAG_TEXT.tipStructure);
+  }
+  /** One frame of a snag or tangle: feed the player's Space, show the tension, free or cut. Returns the HUD prompt. */
+  snagStep(dt, t, space, surf) {
+    const g = this.game, S = this.snag, fp = this.float.position, kind = this.snagKind, r = S.step(dt, space), tn = S.tension;
+    if (kind === 'snag' && S.taps > this.snagTaps) { this.snagTaps = S.taps; g.audio.play('click'); g.fx.splash?.(fp, 2); }   // each counted tap is heard and seen
+    fp.y = surf(fp.x, fp.z) - 0.04 - tn * 0.1 + Math.sin(t * (9 + tn * 20)) * 0.015 * (kind === 'snag' ? tn : 0.3);
+    // The tension ring (interestRing reused): calm green at rest, amber, then red as the line nears breaking. A tangle shows its winding progress in teal.
+    const ring = this.interestRing, c = ring.material.color;
+    ring.visible = true; ring.position.set(fp.x, surf(fp.x, fp.z) + 0.04, fp.z);
+    if (kind === 'snag') c.setRGB(0.35 + 0.62 * tn, 0.85 - 0.6 * tn, 0.4 - 0.2 * tn); else c.setRGB(0.3, 0.75, 0.85);
+    ring.scale.setScalar(kind === 'snag' ? 1.5 + 1.5 * tn : 1.5 + 1.0 * tn); ring.material.opacity = 0.75 + 0.25 * tn;   // big enough to read from the high camera
+    this.bendX = kind === 'snag' ? 0.12 + 0.7 * tn : 0.1 + 0.3 * tn;   // the rod loads up with the tension (angler.js extraBend)
+    if (kind === 'snag' && tn > 0.35 && !this.yankTipped) { this.yankTipped = true; this.tipOnce('snagYank', SNAG_TEXT.tipYank, 'warn'); }
+    if (r === 'freed') this.freeSnag();
+    else if (r === 'cut') this.cutLine('snag');
+    if (this.state !== 'snagged') return '';
+    if (kind === 'tangle') return SNAG_TEXT.tanglePrompt.replace('{who}', this.snagWho?.def?.name ?? 'their');
+    return tn > 0.3 ? 'Let go! Don\'t pull. Tap <kbd>Space</kbd>.' : SNAG_TEXT.prompt;
+  }
+  /** Out of a snag or tangle: put the ring away, drop the rod load. */
+  endSnag() { this.hideShadow(); this.bendX = 0; this.snag = null; }
+  /** The snag let go (tapped free) or the lines came apart. A snag goes back to what it was doing with the rig where it was; a tangle winds the rig in. */
+  freeSnag() {
+    const g = this.game, kind = this.snagKind;
+    g.fx.splash?.(this.float.position, 5); g.audio.play('smallSplash');
+    this.endSnag();
+    if (kind === 'tangle') {
+      this.state = 'ready'; this.needRelease = true; this.float.visible = false;
+      g.toast('Lines clear! Wind in and cast again, a little away from them.', 'good');
+      return;
+    }
+    bookSnagFreed(g.progress); g.persist();
+    this.state = this.snagFrom; this.mover = new MoveReader(); this.sink = 0;
+    g.toast(SNAG_TEXT.freed, 'good');
+    this.tipOnce('snagFloat', SNAG_TEXT.tipFloat);
+  }
+  /**
+   * The line is cut: a snag held on too long (reason 'snag') or a fish that dived for structure on the catch bar (reason 'fight', msg = its toast). Costs the bait
+   * (a snag only: a fight already used it when the fish bit; a lure rig loses nothing), counts one lost line at this site, calls game.onLineCut (the re-tie), then
+   * the rod is ready again. No Steward deduction and no rig is ever taken out of the tackle box.
+   */
+  cutLine(reason, msg) {
+    const g = this.game, p = g.progress;
+    bookLineCut(p, g.eco.id);
+    if (reason === 'snag') {
+      if (!this.onLure) g.useBait();   // the game's own bait counter
+      this.endSnag(); this.state = 'ready'; this.needRelease = true; this.float.visible = false; this.catch = null; this.ctx = null;
+      g.toast(`${SNAG_TEXT.cut}${this.onLure ? '' : ' Your bait went with it.'}`, 'warn'); g.audio.play('warn');
+    } else this.lost(msg);
+    g.persist();
+    g.onLineCut?.(reason);
+  }
+  /** At splashdown: does the line from the rod tip to the float cross a fishing NPC's line (the NPC waiting on a bite)? One tangle per NPC per outing. */
+  checkTangle(tip, fp) {
+    const g = this.game, o = g.progress?.outing;
+    if (this._outingRef !== (o ?? null)) { this._outingRef = o ?? null; this.tangled.clear(); }
+    for (const n of g.npcs?.npcs ?? []) {
+      const seg = n.lineSeg?.();
+      if (!seg || this.tangled.has(n.id)) continue;
+      if (crosses({ x: tip.x, z: tip.z }, { x: fp.x, z: fp.z }, seg.a, seg.b)) { this.tangled.add(n.id); this.snagWho = n; return true; }
+    }
+    return false;
   }
 
   /** Move the rig `step` metres toward the angler along the water. */
@@ -249,6 +354,7 @@ export class Fishing {
     this.lureMesh.rotation.y = Math.atan2(eye.x - fp.x, eye.z - fp.z) + Math.PI / 2;
     this.dist = fp.distanceTo(eye);
     if (this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; this.hideShadow(); return ''; }
+    if (this.trySnag(dt, move, 'retrieve')) return SNAG_TEXT.prompt;   // reeling, or sitting sunk, in structure
     const away = this.lineDir;
     if (!sh.on) {
       sh.wait -= dt;
@@ -298,7 +404,7 @@ export class Fishing {
   drawLine(a, b) {
     const p = this.line.geometry.attributes.position, cam = this.game.camera.position;
     const fighting = this.state === 'fight', len = a.distanceTo(b);
-    const sag = (['wait', 'bite'].includes(this.state) ? 0.3 : this.state === 'retrieve' ? (this.reel ? 0.08 : 0.22) : fighting ? this.sag : 0.1) * Math.min(14, len) * 0.2, bow = (fighting ? 0.1 : 0.55) * sag;
+    const sag = (['wait', 'bite'].includes(this.state) ? 0.3 : this.state === 'snagged' ? 0.3 * (1 - 0.8 * (this.snag?.tension ?? 0)) : this.state === 'retrieve' ? (this.reel ? 0.08 : 0.22) : fighting ? this.sag : 0.1) * Math.min(14, len) * 0.2, bow = (fighting ? 0.1 : 0.55) * sag;
     const dx = b.x - a.x, dz = b.z - a.z, ln = Math.hypot(dx, dz) || 1, sx = -dz / ln, sz = dx / ln;
     const prev = this._lp ??= new THREE.Vector3(), cur = new THREE.Vector3(), seg = new THREE.Vector3(), side = new THREE.Vector3(), toCam = new THREE.Vector3();
     for (let i = 0; i < LINE_PTS; i++) {
@@ -331,10 +437,11 @@ export class Fishing {
       rod: gs.rod, line: gs.line,   // your rod and reel/line (economy/store.js): zone size, how fast the fish tires you out, how well the line holds a bolting fish
       tutorial: this.tutorial,
       onSave: () => this.game.toast('Strong line held! You turned it just before the reef.', 'good'),
-      onLitter: kind => this.game.onLitter(kind),
+      lostLine: lostLineCount(this.game.progress, this.game.eco.id) > 0,   // a line of yours is still down here: the first litter on the bar is that line (snags.js)
+      onLitter: (kind, meta) => this.game.onLitter(kind, meta),
       onEnd: r => {
         if (r.won) this.land();
-        else if (r.reason === 'snag') this.lost('Snagged! The fish dived for structure (reef, rocks, weed) and cut the line. Reef fish bolt for cover: keep the pressure on and turn them before they get there.');
+        else if (r.reason === 'snag') this.cutLine('fight', 'Snagged! The fish dived for structure (reef, rocks, weed) and cut the line. Reef fish bolt for cover: keep the pressure on and turn them before they get there.');
         else this.lost('The fish shook the hook and got away. Keep the fish inside the green zone to wear it out.');
       },
     });
@@ -375,7 +482,7 @@ function makeBang() {
   s.scale.setScalar(1.0); s.renderOrder = 20;
   return s;
 }
-const LINE_OUT = ['flying', 'wait', 'retrieve', 'bite', 'fight', 'landed'];
+const LINE_OUT = ['flying', 'wait', 'retrieve', 'snagged', 'bite', 'fight', 'landed'];
 const REEL_SPEED = 1.7, TWITCH_HOP = 0.45, DRAW_SPEED = 0.7;   // m/s reeling a lure, metres per twitch, m/s drawing a bait in
 const SHOAL_NEAR = 3;   // a bait this close to a school (metres) bites sooner, and that school's species takes it
 export { RULES, judge };
