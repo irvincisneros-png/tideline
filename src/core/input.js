@@ -1,4 +1,4 @@
-// Keyboard + mouse with pointer lock. Game code polls `keys` and drains mouse deltas.
+// Keyboard + mouse. Drag with any mouse button to look (pointer lock is not used: it is confusing on school laptops). Game code polls `keys` and drains mouse deltas.
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -11,6 +11,7 @@ export class Input {
     this.wantLock = false;
     this.mouseDown = { 0: false, 2: false };
     this.gameplay = false; // set by the game while surfing/diving with no panel open
+    this.dragLook = true;  // look by dragging with any mouse button (a click without a drag is still a click); pointer lock is never asked for
     addEventListener('keydown', e => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       // Leave Tab/Space/Enter alone for buttons and dialogs so the UI stays keyboard-operable.
@@ -32,11 +33,13 @@ export class Input {
     canvas.addEventListener('mousedown', e => {
       this.mouseDown[e.button] = true;
       this.downAt = { x: e.clientX, y: e.clientY };
+      canvas.classList.add('dragging');
       if (this.wantLock && !this.locked && !this.dragLook) { this.lock(); return; }
       if (!this.dragLook || this.locked) this.clicks.push({ button: e.button, x: e.clientX, y: e.clientY });
     });
     addEventListener('mouseup', e => {
       this.mouseDown[e.button] = false;
+      if (!this.mouseDown[0] && !this.mouseDown[1] && !this.mouseDown[2]) canvas.classList.remove('dragging');
       // Drag-look mode: a click without dragging still counts as a click (photo / info card).
       if (this.dragLook && !this.locked && this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) < 5) this.clicks.push({ button: e.button, x: e.clientX, y: e.clientY });
     });

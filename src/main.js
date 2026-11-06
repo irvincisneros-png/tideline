@@ -409,7 +409,7 @@ class Game {
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Z / C', 'turn camera'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / work lure / strike'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Drag / Z / C', 'look around'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / work lure / strike'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
     this.outing.start();
     if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
     this.updateStats();

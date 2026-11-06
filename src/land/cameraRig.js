@@ -1,11 +1,12 @@
 // Third-person follow camera. The default is the diorama view (high, near top-down, like I Just Wanted to Fish); the player can tilt it all the way down to a low
-// over-the-shoulder view that shows the horizon, the sky and the sunset: right-drag / two-finger drag, F (lower) and G (higher), or V to cycle three presets
+// over-the-shoulder view that shows the horizon, the sky and the sunset: drag with the mouse / two-finger drag, F (lower) and G (higher), or V to cycle three presets
 // (Diorama, Low, Over the shoulder) with a smooth glide. While a fish is on, the camera eases lower and side-on so the crank, rod bend and lean can be read.
 // It is never inside the terrain; props and canopies that would hide the angler are cut away in the shaders (ocean/shaders.js cutaway).
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
 import { PITCH, PRESETS, nextPreset, presetNear, viewParams, angleDiff, fightPitch, fightYawOffset, fightFocus } from './cameraViews.js';
 
+export const LOOK_EASE = 16;   // 1/s: how fast a look impulse eases out (higher = snappier, lower = floatier)
 export const CAM = { pitch: PITCH.diorama, pitchMin: PITCH.min, pitchMax: PITCH.max, dist: 12.6, distMin: 7.5, distMax: 22, fov: 42 };
 const _dir = new THREE.Vector3(), _aim = new THREE.Vector3();
 
@@ -16,6 +17,7 @@ export class CameraRig {
     this.preset = 'diorama'; this.yawGoal = null;
     this.fightBlend = 0; this.fightYaw = 0; this.fightOn = false; this.fightTurned = false;   // fight camera state
     this.focus = new THREE.Vector3(); this.pos = new THREE.Vector3();
+    this.yawVel = 0; this.pitchVel = 0; this.turnV = 0; this.tiltV = 0; this.pitchRate = 4;   // look smoothing: mouse deltas feed a velocity that eases out; keys ramp up and down
     this.vp = viewParams(this.pitch);
     camera.fov = CAM.fov; camera.updateProjectionMatrix();
   }
@@ -29,12 +31,12 @@ export class CameraRig {
   /** Glide to a preset ('diorama' | 'low' | 'shoulder'); the over-the-shoulder view also swings round behind the angler. */
   setPreset(id, heading = null) {
     const p = PRESETS[id]; if (!p) return;
-    this.preset = id; this.pitchGoal = p.pitch; this.zoom = p.zoom;
+    this.preset = id; this.pitchGoal = p.pitch; this.zoom = p.zoom; this.pitchRate = 4;
     this.yawGoal = p.behind && heading != null ? heading + Math.PI : null;
   }
   cyclePreset(heading = null) { this.setPreset(nextPreset(presetNear(this.pitchGoal) === 'custom' ? this.preset : presetNear(this.pitchGoal)), heading); return this.preset; }
-  /** Tilt by hand (radians, positive = higher / more top-down). */
-  tilt(d) { this.pitchGoal = this.pitch = clamp(this.pitchGoal + d, CAM.pitchMin, CAM.pitchMax); this.preset = presetNear(this.pitch); }
+  /** Tilt by hand (radians, positive = higher / more top-down): the goal moves at once and the view eases after it. */
+  tilt(d) { this.pitchGoal = clamp(this.pitchGoal + d, CAM.pitchMin, CAM.pitchMax); this.pitchRate = 14; this.preset = presetNear(this.pitchGoal); }
   get presetLabel() { return PRESETS[this.preset]?.label ?? 'Custom'; }
   /**
    * @param {number} dt
@@ -46,21 +48,28 @@ export class CameraRig {
    */
   update(dt, world, target, also = null, active = true, extra = {}) {
     const inp = this.input, sens = this.settings.sensitivity ?? 1;
+    // Mouse and touch deltas are not applied raw: each one is an impulse into a velocity that eases out over ~60 ms (LOOK_EASE), so a jittery drag reads
+    // as one smooth turn and the view glides to a stop when the finger lifts. The keys ramp up and down the same way instead of starting at full speed.
+    const ease = Math.exp(-LOOK_EASE * dt), k = (1 - ease) / Math.max(dt, 1e-4);
+    let turn = 0, tk = 0;
     if (active) {
       const [mx, my] = inp.takeMouse();
       if (mx) { this.yawGoal = null; if (this.fightOn) this.fightTurned = true; }
-      this.yaw -= mx * 0.0042 * sens;
-      if (my) this.tilt(-my * 0.0035 * sens * (this.settings.invertY ? -1 : 1));
-      const tk = (inp.down('KeyG') ? 1 : 0) - (inp.down('KeyF') ? 1 : 0);   // F lowers the view, G raises it (R is the rod, T the tackle box)
-      if (tk) this.tilt(tk * 0.9 * dt);
-      const turn = (inp.down('KeyC') ? 1 : 0) - (inp.down('KeyZ') ? 1 : 0);   // E talks and Q opens the quest log, so the camera turns on Z / C
+      this.yawVel -= mx * 0.0042 * sens * k;
+      if (my) this.pitchVel -= my * 0.0035 * sens * (this.settings.invertY ? -1 : 1) * k;
+      tk = (inp.down('KeyG') ? 1 : 0) - (inp.down('KeyF') ? 1 : 0);   // F lowers the view, G raises it (R is the rod, T the tackle box)
+      turn = (inp.down('KeyC') ? 1 : 0) - (inp.down('KeyZ') ? 1 : 0);   // E talks and Q opens the quest log, so the camera turns on Z / C
       if (turn) { this.yawGoal = null; if (this.fightOn) this.fightTurned = true; }
-      this.yaw += turn * 1.6 * sens * dt;
       const z = inp.takeZoom();
       if (z) this.zoom = clamp(this.zoom * Math.pow(1.12, z), CAM.distMin, CAM.distMax);
-    }
+    } else { inp.takeMouse?.(); this.yawVel = this.pitchVel = 0; }
+    this.turnV = damp(this.turnV, turn, 9, dt); this.tiltV = damp(this.tiltV, tk, 9, dt);
+    this.yaw += (this.yawVel + this.turnV * 1.6 * sens) * dt;
+    const dp = (this.pitchVel + this.tiltV * 0.9) * dt;
+    if (Math.abs(dp) > 1e-6) this.tilt(dp);
+    this.yawVel *= ease; this.pitchVel *= ease;
     if (this.yawGoal != null) { const d = angleDiff(this.yaw, this.yawGoal); this.yaw += d * (1 - Math.exp(-3 * dt)); if (Math.abs(d) < 0.01) this.yawGoal = null; }
-    this.pitch = damp(this.pitch, this.pitchGoal, 4, dt);
+    this.pitch = damp(this.pitch, this.pitchGoal, this.pitchRate, dt);
     // The fight camera: on when a fish is hooked (and the player has not turned it off), off again once landed. A player's own turn during the fight is respected.
     const fight = !!extra.fight && this.settings.fightCam !== false && !!also;
     if (fight && !this.fightOn) this.fightTurned = false;

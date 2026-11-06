@@ -850,3 +850,5 @@ body.touch #minimap { left: calc(12px + env(safe-area-inset-left)); top: calc(56
 @media (max-height: 480px) { .region-box { display: flex; gap: 12px; align-items: flex-start; } .region-box .region-wrap { flex: none; margin: 0; width: min(58%, calc((100vh - 110px) * 1.63)); } .region-box .region-card { flex: 1; margin-top: 0; } }
 @media (max-width: 560px) { .region-svg .rg-pin text:last-child { font-size: 5.4px; } .map-legend { gap: 4px 12px; font-size: 12px; } }
 @media (max-height: 480px) { .panel[data-flow="map"] .sub { display: none; } .panel[data-flow="map"] h2 { display: inline-block; margin-right: 12px; } .map-tabs { display: inline-flex; margin: 0 0 6px; } }
+
+#gl.dragging { cursor: grabbing; }
