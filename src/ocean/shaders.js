@@ -32,6 +32,8 @@ export const globalUniforms = {
   uLampCol: { value: new THREE.Color(1.0, 0.72, 0.38) },
   uClear: { value: 0 },   // extra metres of see-through water (the offshore reef: you can see the reef from the surface)
   uHaze: { value: 0.06 }, // how fast the seabed fades to water colour with depth
+  uCloudShade: { value: 0 },   // drifting cloud shadows on the land: how dark, 0 = none (night, underwater)
+  uGold: { value: 0 },         // golden hours (early morning, late afternoon), 0..1: warmer key light and longer shadows
   uGlow: { value: 0 },    // the warm sunrise / sunset colour, 0..1
   uLampOn: { value: 0 }, // the angler's feet (y < -900 = none): tree canopies and roofs between the camera and the angler are cut away
 };
@@ -164,7 +166,7 @@ export function patchUnderwater(material, opts = {}) {
   material.onBeforeCompile = (shader, renderer) => {
     if (prev) prev(shader, renderer);
     shader.uniforms.uWaterCol = globalUniforms.uWaterTint;
-    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull', 'uLamps', 'uLampCol', 'uLampOn', 'uHaze']) shader.uniforms[k] = globalUniforms[k];
+    for (const k of ['uTime', 'uWaterLevel', 'uCaustics', 'uAbsorb', 'uSunDir', 'uBleach', 'uDead', 'uUnderwater', 'uStyle', 'uStyleSky', 'uStyleGround', 'uStyleSun', 'uStyleRim', 'uFull', 'uLamps', 'uLampCol', 'uLampOn', 'uHaze', 'uCloudShade']) shader.uniforms[k] = globalUniforms[k];
     if (opts.cutaway) shader.uniforms.uPlayer = globalUniforms.uPlayer;
     shader.uniforms.uSwimLen = { value: opts.swimLength ?? 1 };
     shader.uniforms.uSway = { value: opts.sway ?? 0 };
@@ -230,7 +232,7 @@ export function patchUnderwater(material, opts = {}) {
       #endif
       vWPos = (modelMatrix * wpw).xyz;`);
 
-    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn; uniform float uHaze;\n` + causticGLSL + uwFogGLSL + paintGLSL;
+    let fHead = `varying vec3 vWPos;\nuniform vec3 uWaterCol; uniform float uTime; uniform float uWaterLevel; uniform float uCaustics; uniform vec3 uAbsorb; uniform vec3 uSunDir; uniform float uBleach; uniform float uDead; uniform float uUnderwater; uniform float uStyle; uniform float uFull; uniform vec3 uStyleSky; uniform vec3 uStyleGround; uniform vec3 uStyleSun; uniform vec3 uStyleRim; uniform vec4 uLamps[6]; uniform vec3 uLampCol; uniform float uLampOn; uniform float uHaze; uniform float uCloudShade;\n` + causticGLSL + uwFogGLSL + paintGLSL;
     if (opts.coral) fHead += 'varying float vBleach;\n';
     if (opts.detail) fHead += `varying vec3 vLocal;
       float dHash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -324,13 +326,15 @@ export function patchUnderwater(material, opts = {}) {
         diffuseColor.rgb += 0.06 * step(0.985, pHash(floor(vWPos * 28.0)));   // speckles (their 3.6 cm cells read as squares on a fish, so fish skip them)
         #endif
         float lit = smoothstep(0.06, 0.32, direct);                       // soft terminator (cosy diorama look)
+        // Cloud shadows drifting over the land: big soft patches of shade that keep the light moving (above the water only, not at night).
+        if (uUnderwater < 0.5) lit *= 1.0 - uCloudShade * smoothstep(0.52, 0.74, pNoise(vec3(vWPos.xz * 0.028 + uTime * vec2(0.035, 0.021), 3.7))) * smoothstep(uWaterLevel - 1.5, uWaterLevel + 0.2, vWPos.y);
         float hi = smoothstep(0.45, 0.75, direct) * 0.12;                 // gentle lift where light is strongest
         vec3 nS = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
         vec3 amb = mix(uStyleGround, uStyleSky, nS.y * 0.5 + 0.5);
         float rim = pow(1.0 - abs(dot(nS, normalize(cameraPosition - vWPos))), 3.0);
         rim = smoothstep(0.3, 0.9, rim) * 0.6 * (1.0 - smoothstep(0.55, 0.9, nS.y)); // soft rim on the sides of things, not on flat ground
         // Shadows are a cool blue-teal tint of the colour, never grey; light is warm.
-        vec3 shadowTint = vec3(0.8, 0.92, 1.1);
+        vec3 shadowTint = vec3(0.76, 0.86, 1.12);
         outgoingLight = diffuseColor.rgb * (amb * shadowTint + uStyleSun * (lit + hi)) + uStyleRim * rim * (0.3 + 0.7 * lit) + totalEmissiveRadiance;
         #ifdef TL_FISH
           // A soft highlight along the back from the sky above, in the water only (never on the brag mat or a card): separates a swimming fish from the sand and the water. It never touches the markings (added light, a pale line, not a colour).

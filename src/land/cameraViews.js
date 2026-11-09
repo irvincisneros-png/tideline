@@ -6,9 +6,11 @@ import { clamp, lerp, smoothstep } from '../core/noise.js';
 export const PITCH = { min: 0.44, max: 1.45, diorama: 1.06 };
 export const PRESETS = {
   diorama: { label: 'Diorama', pitch: 1.06, zoom: 12.6 },
-  low: { label: 'Low', pitch: 0.74, zoom: 11, },
+  low: { label: 'Low', pitch: 0.66, zoom: 11.5 },
   shoulder: { label: 'Over the shoulder', pitch: 0.47, zoom: 8.2, behind: true },
 };
+/** The view a new game starts in: low enough that the water, the far shore and the sky are in frame (the top-down diorama shows only ground). */
+export const DEFAULT_PRESET = 'low';
 export const PRESET_ORDER = ['diorama', 'low', 'shoulder'];
 export const nextPreset = id => PRESET_ORDER[(PRESET_ORDER.indexOf(id) + 1) % PRESET_ORDER.length] ?? 'diorama';
 /** Which preset (if any) a pitch is close to; 'custom' once the player has tilted by hand. */

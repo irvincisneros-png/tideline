@@ -117,7 +117,7 @@ body.intro-on #menu-btn { opacity: 0.6; }
 @keyframes siteCard { 0% { opacity: 0; transform: translateY(10px); } 12% { opacity: 1; transform: none; } 72% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #site-name.show { animation-name: siteCardFade; } @keyframes siteCardFade { 0%, 100% { opacity: 0; } 12%, 72% { opacity: 1; } } }
 /* The one action, bottom centre. */
-.prompt { position: absolute; left: 50%; bottom: clamp(64px, 13vh, 120px); transform: translateX(-50%); font-size: clamp(14px, 1.5vw, 17px); font-weight: 800; text-align: center; line-height: 1.5; color: var(--hud-text); background: var(--glass-ink); border-radius: 22px; padding: 7px 18px; max-width: min(560px, 76vw); }
+.prompt { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); font-size: clamp(14px, 1.5vw, 17px); font-weight: 800; text-align: center; line-height: 1.5; color: var(--hud-text); background: var(--glass-ink); border-radius: 22px; padding: 7px 18px; max-width: min(560px, 76vw); }
 .prompt:empty { display: none; }
 .prompt kbd, .keys kbd { background: var(--cream3); color: var(--teal-deep); border: 0; box-shadow: 0 2px 0 rgba(8, 36, 43, 0.55); border-radius: 6px; padding: 0 7px; margin: 0 2px; font-size: 0.82em; line-height: 1.55; vertical-align: 1px; }
 kbd.pad { border-radius: 99px; min-width: 1.55em; padding: 0 5px; }

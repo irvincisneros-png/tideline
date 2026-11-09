@@ -3,9 +3,9 @@ const KEY = 'tideline.settings.v1';
 
 export const TIERS = {
   low: { label: 'Low (school laptop)', pixelRatio: 0.75, oceanSegments: 128, waveColumns: 120, terrainScale: 0.6, coralScale: 0.6, fishScale: 0.5, reefFish: 1, snow: 250, bloom: false, shafts: false, antialias: false, shadows: 0, ao: false },
-  medium: { label: 'Medium', pixelRatio: 1, oceanSegments: 192, waveColumns: 180, terrainScale: 0.75, coralScale: 1, fishScale: 0.9, reefFish: 1.5, snow: 500, bloom: false, shafts: true, antialias: true, shadows: 0, ao: false },
-  high: { label: 'High', pixelRatio: 1.25, oceanSegments: 256, waveColumns: 240, terrainScale: 1, coralScale: 1.5, fishScale: 1.4, reefFish: 2, snow: 800, bloom: true, shafts: true, antialias: true, shadows: 1024, ao: false },
-  ultra: { label: 'Ultra (gaming PC)', pixelRatio: 1.5, oceanSegments: 320, waveColumns: 320, terrainScale: 1.5, coralScale: 2.2, fishScale: 1.7, reefFish: 2, snow: 1200, bloom: true, shafts: true, antialias: true, shadows: 2048, ao: true },
+  medium: { label: 'Medium', pixelRatio: 1.25, oceanSegments: 192, waveColumns: 180, terrainScale: 0.75, coralScale: 1, fishScale: 0.9, reefFish: 1.5, snow: 500, bloom: false, shafts: true, antialias: true, shadows: 1024, ao: false },
+  high: { label: 'High', pixelRatio: 1.35, oceanSegments: 256, waveColumns: 240, terrainScale: 1, coralScale: 1.5, fishScale: 1.4, reefFish: 2, snow: 800, bloom: true, shafts: true, antialias: true, shadows: 1024, ao: false },
+  ultra: { label: 'Ultra (gaming PC)', pixelRatio: 1.75, oceanSegments: 320, waveColumns: 320, terrainScale: 1.5, coralScale: 2.2, fishScale: 1.7, reefFish: 2, snow: 1200, bloom: true, shafts: true, antialias: true, shadows: 2048, ao: true },
 };
 
 export const DEFAULTS = {

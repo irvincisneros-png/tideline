@@ -18,11 +18,11 @@ for (const c of candidates) { try { pw = require(c); break; } catch { /* next */
 if (!pw) throw new Error('Playwright not found. Set PLAYWRIGHT_PATH to a node_modules/playwright folder.');
 
 export const getPlaywright = () => pw;
-export async function launch({ url = process.env.URL ?? 'http://localhost:8451/', query = '', outDir = 'playtest-shots', width = 1280, height = 800, headless = !process.env.HEADED, mobile = false, phone = null, onPage = null, path: pagePath = '' } = {}) {
+export async function launch({ url = process.env.URL ?? 'http://localhost:8451/', query = '', outDir = 'playtest-shots', width = 1280, height = 800, headless = !process.env.HEADED, mobile = false, phone = null, onPage = null, dpr = 1, path: pagePath = '' } = {}) {
   mkdirSync(outDir, { recursive: true });
   const browser = await pw.chromium.launch({ headless, channel: process.env.PW_CHANNEL ?? 'chrome', args: [process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   // mobile: emulate a phone held sideways (touch events, coarse pointer, high-DPI screen).
-  const page = await browser.newPage(phone ? { viewport: { width: phone.w, height: phone.h }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : mobile ? { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport: { width, height } });
+  const page = await browser.newPage(phone ? { viewport: { width: phone.w, height: phone.h }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : mobile ? { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport: { width, height }, deviceScaleFactor: dpr });
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e.stack ?? e)));

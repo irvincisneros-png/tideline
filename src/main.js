@@ -127,26 +127,30 @@ class Game {
   }
 
   setupComposer() {
-    if (!this.quality.bloom) { this.composer = null; return; }
-    // The composer renders into its own target: give it MSAA, otherwise high/ultra lose antialiasing entirely.
+    // Every tier gets the colour grade (it is the cosy look); bloom and the screen-space ink outline are for high and ultra.
+    if (!this.stylised && !this.quality.bloom) { this.composer = null; return; }
+    const outline = this.stylised && this.quality.bloom;
+    // The composer renders into its own target: give it MSAA, otherwise the antialiased tiers lose antialiasing entirely.
     const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.quality.antialias ? 4 : 0 });
-    if (this.stylised) rt.depthTexture = new THREE.DepthTexture(1, 1); // read by the outline pass
+    if (outline) rt.depthTexture = new THREE.DepthTexture(1, 1); // read by the outline pass
     this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.35, 0.5, 0.86);
-    this.composer.addPass(this.bloom);
+    if (this.quality.bloom) { this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.42, 0.7, 0.8); this.composer.addPass(this.bloom); }
     if (this.stylised) {
-      // Colour grade: a little more saturation and contrast, teal-tinted shadows, gentle vignette.
-      // Ink outlines where depth jumps (silhouettes), fading with distance and fog; then the colour grade.
+      // Ink outlines where depth jumps (silhouettes), then the grade: richer colour, a gentle contrast curve, warm highlights over cool shadows,
+      // a warm glow spilling in from the sun's side of the screen, and a soft vignette.
       this.gradePass = new ShaderPass({
-        uniforms: { tDiffuse: { value: null }, tDepth: { value: rt.depthTexture }, uRes: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: this.camera.near }, cameraFar: { value: this.camera.far }, uUnder: globalUniforms.uUnderwater, uFogDensity: globalUniforms.uFogDensity },
+        uniforms: { tDiffuse: { value: null }, tDepth: { value: rt.depthTexture ?? null }, uRes: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: this.camera.near }, cameraFar: { value: this.camera.far }, uUnder: { value: 0 }, uFogDensity: { value: 0.03 },
+          uSun: { value: new THREE.Vector2(0.5, 1.2) }, uSunAmt: { value: 0 }, uSunCol: { value: new THREE.Color(1, 0.8, 0.55) }, uWarm: { value: 0 }, uNightK: { value: 0 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        defines: { OUTLINE: '0.7' }, // thin ink outlines on silhouettes (0 = off)
+        defines: { OUTLINE: outline ? '0.7' : '0.0', HAS_DEPTH: outline ? 1 : 0 }, // thin ink outlines on silhouettes (0 = off)
         fragmentShader: `#include <packing>
-          uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform vec2 uRes; uniform float cameraNear; uniform float cameraFar; uniform float uUnder; uniform float uFogDensity; varying vec2 vUv;
+          uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform vec2 uRes; uniform float cameraNear; uniform float cameraFar; uniform float uUnder; uniform float uFogDensity;
+          uniform vec2 uSun; uniform float uSunAmt; uniform vec3 uSunCol; uniform float uWarm; uniform float uNightK; varying vec2 vUv;
           float vz(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, cameraNear, cameraFar); }
           void main(){
             vec3 c = texture2D(tDiffuse, vUv).rgb;
+            #if HAS_DEPTH
             vec2 px = 1.0 / uRes;
             float z = vz(vUv), zl = vz(vUv - vec2(px.x, 0.0)), zr = vz(vUv + vec2(px.x, 0.0)), zd = vz(vUv - vec2(0.0, px.y)), zu = vz(vUv + vec2(0.0, px.y));
             // Second difference ignores smooth slopes (ground at grazing angles) and catches real silhouettes.
@@ -155,10 +159,21 @@ class Game {
             float vis = uUnder > 0.5 ? exp(-pow(uFogDensity * z * 1.6, 2.0)) : 1.0 - smoothstep(25.0, 70.0, z);
             float edge = smoothstep(0.09, 0.18, lap) * vis;
             c = mix(c, c * vec3(0.22, 0.36, 0.42), edge * OUTLINE); // dark teal, not black
+            #endif
             float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-            c = mix(vec3(l), c, 1.22);
-            c = mix(c * vec3(0.92, 1.0, 1.06), c, smoothstep(0.0, 0.6, l));
-            vec2 d = vUv - 0.5; c *= 1.0 - dot(d, d) * 0.55;
+            c = mix(vec3(l), c, 1.3);                                        // richer colour
+            float air = 1.0 - uUnder;
+            c = mix(c, pow(max(c, 0.0) / 0.22, vec3(1.14)) * 0.22, air);       // contrast about mid grey: deeper shade, brighter sunlit sand (the flat, hazy look was the lack of this)
+            l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+            // Split tone: cool blue-teal shadows, warm cream highlights (warmer still in the golden hours); moonlight stays blue.
+            vec3 hiT = mix(vec3(1.05, 1.0, 0.93), vec3(1.07, 1.0, 0.9), uWarm);
+            c *= mix(vec3(0.9, 0.99, 1.08), mix(hiT, vec3(1.0), uNightK), smoothstep(0.03, 0.65, l));
+            // Sun glow: warm light spilling across the frame from wherever the sun is (even just off screen), strongest when it is low.
+            vec2 sd = (vUv - uSun) * vec2(uRes.x / uRes.y, 1.0);
+            float sg = exp(-dot(sd, sd) * 1.1) * uSunAmt * air;
+            c += uSunCol * sg * (0.1 + 0.3 * l);
+            c = mix(c, c * uSunCol * 1.25, sg * 0.12);
+            vec2 d = vUv - 0.5; c *= 1.0 - dot(d, d) * 0.6;
             gl_FragColor = vec4(max(c, 0.0), 1.0);
           }`,
       });
@@ -874,6 +889,15 @@ class Game {
       // ShaderPass copies its uniforms, so feed it the live fog and underwater state each frame.
       const u = this.gradePass.material.uniforms;
       u.uFogDensity.value = globalUniforms.uFogDensity.value; u.uUnder.value = globalUniforms.uUnderwater.value;
+      // Where the sun is on screen (it may be off the edge, or behind the camera: then the glow fades out).
+      const sd = globalUniforms.uSunDir.value, v = (this._sv ??= new THREE.Vector3()), f = (this._sf ??= new THREE.Vector3());
+      const facing = sd.dot(this.camera.getWorldDirection(f));
+      v.copy(this.camera.position).addScaledVector(sd, 1000).project(this.camera);
+      if (facing > 0.02) u.uSun.value.set(v.x * 0.5 + 0.5, v.y * 0.5 + 0.5);
+      const e = this.env, gold = e.daylightOn ? e.gold ?? 0 : 0.4, night = e.night ?? 0;
+      u.uSunAmt.value = Math.min(1, Math.max(0, (facing - 0.02) / 0.4)) * (0.3 + 0.3 * gold + 0.5 * e.glow) * (1 - 0.75 * night);
+      u.uWarm.value = Math.min(1, gold + e.glow) * (1 - night); u.uNightK.value = night;
+      u.uSunCol.value.setRGB(1, 0.8 - 0.14 * e.glow, 0.55 - 0.2 * e.glow);
     }
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
     this.input.endFrame();

@@ -48,8 +48,8 @@ test('the turn keys ramp up and down, and a tilt by hand eases the view after th
   input.keys.delete('KeyC');
   step(1); const first = r.yaw - prev;
   assert.ok(first > 0 && first < d[39], 'eases off rather than stopping dead');
-  const p0 = r.pitch; r.tilt(-0.3);
-  assert.equal(r.pitchGoal, p0 - 0.3, 'the goal moves at once');
+  const p0 = r.pitch; r.tilt(-0.2);
+  assert.equal(r.pitchGoal, p0 - 0.2, 'the goal moves at once');
   assert.equal(r.pitch, p0, 'the view has not jumped');
   step(30);
   assert.ok(Math.abs(r.pitch - r.pitchGoal) < 0.02, 'and catches up within half a second');

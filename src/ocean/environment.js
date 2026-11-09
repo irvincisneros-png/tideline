@@ -28,7 +28,7 @@ export class Environment {
     this.fogAbove = new THREE.Color(); this.fogBelow = new THREE.Color(); this.fogDeep = new THREE.Color();
     this.shafts = quality.shafts ? this.makeShafts() : null;
     if (this.shafts) scene.add(this.shafts);
-    this.night = 0; this.glow = 0; this.daylightOn = false; this.tmp = new THREE.Color();
+    this.night = 0; this.glow = 0; this.gold = 0; this.daylightOn = false; this.tmp = new THREE.Color();
     this.renderer = renderer;
     this.envRT = null;
   }
@@ -79,6 +79,10 @@ export class Environment {
     put(this.hemi.color, P.hemiSky); put(this.hemi.groundColor, P.hemiGround);
     this.hemiBase = P.hemiIntensity; this.exposureAbove = P.exposure;
     G.uSunDir.value.set(...P.sunDir);
+    // Golden hours: through the early morning and the late afternoon the sun sits lower (long shadows) and the light is warmer; only midday is plain white daylight.
+    const h = d.hour, gold = this.gold = Math.min(1, Math.max(0, (Math.abs(h - 12.5) - 1.5) / 4)) * d.light;
+    G.uGold.value = gold;
+    G.uSunDir.value.y *= 1 - 0.42 * gold * d.light; G.uSunDir.value.normalize();
     G.uNight.value = k; G.uLampOn.value = cfg.lamps ? d.lamps : 0; this.night = k; this.glow = Math.min(1, d.glow * cfg.glow); G.uGlow.value = this.glow * (1 - k * 0.8);
     return d;
   }
@@ -147,9 +151,11 @@ export class Environment {
       } else {
         // Warm golden key light, cool teal-blue shadows, a bright sky fill: lit surfaces land near their own colour (cream stays cream),
         // shadowed ones fall to a cool tint of it. (Kept under 1.0 in total so the tone mapper doesn't wash the colours out.)
-        G.uStyleSky.value.copy(G.uSkyTop.value).lerp(new THREE.Color(0.6, 0.85, 0.95), 0.5).multiplyScalar(0.5);
+        G.uStyleSky.value.copy(G.uSkyTop.value).lerp(this.tmp.setRGB(0.6, 0.85, 0.95), 0.5).multiplyScalar(0.46);
         G.uStyleGround.value.set(0.46, 0.4, 0.3);
-        G.uStyleSun.value.set(0.86, 0.74, 0.52).multiplyScalar(Math.min(1, this.sunBase / 2.4));
+        const gold = this.daylightOn ? this.gold ?? 0 : 0.4;
+        G.uStyleSun.value.set(0.9, 0.75, 0.5).lerp(this.tmp.setRGB(1.04, 0.72, 0.4), gold * 0.28).multiplyScalar(Math.min(1, this.sunBase / 2.4));
+        G.uCloudShade.value = 0.3 * (1 - this.night);
         G.uStyleRim.value.set(0.35, 0.42, 0.5);
         if (this.daylightOn) {
           // Dusk: a warmer, lower key light; night: moonlit blue everywhere (kept bright enough to read, never black).
@@ -165,6 +171,7 @@ export class Environment {
     }
     if (u) {
       const k = Math.min(1, depth / (this.fogDepthScale ?? 25));
+      globalUniforms.uCloudShade.value = 0;
       globalUniforms.uFogColor.value.copy(this.fogBelow).lerp(this.fogDeep, k);
       // Cosy art style: bright, clear turquoise water (the deep-sea site keeps its darkness).
       const cosyBright = globalUniforms.uStyle.value > 0.5 && this.sunBase > 0;
@@ -179,7 +186,7 @@ export class Environment {
       this.renderer.toneMappingExposure = this.exposureAbove ?? 0.82; // keeps bright sand and white surf from clipping to grey-white
       this.sun.intensity = this.sunBase; this.hemi.intensity = this.hemiBase; this.scene.environmentIntensity = 0.6;
       this.fog.color.copy(this.fogAbove);
-      this.fog.density = 0.0011;
+      this.fog.density = 0.0026;   // enough air that the far shore sits back in a soft haze
       globalUniforms.uFogColor.value.copy(this.fogBelow);
       globalUniforms.uFogDensity.value = this.fogDensityBelow;
       this.scene.background = null;

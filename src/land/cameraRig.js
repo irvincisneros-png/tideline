@@ -4,17 +4,17 @@
 // It is never inside the terrain; props and canopies that would hide the angler are cut away in the shaders (ocean/shaders.js cutaway).
 import * as THREE from 'three';
 import { clamp, damp } from '../core/noise.js';
-import { PITCH, PRESETS, nextPreset, presetNear, viewParams, angleDiff, fightPitch, fightYawOffset, fightFocus } from './cameraViews.js';
+import { PITCH, PRESETS, DEFAULT_PRESET, nextPreset, presetNear, viewParams, angleDiff, fightPitch, fightYawOffset, fightFocus } from './cameraViews.js';
 
 export const LOOK_EASE = 16;   // 1/s: how fast a look impulse eases out (higher = snappier, lower = floatier)
-export const CAM = { pitch: PITCH.diorama, pitchMin: PITCH.min, pitchMax: PITCH.max, dist: 12.6, distMin: 7.5, distMax: 22, fov: 42 };
+export const CAM = { pitch: PRESETS[DEFAULT_PRESET].pitch, pitchMin: PITCH.min, pitchMax: PITCH.max, dist: PRESETS[DEFAULT_PRESET].zoom, distMin: 7.5, distMax: 22, fov: 42 };
 const _dir = new THREE.Vector3(), _aim = new THREE.Vector3();
 
 export class CameraRig {
   constructor(camera, input, settings = {}) {
     this.camera = camera; this.input = input; this.settings = settings;
     this.yaw = 0; this.pitch = this.pitchGoal = CAM.pitch; this.dist = CAM.dist; this.zoom = CAM.dist; // zoom = what the player chose; dist = after framing
-    this.preset = 'diorama'; this.yawGoal = null;
+    this.preset = DEFAULT_PRESET; this.yawGoal = null;
     this.fightBlend = 0; this.fightYaw = 0; this.fightOn = false; this.fightTurned = false;   // fight camera state
     this.focus = new THREE.Vector3(); this.pos = new THREE.Vector3();
     this.yawVel = 0; this.pitchVel = 0; this.turnV = 0; this.tiltV = 0; this.pitchRate = 4;   // look smoothing: mouse deltas feed a velocity that eases out; keys ramp up and down
