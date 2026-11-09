@@ -193,7 +193,7 @@ export function saveProgress(p) {
     try {
       const photos = [...Object.values(p.journal ?? {}), ...Object.values(p.guide?.e ?? {})].filter(e => e.photo).sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
       for (const e of photos.slice(0, Math.ceil(photos.length / 2))) delete e.photo;
-      localStorage.setItem(KEY, JSON.stringify(p)); return true;
+      localStorage.setItem(KEY, JSON.stringify(p)); return 'trimmed';   // saved, but only after dropping the older half of the photos
     } catch { return false; }
   }
 }

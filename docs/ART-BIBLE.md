@@ -54,3 +54,16 @@ A sunny, hand-made diorama. Bright, clear, calm and friendly. Readable at a glan
 ## Performance
 - The look must hold on the **low** tier: painted layer, caustics and outlines are cheap shader effects;
   shadows and the outline pass stay high/ultra only.
+
+## In-play HUD (console pass, 2026-11-10)
+
+In play the screen belongs to the world. Cream cards with the chunky teal outline are for panels, dialogue, speech bubbles and the catch bar only. Anything that sits over the world while you walk or fish is dark glass (`--glass-ink`) or outlined cream text, never a cream box.
+
+- Top left: tide (or flow) and the clock in one capsule; the tackle joins it while the rod is out; the mission line under it is plain outlined text.
+- Top right: esky count, credits, the menu button. Steward stars, season and swell live in the pause menu.
+- Bottom centre: one prompt, the thing you can do right now. A bite turns it coral.
+- Bottom right: two to five button hints for this moment (`Game.hudHints`). Never the whole key list: that is in the pause menu.
+- Top centre: toasts, two at most. The long welcome to a place is shown once per save; after that the place name fades in and out (`#site-name`).
+- People: a name appears within about 6 m; a request marker shows from across the beach.
+- Pause menu (Esc, P, ☰, Start): eight tiles and the controls for the device in hand (keyboard, touch or controller).
+- Controller: `src/core/gamepad.js`. Hints are written for the keyboard and rewritten per device by `Game.hint`.

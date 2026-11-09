@@ -16,7 +16,7 @@ export function detectTouch() {
 const press = (code, type) => dispatchEvent(new KeyboardEvent(type, { code, key: code, bubbles: true }));
 
 // Button labels used when rewriting on-screen hints like "(hold W)" or "press Q".
-const LABELS = { B: 'the ⚓ button', Space: 'the big button', R: '🎣', T: '🧰', J: '📗', M: '🗺', L: '📒', H: '🏠', P: '⏸', E: 'the 💬 button', Q: '📜', W: 'the joystick', Shift: 'push the joystick to the edge' };
+const LABELS = { B: 'the ⚓ button', Space: 'the big button', R: '🎣', T: '🧰', J: '📗 in the ☰ menu', M: '🗺', L: '📒 in the ☰ menu', H: '🏠 in the ☰ menu', P: '☰', E: 'the 💬 button', Q: '📜 in the ☰ menu', W: 'the joystick', Shift: 'push the joystick to the edge' };
 
 export class TouchControls {
   constructor(game) {
@@ -38,18 +38,12 @@ export class TouchControls {
     root.innerHTML = `
       <div class="t-look" id="t-look"></div>
       <div class="t-top">
-        <button data-key="KeyT" class="t-land" aria-label="Tackle box">🧰</button>
         <button data-key="KeyM" class="t-land" aria-label="Map">🗺</button>
-        <button data-key="KeyJ" class="t-land" aria-label="Fish guide">📗</button>
-        <button data-key="KeyQ" class="t-land" aria-label="Quest log">📜</button>
-        <button data-key="KeyL" class="t-land" aria-label="Logbook">📒</button>
-        <button data-key="KeyH" class="t-land" aria-label="Head home">🏠</button>
-        <button data-key="KeyV" class="t-land" aria-label="Change camera view">🎥</button>
-        <button data-key="KeyP" aria-label="Pause">⏸</button>
+        <button data-key="KeyP" class="t-land" aria-label="Menu">☰<i class="qdot" aria-hidden="true"></i></button>
       </div>
       <div class="t-stick t-land" id="t-stick" aria-label="Walk joystick"><div class="t-knob" id="t-knob"></div></div>
       <div class="t-pad t-land">
-        <div class="t-row"><button data-key="KeyB" class="t-sm t-land t-anchor" aria-label="Anchor or lift the anchor">⚓</button><button data-key="KeyE" class="t-sm t-talk" aria-label="Talk">💬</button><button data-key="KeyR" class="t-sm" aria-label="Fishing rod">🎣</button></div>
+        <div class="t-row"><button data-key="KeyB" class="t-sm t-land t-anchor" aria-label="Anchor or lift the anchor">⚓</button><button data-key="KeyE" class="t-sm t-talk" aria-label="Talk">💬</button><button data-key="KeyT" class="t-sm t-tackle" aria-label="Tackle box">🧰</button><button data-key="KeyR" class="t-sm" aria-label="Fishing rod">🎣</button></div>
         <div class="t-row"><button data-key="Space" class="t-big" aria-label="Cast, strike, reel or jump">CAST</button></div>
       </div>
       <div id="t-rotate"><div>↻<br>Turn your phone sideways to play</div></div>`;

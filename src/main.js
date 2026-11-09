@@ -8,6 +8,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { Input } from './core/input.js';
 import { Audio } from './audio/index.js';
 import { TouchControls, detectTouch } from './ui/touch.js';
+import { Pad } from './core/gamepad.js';
 import { loadSettings, saveSettings, TIERS } from './core/settings.js';
 import { loadProgress, saveProgress, resetProgress, logbookCSV, guideCSV } from './core/save.js';
 import { globalUniforms } from './ocean/shaders.js';
@@ -121,6 +122,7 @@ class Game {
     document.addEventListener('click', e => { if (e.target.closest?.('button:not([disabled])') && !e.target.closest('#touch')) this.audio.play('click'); }, true);
     // Phones / tablets: on-screen joystick, look-drag and buttons.
     this.touch = detectTouch() ? new TouchControls(this) : null;
+    this.pad = new Pad(this); this.padOn = false;   // a controller, if one is plugged in (core/gamepad.js)
     this.mini = new MiniMap(this);   // the optional corner minimap (Settings)
   }
 
@@ -201,10 +203,9 @@ class Game {
     $('#btn-logbook').onclick = () => openLogbook(this);
     $('#btn-settings').onclick = () => this.openSettings();
     $('#btn-help').onclick = () => this.panels.help();
-    $('#home-btn').onclick = () => this.askHome();
-    $('#quest-btn').onclick = () => this.questLog();
+    $('#menu-btn').onclick = () => this.pauseMenu();
     $('#mission-btn').onclick = () => this.questLog();
-    $('#view-btn').onclick = () => this.cycleView();
+    this.updateEcoBlurb();
     this.updateProgressSummary();
   }
   /** The site picker: a card per site with its Fish Guide counter; a locked site shows what it needs ("Identify 5 species, 3 of 5"). */
@@ -214,9 +215,11 @@ class Game {
       const c = rc[regionOf[e.id]], lock = siteLock(this.progress, e);
       const chip = lock.locked ? `🔒 ${lock.detail}` : c ? `${c.label} ${c.done}/${c.total}` : '';
       return `<button class="eco-card ${e.id === this.eco.id ? 'sel' : ''} ${lock.locked ? 'locked' : ''}" data-id="${e.id}" ${lock.locked ? 'aria-disabled="true"' : ''}>
-      <b>${esc(e.name)}</b><small>${esc(e.place)} — ${esc(e.blurb)}</small>${chip ? `<span class="chip">${esc(chip)}</span>` : ''}</button>`;
+      <b>${esc(e.name)}</b><small>${esc(e.place)}</small>${chip ? `<span class="chip">${esc(chip)}</span>` : ''}</button>`;
     }).join('');
   }
+  /** One line under the site cards about the chosen site (the cards themselves stay small: a name, a place, a counter). */
+  updateEcoBlurb() { const el = $('#eco-blurb'); if (el) el.textContent = this.eco.blurb ?? ''; }
   /** Start fishing: the first time (or on an older save with no angler yet) the character creator opens first. */
   beginPlay() {
     const go = async () => {
@@ -325,13 +328,16 @@ class Game {
 
   // ------------------------------------------------------------------ keys
   bindKeys() {
+    // Clicking away to another window pauses, so a wind-up does not cast itself and a fish is not lost while you are not looking.
+    addEventListener('blur', () => { if (this.mode === 'land' && this.input.gameplay && !this.loading) this.pauseMenu(); });
     addEventListener('keydown', e => {
+      if (e.repeat) return;   // a held key is one press (R would flick the rod in and out, T and M would flap their panels)
       if (e.code === 'KeyT' && this.tackleOpen && this.panels.isOpen) { this.panels.close(); return; }
       if (e.code === 'KeyM' && this.mapOpen && this.panels.isOpen) { this.panels.close(); return; }   // M opens and closes the map
       if (this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen || this.mode !== 'land') return;
       const c = e.code;
       if (c === 'KeyE' && this.intro?.refuse(c)) return;   // the opening switches a few keys off (ui/intro.js lockReason); R, T, M and H check themselves below
-      if (c === 'KeyP') this.pauseMenu();
+      if (c === 'KeyP' || (c === 'Escape' && !e.defaultPrevented)) this.pauseMenu();   // (an Escape that just closed a panel or a dialogue was already handled)
       if (c === 'KeyR' && this.eco.fishing) this.toggleRod();
       if (c === 'KeyT' && this.eco.fishing) this.tackleBox();
       if (c === 'KeyJ') this.openGuide();
@@ -341,7 +347,7 @@ class Game {
       if (c === 'KeyE') this.npcs.talkNearest();
       if (c === 'KeyB' && this.eco.toggleAnchor) this.eco.toggleAnchor(this);
       if (c === 'KeyQ') this.questLog();
-      if (c === 'KeyV' && !e.repeat) this.cycleView();
+      if (c === 'KeyV') this.cycleView();
     });
   }
   /** V / the View button: glide to the next camera preset (Diorama, Low, Over the shoulder). */
@@ -355,12 +361,56 @@ class Game {
   questLog() { openQuestLog(this); }
   /** The map (M): this place, or the whole coast (tab 'region'). */
   openMap(tab = 'site') { if (this.intro?.refuse('KeyM')) return; if (this.fishing.state === 'snagged') { this.toast('Free your line first, then open the map.', 'warn'); return; } openMap(this, tab); }
-  setKeys(list) { $('#keys').innerHTML = list.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join(''); }
+  /** The button hints, bottom right: only what matters this second (walking, rod out, line out). The full list is in the pause menu. Written only when it changes. */
+  setKeys(list) {
+    const html = list.map(([k, v, pre]) => `<span>${pre ? `${pre} ` : ''}<kbd>${k}</kbd> ${v}</span>`).join('');
+    const out = this.hint(html), el = $('#keys');
+    if (el.dataset.v !== out) { el.dataset.v = out; el.innerHTML = out; }
+  }
+  hudHints() {
+    const f = this.fishing, s = f.active ? f.state : 'off';
+    if (s === 'off') return [...(this.movedFar ? [] : [['WASD', 'Move'], ['Drag', 'Look']]), ...(this.nearHome ? [['H', 'Head home']] : []), ...(this.eco.fishing ? [['R', 'Rod']] : []), ['M', 'Map'], ['Esc', 'Menu']];
+    if (s === 'ready') return [['Space', 'Cast', 'Hold'], ['T', 'Tackle'], ['R', 'Put away']];
+    if (s === 'wait') return [['Space', 'Draw in', 'Hold'], ['Space', 'Wind in', 'Tap']];
+    if (s === 'retrieve') return [['Space', 'Twitch', 'Tap'], ['Space', 'Reel', 'Hold']];
+    return [];
+  }
+  /** The pause menu (Esc, P, the menu button, Start on a controller): everything that is not on the HUD lives here. */
   pauseMenu() {
-    this.panels.open(`<h2>Paused</h2><p>${esc(this.eco.name)}</p>
-      <p><button class="btn primary" id="p-resume">Resume</button> <button class="btn" id="p-map">🗺 Map</button> <button class="btn" id="p-help">How to play</button> <button class="btn" id="p-set">Settings</button> <button class="btn ghost" id="p-quit">Quit to title</button></p>`);
+    if (this.mode !== 'land' || this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen) return;
+    const p = this.progress, st = G.stewardRating(p), esky = p.esky ?? [], fishing = this.eco.fishing, ready = document.body.classList.contains('quest-ready');
+    const tile = (id, ico, label, key, cls = '') => `<button class="pm-tile ${cls}" id="${id}"><i aria-hidden="true">${ico}</i><b>${label}</b>${key ? `<kbd>${key}</kbd>` : ''}</button>`;
+    const dev = this.padOn ? 'pad' : this.touch ? 'touch' : 'keys';
+    const rows = {
+      keys: [['WASD', 'Walk'], ['Shift', 'Run'], ['Drag', 'Look around'], ['Wheel', 'Zoom'], ['Z / C', 'Turn the view'], ['F / G', 'Tilt the view'], ['R', 'Rod out / away'], ['Space', 'Cast, strike, reel'], ['E', 'Talk'], ...(this.eco.toggleAnchor ? [['B', 'Anchor']] : [])],
+      pad: [['L stick', 'Walk (push far to run)'], ['R stick', 'Look around'], [{ nintendo: 'ZL / ZR', playstation: 'L2 / R2' }[this.pad.family] ?? 'LT / RT', 'Zoom'], [this.pad.name('rod'), 'Rod out / away'], [this.pad.name('ok'), 'Cast, strike, reel, talk'], [this.pad.name('tackle'), 'Tackle box'], [this.pad.name('back'), 'Back / put the rod away'], ['L / R', 'Quests / camera view'], ['D-pad', '↑ Guide  ↓ Logbook  ← Home' + (this.eco.toggleAnchor ? '  → Anchor' : '')], ['− / +', 'Map / this menu']],
+      touch: [['Joystick', 'Walk (push to the edge to run)'], ['Drag', 'Look around'], ['Pinch', 'Zoom'], ['🎣', 'Rod out / away'], ['CAST', 'Cast, strike, reel'], ['💬', 'Talk']],
+    }[dev];
+    this.panels.open(`<div class="pm">
+      <header class="pm-head"><h2>Paused</h2><p>${esc(this.eco.name)} · ${esc(this.eco.place)}</p></header>
+      <div class="pm-stats"><span>${esc(this.cond.chip())}${esc(this.eco.chipExtra?.(this) ?? '')}</span><span>🧊 Esky ${esky.length}</span><span class="coin">${COIN.icon} ${p.coins ?? 0}</span><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span></div>
+      <div class="pm-grid">
+        ${tile('p-resume', '▶', 'Resume', 'Esc', 'primary')}
+        ${tile('p-map', '🗺', 'Map', 'M')}
+        ${tile('p-quests', '📜', 'Quests', 'Q', ready ? 'dot' : '')}
+        ${tile('p-guide', '📗', 'Fish Guide', 'J')}
+        ${tile('p-log', '📒', 'Logbook', 'L')}
+        ${fishing ? tile('p-tackle', '🧰', 'Tackle box', 'T') : ''}
+        ${tile('p-view', '🎥', 'Camera view', 'V')}
+        ${tile('p-home', '🏠', 'Head home', 'H')}
+      </div>
+      <div class="pm-controls" aria-label="Controls">${rows.map(([k, v]) => `<span><kbd>${k}</kbd> ${v}</span>`).join('')}</div>
+      <p class="pm-foot"><button class="btn small" id="p-help">How to play</button> <button class="btn small" id="p-set">Settings</button> <button class="btn small ghost" id="p-quit">Quit to title</button></p>
+    </div>`);
+    const away = fn => () => { this.panels.close(); fn(); };
     $('#p-resume').onclick = () => this.panels.close();
     $('#p-map').onclick = () => this.openMap();
+    $('#p-quests').onclick = () => this.questLog();
+    $('#p-guide').onclick = () => this.openGuide();
+    $('#p-log').onclick = () => openLogbook(this);
+    if (fishing) $('#p-tackle').onclick = away(() => this.tackleBox());
+    $('#p-view').onclick = away(() => this.cycleView());
+    $('#p-home').onclick = away(() => this.askHome());
     $('#p-help').onclick = () => this.panels.help();
     $('#p-set').onclick = () => this.openSettings();
     $('#p-quit').onclick = () => { this.panels.onClose = null; this.panels.close(); this.enterMenu(); };
@@ -368,7 +418,7 @@ class Game {
   openSettings() {
     this.panels.settings(this.settings, (k, v) => {
       if (k === 'editAngler') { this.panels.close(true); this.creator.open({}); return; }
-      if (k === 'resetProgress') { resetProgress(); this.progress = loadProgress(); ensureMissions(this.progress); this.missionQueue = []; this.missionsDirty = true; this.panels.close(); this.updateProgressSummary(); return; }
+      if (k === 'resetProgress') { resetProgress(); this.noSave = true; location.reload(); return; }   // a clean start: the gear, the angler, the site and the opening all come from the blank save
       this.settings[k] = v; saveSettings(this.settings);
       if (k === 'minimap') this.mini?.update(1);
       if (k === 'volume') this.audio.setVolume(v);
@@ -422,21 +472,29 @@ class Game {
     this.fishing.stop();
     document.body.classList.add('land-mode');
     $('#menu').classList.remove('show'); $('#hud').classList.remove('hidden');
-    $('#site-name').textContent = `${this.eco.name} · ${this.eco.place}`;
+    this.showSiteCard();
     if (this.viewOffset) { this.camera.clearViewOffset(); this.viewOffset = false; }
     if (!spawn) spawn = this.placeAnglerAtSpawn();
     this.walker.spawn(spawn, yaw ?? L.spawn.yaw ?? 0);
     this.rig.reset(spawn, yaw ?? L.spawn.yaw ?? 0);
-    this.input.wantLock = false;
-    this.setKeys([['WASD', 'walk'], ['Shift', 'run'], ['Drag / Z / C', 'look around'], ['F / G', 'tilt'], ['V', 'view'], ['Wheel', 'zoom'], ['R', 'rod'], ['T', 'tackle'], ['Space', 'cast / work lure / strike'], ...(this.eco.toggleAnchor ? [['B', 'anchor']] : []), ['E', 'talk'], ['Q', 'quests'], ['M', 'map'], ['J', 'fish guide'], ['L', 'logbook'], ['H', 'head home'], ['P', 'pause']]);
+    this.input.wantLock = false; this.input.clear();
+    this.movedFar = false; this.walked = 0; this.setKeys(this.hudHints());
     this.outing.start();
     if (this.pendingTrip && this.progress.outing) { this.progress.outing.trip = this.pendingTrip.text; this.persist(); this.pendingTrip = null; }
     this.updateStats(); this.updateMissionHud();
-    this.toast(L.intro);
+    // The long welcome is read once per place; after that the place name alone fades in and out.
+    const tips = this.progress.tips ??= {};
+    if (!tips[`site:${this.eco.id}`]) { tips[`site:${this.eco.id}`] = true; this.persist(); const eco = this.eco; setTimeout(() => { if (this.mode === 'land' && this.eco === eco) this.toast(L.intro); }, 4400); }   // after the place name has faded
     this.eco.onStart?.(this);   // a site's opening card (the river's freshwater licence note)
     // A tag recapture letter, now and then, from a fish you tagged on an earlier day.
     const letter = recaptureLetter(this.progress);
-    if (letter) { this.persist(); this.updateStats(); setTimeout(() => { if (this.mode === 'land' && !this.panels.isOpen && !this.dialogue.isOpen) showRecaptureLetter(this, letter); }, 2500); }
+    if (letter) { this.persist(); this.updateStats(); const show = () => { if (this.mode !== 'land') return; if (this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen) { setTimeout(show, 1500); return; } showRecaptureLetter(this, letter); }; setTimeout(show, 2500); }   // (the credits are already paid: the letter waits for a quiet moment rather than being dropped)
+  }
+  /** Arriving somewhere: the place name comes up large for a few seconds, then goes (it is on the map and the pause menu after that). */
+  showSiteCard() {
+    const el = $('#site-name');
+    el.innerHTML = `<b>${esc(this.eco.name)}</b><span>${esc(this.eco.place)}</span>`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   }
   /** A ray from the camera through a screen point (CSS pixels). */
   mouseRay(x, y) {
@@ -472,7 +530,8 @@ class Game {
     }
     this.world.waveMesh.update(null, this.time);
     if (!paused) this.cond.update(dt);
-    if (this.frame % 6 === 0) this.updateChip();
+    if (!this.movedFar && !paused) { this.walked += w.speed * dt; if (this.walked > 6) this.movedFar = true; }
+    if (this.frame % 6 === 0) { this.updateChip(); this.setKeys(paused ? [] : this.hudHints()); document.body.classList.toggle('rod-out', f.active); }
     this.intro?.update(paused ? 0 : dt, this.time);
     if (this.frame % 30 === 0) this.missionPump();
     if (f.active) {
@@ -483,7 +542,8 @@ class Game {
     else {
       const hz = this.eco.land.home, near = hz && Math.hypot(w.pos.x - hz.x, w.pos.z - hz.z) < hz.r;
       const talk = !paused ? this.npcs.promptText() : '';
-      $('#prompt').innerHTML = this.hint([talk, near && !paused ? `Press <kbd>H</kbd> to head home from ${hz.label}` : ''].filter(Boolean).join('<br>')); w.frozen = false;
+      this.nearHome = !!near;   // (the hint bar offers H here; Head home is always in the pause menu)
+      $('#prompt').innerHTML = this.hint(talk); w.frozen = false;
     }
     // Camera: follows the angler, frames the float too while a line is out.
     const also = f.active && f.float.visible && ['wait', 'retrieve', 'snagged', 'bite', 'fight', 'flying'].includes(f.state) ? f.float.position : null;
@@ -546,13 +606,14 @@ class Game {
     const chip = $('#cond-chip');
     if (!chip) return;
     const r = RIGS[this.gear.rig], b = RIGS[this.gear.rig].lure ? '' : ` + ${BAITS[this.gear.bait]?.name ?? 'no bait'}`;
-    const html = `<b>${this.cond.chip()}${this.eco.chipExtra?.(this) ?? ''}</b><span>Tackle: ${r.name}${b}</span>`;
+    const parts = this.cond.chip().split(' · ');   // the HUD shows tide (or flow) and the clock; season and swell are in the pause menu and on the map
+    const html = `<b>${parts.slice(0, 2).join(' · ')}<i class="more"> · ${parts.slice(2).join(' · ')}</i>${this.eco.chipExtra?.(this) ?? ''}</b><span class="tackle"><i class="sr">Tackle: </i>${r.name}${b}</span>`;
     if (chip.dataset.v !== html) { chip.dataset.v = html; chip.innerHTML = html; }
   }
   /** T: open the tackle box (rig and bait). Not while a fish is on. */
   tackleBox() {
     if (this.intro?.refuse('KeyT')) return;
-    if (!this.fishing.canChangeGear) { this.toast(this.fishing.state === 'snagged' ? 'Free your line first (tap Space), then change your tackle.' : 'Land or lose this fish first, then change your tackle.', 'warn'); return; }
+    if (!this.fishing.canChangeGear) { const st = this.fishing.state; this.toast(st === 'snagged' ? 'Free your line first (tap Space), then change your tackle.' : ['wait', 'retrieve', 'flying'].includes(st) ? 'Wind your line in first, then change your tackle.' : 'Land or lose this fish first, then change your tackle.', 'warn'); return; }
     const render = () => {
       this.panels.body.innerHTML = tackleBoxHTML(this.gear, this.progress, this.eco.id, this.cond);
       const lockedMsg = (kind, id, name) => { this.panels.body.querySelector(kind === 'rig' ? '#tb-desc' : '#tb-note').innerHTML = `🔒 <b>${esc(name)}</b> is locked. ${esc(lockHint(this.progress, kind, id))}.`; };
@@ -590,7 +651,8 @@ class Game {
     if (setting === 'off') return;
     if (!canPromptRetie(p, now)) { this.toast(SPARE_TOAST); return; }
     const open = () => {
-      if (this.panels.isOpen || this.dialogue.isOpen) { setTimeout(open, 600); return; }   // after the catch flow or any other panel
+      if (this.mode !== 'land') return;   // quit to the title or went home: no knot card over the menu
+      if (this.panels.isOpen || this.dialogue.isOpen || !['off', 'ready'].includes(this.fishing.state) || this.input.down('Space')) { setTimeout(open, 600); return; }   // after the catch flow or any other panel, and never in the middle of a cast
       markRetie(p, now); this.persist();
       openKnot(this, { id: 'uni', mode: chooseMode({ setting, reason: 'retie', p, id: 'uni' }), reason: 'retie' });
     };
@@ -658,7 +720,7 @@ class Game {
     const p = this.progress, esky = p.esky ?? [], bad = esky.filter(x => !x.legal).length, st = G.stewardRating(p);
     const el = $('#stat-chip');
     if (!el) return;
-    const html = `<b>🧊 Esky ${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''} <span class="coin" title="${COIN.name}">${COIN.icon} ${p.coins ?? 0}</span></b><span>Steward ${G.starsText(st.value)} ${st.value.toFixed(1)}</span>`;
+    const html = `<b>🧊 <i class="sr">Esky </i>${esky.length}${bad ? ` <i class="bad">⚠ ${bad} illegal</i>` : ''}</b><b class="coin" title="${COIN.name}">${COIN.icon} ${p.coins ?? 0}</b>`;   // (the Steward stars are in the pause menu)
     if (el.dataset.v !== html) { el.dataset.v = html; el.innerHTML = html; el.classList.toggle('has-bad', bad > 0); }
   }
   // ------------------------------------------------------------------ missions (npc/missions.js): the HUD line and the radio hand-ins
@@ -722,7 +784,7 @@ class Game {
       dlg.hide();
     } finally { this.radioBusy = false; }
   }
-  persist() { this.missionsDirty = true; if (this.noSave) return; if (!saveProgress(this.progress)) this.toast('Storage is full — some old pictures were not saved.', 'warn'); }
+  persist() { this.missionsDirty = true; if (this.noSave) return; const r = saveProgress(this.progress); if (r === 'trimmed') this.toast('Storage is nearly full: some older fish photos were dropped to keep your save.', 'warn'); else if (!r) this.toast('Storage is full: your progress could not be saved. Export your logbook (L) so you keep a copy.', 'bad'); }
   download(name, text) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
@@ -748,7 +810,7 @@ class Game {
     setTimeout(() => el.remove(), 4200 + text.length * 35);
   }
   /** Keyboard hints become button names on touch devices. */
-  hint(text) { return this.touch ? this.touch.label(text) : text; }
+  hint(text) { return this.padOn ? this.pad.label(text) : this.touch ? this.touch.label(text) : text; }
 
   // ------------------------------------------------------------------ main loop
   /** Test helper: advance the simulation deterministically (used by automated play-tests). */
@@ -777,6 +839,7 @@ class Game {
     this.world.time = this.time;
     const paused = this.panels.isOpen || this.dialogue.isOpen || this.creatorOpen;
     this.input.gameplay = !paused && this.mode === 'land';
+    this.pad.update(dt);
     if (document.body.dataset.mode !== this.mode) document.body.dataset.mode = this.mode;   // CSS hooks (the ceremony hides the HUD and shrinks the name tags)
     if (this.mode === 'menu') this.updateMenu(dt);
     else if (this.mode === 'land') this.updateLand(dt, paused);

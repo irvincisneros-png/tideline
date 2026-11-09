@@ -20,7 +20,8 @@ export class Outing {
   /** Begin a new outing (called when you walk onto the shore). Keeps an unfinished one if the page was reloaded mid-outing. */
   start(force = false) {
     const p = this.p;
-    if (p.outing && !force) return p.outing;
+    // An unfinished outing carries on after a reload. A finished one (t1 set: the tab was closed on the summary card) is over; a new one starts.
+    if (p.outing && !p.outing.t1 && !force) return Object.assign(p.outing, { caught: 0, kept: 0, keptLegal: 0, keptIllegal: 0, released: 0, meas: 0, acc: 0, gains: [], ...p.outing, gains: Array.isArray(p.outing.gains) ? p.outing.gains : [] });
     p.outing = { id: Date.now(), t0: Date.now(), eco: this.game.eco.id, bay0: G.bayHealth(p), st0: G.stewardRating(p).value, stock0: { ...p.stock },
       caught: 0, kept: 0, keptLegal: 0, keptIllegal: 0, released: 0, meas: 0, acc: 0, gains: [], officer: null };
     this.game.persist();

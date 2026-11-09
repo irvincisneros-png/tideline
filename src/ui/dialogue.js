@@ -51,6 +51,8 @@ export class Dialogue {
     document.body.appendChild(el);
     addEventListener('keydown', e => {
       if (!this.isOpen || !this.resolve) return;
+      // A held key must not race through the lines, and the Space that was mid-cast when a radio call came in must not dismiss its first line.
+      if (e.repeat || performance.now() - (this.shownAt ?? 0) < 250) { if (['Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopPropagation(); } return; }
       if (this.choices) {
         // Choices: press 1-9 to pick one; Escape picks the "cancel" choice (the last one, "Bye" / "Back").
         const n = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
@@ -66,7 +68,7 @@ export class Dialogue {
   /** Show one line; resolves with the choice index (0 when there are no choices) once the player continues. */
   say({ who, text, choices = null, button = 'Continue', cancel = null }) {
     return new Promise(resolve => {
-      this.resolve = resolve; this.choices = choices; this.cancel = cancel;
+      this.resolve = resolve; this.choices = choices; this.cancel = cancel; this.shownAt = performance.now();
       const w = who ?? {};
       // A person from the coast has a rendered 3D bust (npc/portrait.js); the Fisheries Officer's old SVG bust is the fallback.
       const bust = w.portraitUrl ? `<img class="dlg-bust photo" src="${w.portraitUrl}" alt="${esc(w.name ?? 'Portrait')}">` : portraitSVG(w.portrait);

@@ -99,6 +99,7 @@ async function measure(target, shotName) {
 
 /** Keep or release (rules hidden until you commit), then the verdict card. */
 async function decide(keep, shotName) {
+  if (await waitFor('#pb-ok', 600)) { await page.click('#pb-ok'); await t.wait(200); }   // a longer fish than last time: the personal-best card comes first
   check(await waitFor('#fx-keep'), 'keep / release decision opens');
   const hiddenBefore = await ev(() => !/(legal length|bag limit)\s*(is|of)?\s*\d+/i.test(document.querySelector('#modal-body').innerText));
   check(hiddenBefore, 'the rules are hidden before the decision');
@@ -208,7 +209,7 @@ await page.keyboard.press('Escape'); await t.wait(200);
 
 // ---------------------------------------------------------------- head home -> officer -> summary
 await ev(() => { window.__game.fishing.stop(); });
-await page.click('#home-btn'); await t.wait(500);
+await page.click('#menu-btn'); await t.wait(300); await page.click('#p-home'); await t.wait(500);
 await t.shot('16-head-home');
 await page.click('#home-go'); await t.wait(700);
 check(await waitFor('.dlg:not(.hidden) .dlg-box', 4000), 'the Fisheries Officer dialogue opens');

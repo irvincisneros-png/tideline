@@ -98,10 +98,12 @@ export class Fishing {
     if (this.state === 'snagged') { this.game.toast(this.snagKind === 'tangle' ? 'Wind the lines clear first: hold Space.' : 'Snagged! Tap Space to let it drop off before you put the rod away.', 'warn'); return; }
     if (this.active) { this.stop(); return; }
     this.spot = spot; this.state = 'ready';
-    this.game.toast(`Rod out (${SPOTS[spot].label}). Hold Space to wind up, release to cast. Press T for your tackle box. R puts the rod away.`);
+    { const g = this.game, tips = g.progress.tips ??= {};   // the how-to is said once; after that the hint bar shows the buttons and the toast just names the spot
+      if (!tips.rodOut) { tips.rodOut = true; g.persist(); g.toast(`Rod out (${SPOTS[spot].label}). Hold Space to wind up, release to cast. Press T for your tackle box. Press R to put the rod away.`); }
+      else if (this.lastSpotToast !== spot) g.toast(SPOTS[spot].label); this.lastSpotToast = spot; }
   }
   /** Can the player change tackle right now? Not while a fish is on. */
-  get canChangeGear() { return !['bite', 'fight', 'snagged'].includes(this.state); }
+  get canChangeGear() { return !['bite', 'fight', 'snagged', 'flying', 'wait', 'retrieve'].includes(this.state); }   // (a line that is out was cast with the old rig and bait)
   stop() {
     this.bar.stop(); this.angler?.setBend(0);
     this.snag = null; this.state = 'off'; this.landT = 0; this.line.visible = false; this.float.visible = false; this.ripple.visible = false; this.aim.visible = false; this.aimLine.visible = false; this.bang.visible = false;
@@ -132,7 +134,7 @@ export class Fishing {
 
   update(dt, t, input, world) {
     if (!this.active) return;
-    const g = this.game, w = g.walker, ang = g.angler, space = input.down('Space'), hit = input.hit('Space');
+    const g = this.game, w = g.walker, ang = g.angler, hit = input.hit('Space'), space = input.down('Space') || hit;   // (a tap shorter than one frame still counts as down for that frame)
     const eye = this._eye ??= new THREE.Vector3(); eye.set(w.pos.x, w.pos.y + 1, w.pos.z);
     ang.rodTip.getWorldPosition(this.tipW);
     const tipW = this.tipW;
@@ -157,7 +159,7 @@ export class Fishing {
       const a = this._aim, ay = surf(a.x, a.z) + 0.06, dir = w.facing, len = Math.hypot(a.x - w.pos.x, a.z - w.pos.z);
       this.aim.position.set(a.x, ay, a.z); this.aim.scale.setScalar(0.8 + this.power * 0.9 + Math.sin(t * 8) * 0.06);
       this.aimLine.position.set((a.x + w.pos.x) / 2, ay, (a.z + w.pos.z) / 2); this.aimLine.scale.set(len - 1.2, 1, 1); this.aimLine.rotation.z = Math.atan2(dir.z, dir.x);
-      prompt = `Casting power ${Math.round(this.power * 100)}% — release <kbd>Space</kbd>`;
+      prompt = `<span class="power" style="--p:${Math.round(this.power * 100)}%"><i></i></span> Release <kbd>Space</kbd> to cast`;
       if (!space) {
         this.castTarget(this.power);
         const depth = surf(this.target.x, this.target.z) - world.groundAt(this.target.x, this.target.z);
@@ -194,7 +196,8 @@ export class Fishing {
       this.nearSp = near && near.d < SHOAL_NEAR ? near.sp : null;
       this.waitT -= dt * (this.nearSp ? 2.2 : 1);
       fp.y = surf(fp.x, fp.z) + Math.sin(t * 2.2) * 0.02;
-      prompt = this.nearSp ? 'Your bait is right by a school… (hold <kbd>Space</kbd> to draw it in, tap to wind in)' : 'Waiting for a bite… (hold <kbd>Space</kbd> to draw the bait in slowly, tap to wind in and cast again)';
+      prompt = !g.touch ? (this.nearSp ? 'Your bait is right by a school…' : 'Waiting for a bite…')   // (keyboard and controller: the hint bar shows hold / tap)
+        : this.nearSp ? 'Your bait is right by a school… (hold <kbd>Space</kbd> to draw it in, tap to wind in)' : 'Waiting for a bite… (hold <kbd>Space</kbd> to draw the bait in slowly, tap to wind in and cast again)';
       if (move === 'twitch' || this.dist < 2.2) { this.state = 'ready'; this.float.visible = false; if (move === 'twitch') this.baitTip(); }
       else if (this.waitT <= 0) { this.state = 'bite'; this.biteT = 1.3; this.catch = this.tutorial ? tutorialCatch() : pickCatch(this.spot, this.nearSp ? { ...this.ctx, arch: this.nearSp } : this.ctx); g.audio.play('warn'); if (!this.tutorial) g.useBait(); }   // the fish takes the bait: one bait is used
       else if (move === 'reel' && this.trySnag(dt, move, 'wait')) prompt = SNAG_TEXT.prompt;   // drawing the bait in over structure can snag it (never a still wait)
@@ -385,7 +388,7 @@ export class Fishing {
         g.toast(`It turned away. ${STYLES[I.style].hint}`, 'warn');
       }
     }
-    return sh.on ? 'Something is following… keep the rhythm' : 'Work the lure: tap <kbd>Space</kbd> twitch · hold reel · let go pause';
+    return sh.on ? 'Something is following… keep the rhythm' : (g.touch ? 'Work the lure: tap <kbd>Space</kbd> twitch · hold reel · let go pause' : 'Work the lure: twitch, reel, pause');
   }
   /** The first time a bait rig is tapped in: one tip on why it wound in (a lure twitches, bait does not). */
   baitTip() {

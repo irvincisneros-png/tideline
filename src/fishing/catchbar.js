@@ -215,7 +215,7 @@ export class CatchBar {
     const s = this.s, prev = this.fy;
     PROFILES[this.profile].step(s, dt, this);
     const d = s.tgt - this.fy, mv = clamp(d, -s.speed * dt, s.speed * dt);
-    this.fy = clamp(this.fy + mv + (s.jitter ?? 0), 0.02, 0.98); s.jitter = 0;
+    this.fy = clamp(this.fy + mv + (s.jitter ?? 0) * dt * 60, 0.02, 0.98); s.jitter = 0;   // (the wobble is tuned per 60 Hz frame: scaled so a 120 Hz screen shakes the same)
     this.fv = (this.fy - prev) / Math.max(dt, 1e-4);
     this.activity += (clamp(Math.abs(this.fv) / 1.2, 0, 1) - this.activity) * Math.min(1, dt * 6);
     this.inZone = Math.abs(this.fy - this.zy) <= h + 0.01;

@@ -46,7 +46,7 @@ async function session(site, fn) {
       const geo = await ev(() => { const i = document.querySelector('#mat-fish').getBoundingClientRect(), b = document.querySelector('#mat-board').getBoundingClientRect(); return { x0: i.left, pxcm: i.width / window.__game.catchFlow.c.length, y: b.top + b.height / 2 }; });
       await page.mouse.move(geo.x0 + 20, geo.y); await page.mouse.down(); await page.mouse.move(geo.x0 + target * geo.pxcm, geo.y, { steps: 6 }); await page.mouse.up();
       for (let i = 0; i < 14; i++) { const v = +(await ev(() => document.querySelector('#mr').textContent)); if (v === target) break; await page.click(v < target ? '#m-plus' : '#m-minus'); }
-      await page.click('#m-lock'); await t.wait(250); await page.click('#m-next'); await t.wait(250);
+      await page.click('#m-lock'); await t.wait(250); await page.click('#m-next'); await t.wait(250); if (await page.$('#pb-ok')) { await page.click('#pb-ok'); await t.wait(200); }   // a personal best: its card comes before keep / release
     },
   };
   try { await t.wait(1200); await fn(H); } finally { errors.push(...t.errors.filter(e => !/favicon/.test(e))); await t.close(); }

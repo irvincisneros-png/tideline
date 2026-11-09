@@ -157,12 +157,11 @@ export class NPC {
     this.applySit(dt, res.act === 'sitting' && settled);
 
     // Labels (HTML over the canvas): the name tag on approach, a request marker, and a speech bubble
-    const L = this.mgr.labels, top = 1.62 * this.scale, near = dp < 12 || this.talking, shown = near && !this.mgr.hideTags;
-    this.el.tag.classList.toggle('show', shown); this.el.mark.classList.toggle('show', shown && !!this.markerKind);
-    if (shown) {
-      if (!L.place(this.el.tag, this.pos.x, this.pos.y + top + 0.35, this.pos.z, 0, 0, 92)) this.el.mark.style.visibility = 'hidden';
-      else if (this.markerKind) L.place(this.el.mark, this.pos.x, this.pos.y + top + 0.35, this.pos.z, 26, this.el.tag.offsetWidth / 2 + 4, 76);
-    }
+    // The name shows only close up (about talking distance and a bit); a request marker can be seen from across the beach, on its own.
+    const L = this.mgr.labels, top = 1.62 * this.scale, shown = (dp < 6.5 || this.talking) && !this.mgr.hideTags, marked = !!this.markerKind && (dp < 40 || this.talking) && !this.mgr.hideTags;
+    this.el.tag.classList.toggle('show', shown); this.el.mark.classList.toggle('show', marked);
+    if (shown && !L.place(this.el.tag, this.pos.x, this.pos.y + top + 0.35, this.pos.z, 0, 0, 60)) this.el.mark.style.visibility = 'hidden';
+    else if (marked) L.place(this.el.mark, this.pos.x, this.pos.y + top + 0.35, this.pos.z, shown ? 22 : 0, shown ? this.el.tag.offsetWidth / 2 + 2 : 0, 50);
     if (this.bubbleT > 0 && this.mgr.hideTags) this.clearBubble();
     if (this.bubbleT > 0) {
       this.bubbleT -= dt;

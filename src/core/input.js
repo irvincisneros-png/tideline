@@ -22,7 +22,7 @@ export class Input {
       if (['Space', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
     });
     addEventListener('keyup', e => this.keys.delete(e.code));
-    addEventListener('blur', () => this.keys.clear());
+    addEventListener('blur', () => { this.keys.clear(); this.mouseDown = { 0: false, 1: false, 2: false }; this.downAt = null; canvas.classList.remove('dragging'); });
     // Look: pointer lock when available; otherwise drag with the left mouse button (fallback for blocked pointer lock).
     addEventListener('mousemove', e => {
       if (e.target === canvas) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.t = performance.now(); }
@@ -41,7 +41,8 @@ export class Input {
       this.mouseDown[e.button] = false;
       if (!this.mouseDown[0] && !this.mouseDown[1] && !this.mouseDown[2]) canvas.classList.remove('dragging');
       // Drag-look mode: a click without dragging still counts as a click (photo / info card).
-      if (this.dragLook && !this.locked && this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) < 5) this.clicks.push({ button: e.button, x: e.clientX, y: e.clientY });
+      if (this.gameplay && this.dragLook && !this.locked && this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) < 5) this.clicks.push({ button: e.button, x: e.clientX, y: e.clientY });
+      this.downAt = null;
     });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; this.onLockChange?.(this.locked); });

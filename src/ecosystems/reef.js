@@ -196,13 +196,14 @@ export function nextDrift(game, instant = false) {
   S.nDrift++;
   const k = S.nDrift % 4, off = [0, 26, -26, 13][k];
   const go = () => {
+    if (!instant && ['bite', 'fight', 'landed', 'snagged', 'flying'].includes(game.fishing.state)) return;   // a fish took the bait during the fade: stay on this drift (the next tick asks again)
+    game.toast('You motored back up to the start of another drift.', 'good');
     const nx = START.x + off * 0.78, nz = START.z - off * 0.62, dx = nx - S.x, dz = nz - S.z;
     S.x = nx; S.z = nz; game.walker.pos.x += dx; game.walker.pos.z += dz; game.rig.focus.x += dx; game.rig.focus.z += dz;
     game.fishing.float.visible = false; game.fishing.hideShadow?.(); if (game.fishing.active && game.fishing.state !== 'off') game.fishing.state = 'ready';
     placeBoat(game);
   };
   if (instant) go(); else fadeBlink(game, go);
-  game.toast('You motored back up to the start of another drift.', 'good');
 }
 function placeBoat(game) {
   S.boat?.position.set(S.x, 0, S.z);

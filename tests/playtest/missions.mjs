@@ -170,7 +170,7 @@ if (!onlyMobile) {
   check(h.vw === 844 && h.vh === 390, `phone landscape ${h.vw}x${h.vh}`);
   check(h.shown && h.text.startsWith('First lines:'), `844x390: the mission line shows: "${h.text}"`);
   check(h.rect.l >= 0 && h.rect.r <= h.vw - 250 && h.rect.b <= 170 && h.scrollW <= h.vw, `844x390: it fits left of the thumb buttons: right ${h.rect.r.toFixed(0)} of ${h.vw - 250}, bottom ${h.rect.b.toFixed(0)}, no sideways scroll`);
-  const overlap = await page.evaluate(() => { const a = document.querySelector('#mission-btn').getBoundingClientRect(); return [...document.querySelectorAll('#hud-top > *:not(#mission-btn):not(.hidden)')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top; }).map(e => e.id || e.className); });
+  const overlap = await page.evaluate(() => { const a = document.querySelector('#mission-btn').getBoundingClientRect(); return [...document.querySelectorAll('#cond-chip, #stat-chip, #menu-btn, #touch .t-top button')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top; }).map(e => e.id || e.className); });
   check(overlap.length === 0, `844x390: it overlaps no other HUD item ${overlap}`);
   await t.shot('phone-hud');
   await page.touchscreen.tap((h.rect.l + h.rect.r) / 2, (h.rect.t + h.rect.b) / 2); await t.wait(600);   // a real finger: the look layer sits over the HUD and passes the tap on
@@ -187,7 +187,7 @@ if (!onlyMobile) {
   await t.wait(1800);
   const h = await hud(t.page);
   check(h.shown && h.rect.l >= 0 && h.rect.r <= 375 && h.scrollW <= 375, `375 wide: the mission line fits (${h.rect.l.toFixed(0)}..${h.rect.r.toFixed(0)}), no sideways scroll`);
-  const overlap = await t.page.evaluate(() => { const a = document.querySelector('#mission-btn').getBoundingClientRect(); return [...document.querySelectorAll('#hud-top > *:not(#mission-btn):not(.hidden)')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top; }).map(e => e.id || e.className); });
+  const overlap = await t.page.evaluate(() => { const a = document.querySelector('#mission-btn').getBoundingClientRect(); return [...document.querySelectorAll('#cond-chip, #stat-chip, #menu-btn, #touch .t-top button')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top; }).map(e => e.id || e.className); });
   check(overlap.length === 0, `375 wide: it overlaps no other HUD item ${overlap}`);
   await t.shot('narrow-hud');
   await t.page.click('#mission-btn'); await t.wait(500);
