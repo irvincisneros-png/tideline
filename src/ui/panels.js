@@ -83,7 +83,7 @@ export class Panels {
       <div class="settings-row"><span>Invert camera tilt</span><input id="set-inv" type="checkbox" ${settings.invertY ? 'checked' : ''}></div>
       <div class="settings-row"><span>Fight camera<br><small style="color:var(--muted)">Ease the camera lower and side-on while a fish is on, so you can see the angler reel.</small></span><input id="set-fight" type="checkbox" ${settings.fightCam !== false ? 'checked' : ''}></div>
       <div class="settings-row"><span>Volume</span><input id="set-vol" type="range" min="0" max="1" step="0.05" value="${settings.volume}"></div>
-      <div class="settings-row"><span>Music<br><small style="color:var(--muted)">Relaxing tracks for each site, streamed as you go.</small></span><input id="set-music-on" type="checkbox" ${settings.musicOn !== false ? 'checked' : ''} aria-label="Music on"></div>
+      <div class="settings-row"><span>Music<br><small style="color:var(--muted)">Background music, streamed after your first click.</small></span><input id="set-music-on" type="checkbox" ${settings.musicOn !== false ? 'checked' : ''} aria-label="Music on"></div>
       <div class="settings-row"><span>Music volume</span><input id="set-music-vol" type="range" min="0" max="1" step="0.05" value="${settings.musicVolume ?? 0.5}"></div>
       <div class="settings-row"><span>Corner minimap<br><small style="color:var(--muted)">A small map in the top-left corner while you play. Press M for the full map.</small></span><input id="set-mini" type="checkbox" ${settings.minimap ? 'checked' : ''}></div>
       <div class="settings-row"><span>Reduced motion (steadier camera)</span><input id="set-rm" type="checkbox" ${settings.reducedMotion ? 'checked' : ''}></div>

@@ -97,7 +97,7 @@ The playtest harness borrows Playwright from a sibling repo (set `PLAYWRIGHT_PAT
 
 ## Music
 Relaxing, royalty-free tracks stream per site (`src/audio/music.js`, pure picks in `src/audio/musicPlan.js`): title/menu Beary Fishy, Bellambi The Beach, Lake Illawarra The Oasis, Belmore Basin The Village, offshore reef The Raft on the Ocean, river The Grassland, **night at any site** Slow Stride, a new species the Reel Winner jingle, awards night Gone Fishin'. Files are 80 kbps AAC `.m4a` in `assets/music/` (about 0.9 MB per track, loops have a 2 s crossfade baked in so they repeat without a seam), fetched only after the first click or key press and one at a time, so they are not in the initial payload. They crossfade between sites and day/night, duck under dialogue, the catch bar and the jingle, and the ambient soundscape stays underneath at a lower level. Settings has a Music on/off toggle and a Music volume slider (separate from Volume). The sources are `assets/music-src/` (not committed). Re-encode with `tools/encode-music.sh`.
-**Music credits:** 'Indie Meditations' by YannZ (CC BY 4.0, opengameart.org); 'Gone Fishin'', 'Beary Fishy' and 'The Reel Winner' by Memoraphile (CC0); 'Slow Stride' (CC0, opengameart.org). See `assets/music/LICENSES.md`.
+**Music credits:** 'Retro Arcade Game Music' by monume (Pixabay Content License, pixabay.com); 'Gone Fishin'' and 'The Reel Winner' by Memoraphile (CC0, opengameart.org). See `assets/music/LICENSES.md`.
 
 ## Credits and notes
 

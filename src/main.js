@@ -68,7 +68,7 @@ class Game {
     ensureMissions(this.progress);   // an older save: finished missions are marked done and their hats given silently, no scenes
     this.missionQueue = []; this.missionsDirty = true;
     const canvas = $('#gl');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality.antialias, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality.antialias && this.settings.style !== 'stylised', powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality.pixelRatio));
     this.stylised = this.settings.style === 'stylised';
     // Neutral tone mapping keeps the stylised palette saturated (ACES pushes bright colours toward white).
@@ -130,17 +130,20 @@ class Game {
     // Every tier gets the colour grade (it is the cosy look); bloom and the screen-space ink outline are for high and ultra.
     if (!this.stylised && !this.quality.bloom) { this.composer = null; return; }
     const outline = this.stylised && this.quality.bloom;
-    // The composer renders into its own target: give it MSAA, otherwise the antialiased tiers lose antialiasing entirely.
-    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.quality.antialias ? 4 : 0 });
-    if (outline) rt.depthTexture = new THREE.DepthTexture(1, 1); // read by the outline pass
+    // No multisampling on the composer's target (it was the single biggest cost): the image is sharpened by render scale and smoothed by FXAA at the end.
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
     this.composer = new EffectComposer(this.renderer, rt);
+    // The outline pass reads the scene's depth. Only the buffer the scene is drawn into carries it; the other one has no depth at all,
+    // so the grade never writes to a target whose depth it is sampling (a feedback loop draws black).
+    this.sceneRT = this.composer.readBuffer;
+    if (outline) { this.sceneRT.depthTexture = new THREE.DepthTexture(1, 1); this.composer.writeBuffer.depthBuffer = false; }
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     if (this.quality.bloom) { this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.42, 0.7, 0.8); this.composer.addPass(this.bloom); }
     if (this.stylised) {
       // Ink outlines where depth jumps (silhouettes), then the grade: richer colour, a gentle contrast curve, warm highlights over cool shadows,
       // a warm glow spilling in from the sun's side of the screen, and a soft vignette.
       this.gradePass = new ShaderPass({
-        uniforms: { tDiffuse: { value: null }, tDepth: { value: rt.depthTexture ?? null }, uRes: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: this.camera.near }, cameraFar: { value: this.camera.far }, uUnder: { value: 0 }, uFogDensity: { value: 0.03 },
+        uniforms: { tDiffuse: { value: null }, tDepth: { value: this.sceneRT.depthTexture ?? null }, uRes: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: this.camera.near }, cameraFar: { value: this.camera.far }, uUnder: { value: 0 }, uFogDensity: { value: 0.03 },
           uSun: { value: new THREE.Vector2(0.5, 1.2) }, uSunAmt: { value: 0 }, uSunCol: { value: new THREE.Color(1, 0.8, 0.55) }, uWarm: { value: 0 }, uNightK: { value: 0 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         defines: { OUTLINE: outline ? '0.7' : '0.0', HAS_DEPTH: outline ? 1 : 0 }, // thin ink outlines on silhouettes (0 = off)
@@ -180,13 +183,48 @@ class Game {
       this.composer.addPass(this.gradePass);
     }
     this.composer.addPass(new OutputPass());
+    if (this.quality.antialias) {
+      // FXAA (the short console version): blends along edges found from luma contrast. Runs last, on the tone-mapped image.
+      this.fxaa = new ShaderPass({
+        uniforms: { tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uPx; varying vec2 vUv;
+          float lu(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+          void main(){
+            vec3 m = texture2D(tDiffuse, vUv).rgb;
+            float nw = lu(texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * uPx).rgb), ne = lu(texture2D(tDiffuse, vUv + vec2(1.0, -1.0) * uPx).rgb);
+            float sw = lu(texture2D(tDiffuse, vUv + vec2(-1.0, 1.0) * uPx).rgb), se = lu(texture2D(tDiffuse, vUv + vec2(1.0, 1.0) * uPx).rgb), lm = lu(m);
+            float lmin = min(lm, min(min(nw, ne), min(sw, se))), lmax = max(lm, max(max(nw, ne), max(sw, se)));
+            vec2 dir = vec2(-((nw + ne) - (sw + se)), (nw + sw) - (ne + se));
+            float red = max((nw + ne + sw + se) * 0.03125, 0.0078125);
+            dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + red), -8.0, 8.0) * uPx;
+            vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
+            vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv - dir * 0.5).rgb + texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+            float lb = lu(b);
+            gl_FragColor = vec4(lb < lmin || lb > lmax ? a : b, 1.0);
+          }`,
+      });
+      this.composer.addPass(this.fxaa);
+    }
   }
   resize() {
     const w = innerWidth, h = innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
-    this.composer?.setSize(w, h);
+    // The composer keeps its own copy of the pixel ratio: without this an adaptive drop shrank the canvas but not the post buffers, so the picture blurred and nothing got faster.
+    if (this.composer) {
+      const pr = this.renderer.getPixelRatio();
+      this.composer.setPixelRatio(pr); this.composer.setSize(w, h);
+      if (this.sceneRT?.depthTexture) {
+        // The depth texture does not follow the target's size: replace it, or the framebuffer is incomplete and the screen goes black.
+        this.sceneRT.depthTexture.dispose();
+        const dt = this.sceneRT.depthTexture = new THREE.DepthTexture(Math.round(w * pr), Math.round(h * pr));
+        this.sceneRT.dispose();
+        if (this.gradePass) this.gradePass.material.uniforms.tDepth.value = dt;
+      }
+    }
     if (this.gradePass) this.gradePass.uniforms.uRes.value.set(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
+    if (this.fxaa) this.fxaa.uniforms.uPx.value.set(1 / (w * this.renderer.getPixelRatio()), 1 / (h * this.renderer.getPixelRatio()));
   }
 
   async start() {
@@ -833,16 +871,28 @@ class Game {
     const n = Math.round(seconds * 60);
     for (let i = 0; i < n; i++) { hook?.(this); this.loop(1 / 60, i < n - 1); }
   }
-  /** Adaptive resolution: drop the render scale on slow machines (school laptops). */
+  /**
+   * Adaptive resolution: drop the render scale when the frame rate is low, but only keep a drop that actually helped.
+   * (When the scene is limited by geometry, not pixels, a lower scale only blurs the picture: an Ultra view zoomed right out sat at 41 fps at any scale.)
+   */
   adapt(raw) {
     this.ft = (this.ft ?? 0.016) * 0.95 + raw * 0.05;
     this.fps = Math.round(1 / this.ft);
-    this.slowT = this.ft > 0.034 ? (this.slowT ?? 0) + raw : 0;
-    if (this.slowT > 3 && this.renderer.getPixelRatio() > 0.55) {
-      this.renderer.setPixelRatio(Math.max(0.5, this.renderer.getPixelRatio() - 0.15));
-      this.resize(); this.slowT = 0;
-      if (!this.adaptWarned) { this.adaptWarned = true; this.toast('Lowering resolution to keep things smooth. You can change graphics in Settings.'); }
+    const R = this.renderer, pr = R.getPixelRatio();
+    if (this.trial) {
+      // A drop is on trial for 3 s: if the frame time did not improve by 8%, put the sharpness back and leave the scale alone for a while.
+      if ((this.trial.t += raw) > 3) {
+        if (this.trial.ft / this.ft < 1.08) { R.setPixelRatio(this.trial.from); this.resize(); this.adaptHold = 40; }
+        else if (this.trial.warn && !this.adaptWarned) { this.adaptWarned = true; this.toast('Lowering resolution to keep things smooth. You can change graphics in Settings.'); }
+        this.trial = null; this.slowT = this.softT = 0;
+      }
+      return;
     }
+    if (this.adaptHold > 0) { this.adaptHold -= raw; return; }
+    this.slowT = this.ft > 0.034 ? (this.slowT ?? 0) + raw : 0;                 // under about 30 fps
+    this.softT = this.ft > 0.022 && pr > 1 ? (this.softT ?? 0) + raw : 0;       // under about 45 fps: above 1x the extra sharpness is a luxury
+    const to = this.softT > 2 ? Math.max(1, pr - 0.18) : this.slowT > 3 && pr > 0.55 ? Math.max(0.5, pr - 0.15) : null;
+    if (to != null) { this.trial = { from: pr, ft: this.ft, t: 0, warn: to < 1 }; R.setPixelRatio(to); this.resize(); }
   }
   loop(fixedDt, skipRender = false) {
     if (this.loading) { this.clock.getDelta(); return; }
@@ -899,7 +949,7 @@ class Game {
       u.uWarm.value = Math.min(1, gold + e.glow) * (1 - night); u.uNightK.value = night;
       u.uSunCol.value.setRGB(1, 0.8 - 0.14 * e.glow, 0.55 - 0.2 * e.glow);
     }
-    if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+    if (this.composer) { if (this.composer.readBuffer !== this.sceneRT) this.composer.swapBuffers(); this.composer.render(); } else this.renderer.render(this.scene, this.camera);
     this.input.endFrame();
   }
 

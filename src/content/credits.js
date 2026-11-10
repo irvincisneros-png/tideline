@@ -16,7 +16,7 @@ export const CREDITS = [
     'Music is by other artists, shared under free licences (below). It is streamed only when you play, and can be turned off in Settings.',
     'Cosy art direction inspired by the quiet fishing games we love.',
   ] },
-  { h: 'Music', lines: ["Music: 'Indie Meditations' by YannZ (CC BY 4.0, opengameart.org); 'Gone Fishin'', 'Beary Fishy' and 'The Reel Winner' by Memoraphile (CC0); 'Slow Stride' (CC0, opengameart.org)."] },
+  { h: 'Music', lines: ["Music: 'Retro Arcade Game Music' by monume (Pixabay Content License, pixabay.com); 'Gone Fishin'' and 'The Reel Winner' by Memoraphile (CC0, opengameart.org)."] },
   { h: 'The people of the coast', lines: ['Mitra, Old Tam, Dr Priya, Ranger Jo, Mika, Sione, Bev, Fatima, Nell and the Fisheries Officer are original characters.'] },
   { h: 'Thank you', lines: ['To every student who releases the small ones.'] },
 ];
