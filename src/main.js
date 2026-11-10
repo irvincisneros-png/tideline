@@ -37,6 +37,7 @@ import { ECOSYSTEMS, ecoById } from './ecosystems/index.js';
 import { siteLock } from './ecosystems/unlock.js';
 import { NPCManager } from './npc/manager.js';
 import { rigUnlocked, baitUnlocked, lockHint } from './npc/inventory.js';
+import { nextTarget, recipeFor, checklist, nextStep, targetName, minutesUntil, SITE_LABEL } from './fishing/trail.js';
 import { openQuestLog } from './ui/questLog.js';
 import { runBoatTrip } from './ui/boatTrip.js';
 import { openShop, showRecaptureLetter } from './ui/shop.js';
@@ -258,6 +259,7 @@ class Game {
     $('#btn-help').onclick = () => this.panels.help();
     $('#menu-btn').onclick = () => this.pauseMenu();
     $('#mission-btn').onclick = () => this.questLog();
+    $('#target-btn').onclick = () => this.openTrail();
     this.updateEcoBlurb();
     this.updateProgressSummary();
   }
@@ -400,6 +402,7 @@ class Game {
       if (c === 'KeyE') this.npcs.talkNearest();
       if (c === 'KeyB' && this.eco.toggleAnchor) this.eco.toggleAnchor(this);
       if (c === 'KeyQ') this.questLog();
+      if (c === 'KeyN') this.openTrail();
       if (c === 'KeyV') this.cycleView();
     });
   }
@@ -586,7 +589,7 @@ class Game {
     if (!this.movedFar && !paused) { this.walked += w.speed * dt; if (this.walked > 6) this.movedFar = true; }
     if (this.frame % 6 === 0) { this.updateChip(); this.setKeys(paused ? [] : this.hudHints()); document.body.classList.toggle('rod-out', f.active); }
     this.intro?.update(paused ? 0 : dt, this.time);
-    if (this.frame % 30 === 0) this.missionPump();
+    if (this.frame % 30 === 0) { this.missionPump(); this.updateTrailHud(); }
     if (f.active) {
       if (!paused) f.update(dt, this.time, this.input, this.world);
       const talk = !paused && ['ready', 'wait'].includes(f.state) ? this.npcs.promptText() : '';
@@ -628,7 +631,7 @@ class Game {
   biteContext(target) {
     const gs = this.gearStats(), colour = this.progress.inventory?.lure ?? 'pink', t = target ?? this.walker.pos;
     return this.cond.context(this.gear, (spot, id) => this.progress.stock?.[`${spot}:${id}`], { shy: gs.shy, lureMod: lureMod(colour, this.cond.clarity, this.cond.time), lit: this.eco.litAt?.(t.x, t.z) ?? 0,
-      depth: this.eco.depthAt?.(t.x, t.z), arch: this.eco.archAt?.(t.x, t.z, this.eco.state?.t ?? this.time)?.id });   // the reef: how deep the bait is (barotrauma) and the fish finder's mark under it
+      target: this.trail?.t && !this.trail.t.lockedSite ? this.trail.t.entry.id : undefined, depth: this.eco.depthAt?.(t.x, t.z), arch: this.eco.archAt?.(t.x, t.z, this.eco.state?.t ?? this.time)?.id });   // the reef: how deep the bait is (barotrauma) and the fish finder's mark under it
   }
   /** What your rod, line and tools do (economy/store.js): the catch bar and the bite model read these, nothing is hard-coded in fishing.js. */
   gearStats() { return gearStats(this.progress); }
@@ -787,6 +790,65 @@ class Game {
     el.classList.toggle('hidden', !h.text); el.classList.toggle('pinned', h.pinned);
     el.querySelector('.m-text').textContent = h.text; el.querySelector('.m-ico').textContent = h.pinned ? '📌' : '🎯';
     el.title = h.text; el.setAttribute('aria-label', `${h.pinned ? 'Your pinned request' : 'Your mission'}: ${h.text}. Tap to open the quest log`);
+  }
+  // ------------------------------------------------------------------ the fish trail (fishing/trail.js): one "next fish" and its next step
+  /** The current target, its recipe, the live checklist and the one-line next step; null when the trail is off (Settings) or the opening is running. */
+  trailInfo() {
+    if (this.settings.trail === false || this.intro?.active || !this.eco.fishing) return null;
+    const p = this.progress, has = { rig: k => rigUnlocked(p, k), bait: k => baitUnlocked(p, k) };
+    const ready = e => { const r = recipeFor(e, has); return r.rig.owned && (!r.bait || r.bait.owned); };
+    const t = nextTarget(p, { open: site => !siteLock(p, ecoById(site)).locked, skipped: p.trail?.skip ?? [], ready });
+    if (!t) return { t: null, text: nextStep(null) };
+    const recipe = recipeFor(t.entry, has), short = n => n.replace(/ \(.*/, '').toLowerCase();
+    const now = { site: this.eco.id, spot: this.fishing.state !== 'off' && this.fishing.spot ? this.fishing.spot : this.fishingSpot(), rig: this.gear.rig, bait: this.gear.bait, time: this.cond.time, tide: this.cond.fresh ? null : this.cond.tide };
+    const rows = checklist(recipe, now, { rig: k => short(RIGS[k].name), bait: k => short(BAITS[k].name) });
+    const lock = t.lockedSite ? siteLock(p, ecoById(t.entry.site)) : null;
+    const text = nextStep(t, rows, { lockText: lock ? `Opens when you ${lock.text.charAt(0).toLowerCase()}${lock.text.slice(1)} (${lock.progressText}).` : '',
+      hints: { rig: lockHint(p, 'rig', recipe.rig.id), bait: recipe.bait ? lockHint(p, 'bait', recipe.bait.id) : '' } });
+    return { t, recipe, rows, text };
+  }
+  /** The HUD line for the trail (about twice a second, written only when it changes), and a cheer when the target is caught. */
+  updateTrailHud() {
+    const el = $('#target-btn');
+    if (!el) return;
+    const info = this.trail = this.mode === 'land' ? this.trailInfo() : null, id = info?.t?.entry.id ?? null;
+    if (this.trailLast && this.trailLast !== id && !this.panels.isOpen && G.atLeast(G.tierOf(this.progress, this.trailLast), 'caught')) {
+      this.toast(info?.t ? `New fish found: ${info.t.n} of ${info.t.total} on the fish trail. Press N for the next one.` : 'Fish trail finished: you have caught every fish on the coast!', 'good');
+      this.trailLast = id;
+    } else if (!this.panels.isOpen || !this.trailLast) this.trailLast = id;
+    const text = info?.text ?? '';
+    if (el.dataset.v === text) return;
+    el.dataset.v = text; el.classList.toggle('hidden', !text);
+    el.querySelector('.m-text').textContent = text; el.title = text; el.setAttribute('aria-label', `Fish trail: ${text}. Tap for the full plan`);
+  }
+  /** The fish trail card (N, or tap the HUD line): the whole recipe as a checklist, with a button for each step the game can do for you. */
+  openTrail() {
+    const info = this.trailInfo();
+    if (!info) { this.toast(this.settings.trail === false ? 'The fish trail is switched off. Turn it on in Settings.' : 'The fish trail starts once you are fishing on your own.'); return; }
+    const p = this.progress;
+    if (!info.t) { this.panels.open(`<h2>Fish trail</h2><p>${esc(info.text)}</p><div class="row"><button class="btn" id="tr-close">Close</button></div>`); $('#tr-close').onclick = () => this.panels.close(); return; }
+    const { t, recipe, rows } = info, name = targetName(p, recipe.id), away = this.eco.id !== recipe.site;
+    const btn = r => {
+      if (t.lockedSite) return '';
+      if (r.key === 'site' && !r.ok) return `<button class="btn small" id="tr-go">Travel there</button>`;
+      if (r.key === 'rig' && !r.ok) return r.owned ? `<button class="btn small" id="tr-rig">Put it on</button>` : `<small>${esc(lockHint(p, 'rig', recipe.rig.id) || 'Not in your tackle box yet')}</small>`;
+      if (r.key === 'bait' && !r.ok) return r.owned ? `<button class="btn small" id="tr-bait">Use it</button>` : `<small>${esc(lockHint(p, 'bait', recipe.bait.id) || 'Not in your tackle box yet')}</small>`;
+      if (r.key === 'time' && !r.ok && !away) return `<button class="btn small" id="tr-wait">Wait for it</button>`;
+      return '';
+    };
+    const lock = t.lockedSite ? siteLock(p, ecoById(recipe.site)) : null;
+    this.panels.open(`<h2>Fish trail <small style="color:var(--muted)">${t.n} of ${t.total} caught</small></h2>
+      <p><b>Next: ${esc(name)}.</b> ${lock ? `It lives at ${esc(SITE_LABEL[recipe.site])}, which opens when you ${esc(lock.text.charAt(0).toLowerCase() + lock.text.slice(1))} (${esc(lock.progressText)}).` : 'Tick these off from the top and it will bite far more often. Then name it with the key.'}</p>
+      <ul class="trail-list">${rows.map(r => `<li class="${r.ok ? 'ok' : r.soft ? 'soft' : 'todo'}"><i aria-hidden="true">${r.ok ? '✔' : r.soft ? '○' : '➜'}</i><span><b>${esc(r.label)}:</b> ${esc(r.value)}${r.soft && !r.ok ? ' <small>(helps, not needed)</small>' : ''}</span>${btn(r)}</li>`).join('')}</ul>
+      <div class="row"><button class="btn" id="tr-close">Got it</button><button class="btn ghost" id="tr-skip">Skip this fish</button></div>
+      <p><small style="color:var(--muted)">The trail is only a guide: fish anywhere you like. You can switch it off in Settings.</small></p>`);
+    const again = () => { this.updateTrailHud(); this.updateChip(); this.openTrail(); };
+    $('#tr-close').onclick = () => this.panels.close();
+    $('#tr-skip').onclick = () => { (p.trail ??= { skip: [] }).skip = [...new Set([...(p.trail.skip ?? []), recipe.id])]; this.persist(); again(); };
+    const go = $('#tr-go'); if (go) go.onclick = async () => { this.panels.close(); await this.loadSite(recipe.site); this.enterLand(); };
+    const rig = $('#tr-rig'); if (rig) rig.onclick = () => { if (!this.fishing.canChangeGear) { this.toast('Wind your line in first, then change tackle.', 'warn'); return; } this.gear.rig = recipe.rig.id; this.saveGear(); again(); };
+    const bait = $('#tr-bait'); if (bait) bait.onclick = () => { if (!this.fishing.canChangeGear) { this.toast('Wind your line in first, then change tackle.', 'warn'); return; } this.gear.bait = this.lastBait = recipe.bait.id; this.saveGear(); again(); };
+    const wait = $('#tr-wait'); if (wait) wait.onclick = () => { if (!['off', 'ready'].includes(this.fishing.state)) { this.toast('Wind your line in first.', 'warn'); return; } this.cond.minutes += minutesUntil(recipe.time, this.cond.hour); this.updateChip(); this.toast(`You wait a while. It is ${this.cond.time} now.`); again(); };
   }
   /** Is it a quiet moment for a radio call? On land with the rod put away or ready (not casting, waiting, on a bite or fighting), and nothing open. */
   missionSafe() {

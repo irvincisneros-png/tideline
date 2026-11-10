@@ -971,3 +971,14 @@ body.pad .cb-hint kbd, body.pad .dlg-choice kbd { display: none; }
 /* A panel or a conversation is up: the play HUD steps back. */
 body:has(#modal:not(.hidden)) :is(#toast, #keys, #prompt, #site-name), body:has(#dialogue:not(.hidden)) :is(#keys, #prompt, #site-name) { visibility: hidden; }
 #touch:not([data-anchor="1"]) .t-anchor { display: none !important; }
+
+/* Fish trail: the HUD line and its card */
+.mission-chip.target .m-text { color: #bff3e4; }
+.trail-list { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; gap: 6px; }
+.trail-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--cream3); }
+.trail-list li > i { font-style: normal; width: 1.2em; text-align: center; font-weight: 900; }
+.trail-list li > span { flex: 1 1 auto; min-width: 0; }
+.trail-list li.ok { opacity: 0.72; } .trail-list li.ok > i { color: var(--leaf); }
+.trail-list li.todo { outline: 2px solid var(--turq); } .trail-list li.todo ~ li.todo { outline: 0; }
+.trail-list li.soft > i { color: var(--muted); }
+.trail-list .btn.small { padding: 4px 12px; font-size: 13px; flex: 0 0 auto; }

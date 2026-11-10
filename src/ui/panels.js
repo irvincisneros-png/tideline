@@ -85,6 +85,7 @@ export class Panels {
       <div class="settings-row"><span>Volume</span><input id="set-vol" type="range" min="0" max="1" step="0.05" value="${settings.volume}"></div>
       <div class="settings-row"><span>Music<br><small style="color:var(--muted)">Background music, streamed after your first click.</small></span><input id="set-music-on" type="checkbox" ${settings.musicOn !== false ? 'checked' : ''} aria-label="Music on"></div>
       <div class="settings-row"><span>Music volume</span><input id="set-music-vol" type="range" min="0" max="1" step="0.05" value="${settings.musicVolume ?? 0.5}"></div>
+      <div class="settings-row"><span>Fish trail<br><small style="color:var(--muted)">Shows the next fish to find and the next step to catch it. Switch it off to fish with no hints.</small></span><input id="set-trail" type="checkbox" ${settings.trail !== false ? 'checked' : ''}></div>
       <div class="settings-row"><span>Corner minimap<br><small style="color:var(--muted)">A small map in the top-left corner while you play. Press M for the full map.</small></span><input id="set-mini" type="checkbox" ${settings.minimap ? 'checked' : ''}></div>
       <div class="settings-row"><span>Reduced motion (steadier camera)</span><input id="set-rm" type="checkbox" ${settings.reducedMotion ? 'checked' : ''}></div>
       <p style="margin-top:16px"><button class="btn small" id="set-reset">Reset all progress</button></p>`;
@@ -100,6 +101,7 @@ export class Panels {
     $('#set-music-on').onchange = e => ch('musicOn', e.target.checked);
     $('#set-music-vol').oninput = e => ch('musicVolume', +e.target.value);
     $('#set-mini').onchange = e => ch('minimap', e.target.checked);
+    $('#set-trail').onchange = e => ch('trail', e.target.checked);
     $('#set-rm').onchange = e => ch('reducedMotion', e.target.checked);
     $('#set-reset').onclick = () => { if (confirm('Delete your Fish Guide, logbook and esky on this device?')) ch('resetProgress', true); };
   }

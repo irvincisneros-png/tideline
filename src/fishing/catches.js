@@ -38,6 +38,12 @@ export function closedNow(rule, ctx = {}) {
 export const MISMATCH_RIG = 0.12; // rig match for a rig the species is not listed for
 export const MISMATCH_BAIT = 0.2;
 const COND_HIT = 1.4, COND_MISS = 0.7;
+/** The fish trail (fishing/trail.js): with the right rig and bait on, the fish you are looking for (ctx.target) bites this much more often. */
+export const TARGET_BOOST = 4, TARGET_MATCH = 0.7;
+const bestOf = t => Math.max(0, ...Object.values(t ?? {}));
+/** Is this rig (or bait) a good one for the species? 0.7 or better, or simply its best when nothing reaches that (garfish take no bait better than 0.6). */
+export const goodRig = (sp, rig) => (sp.rig[rig] ?? 0) >= Math.min(TARGET_MATCH, bestOf(sp.rig)) && (sp.rig[rig] ?? 0) > 0;
+export const goodBait = (sp, bait) => (sp.bait[bait] ?? 0) >= Math.min(TARGET_MATCH, bestOf(sp.bait)) && (sp.bait[bait] ?? 0) > 0;
 
 /** Default gear/conditions (used by tests and anything that calls pickCatch without a context). */
 export const DEFAULT_CTX = { rig: 'runningsinker', bait: 'prawn', tide: null, flow: null, time: null, season: null, stock: null, shy: 1, lureMod: 1, lit: 0 };
@@ -110,7 +116,8 @@ export function biteWeights(spot, ctx = DEFAULT_CTX) {
     const stock = stockOf(ctx.stock, spot, sp.id);
     const archM = ctx.arch && ctx.arch === sp.id ? 2.4 : 1;   // the fish finder showed this fish right under your bait
     const lampM = (1 + (sp.lamp ?? 0) * (ctx.lit ?? 0)) * archM;   // baitfish, squid and the fish that hunt them gather in a wharf lamp's pool of light
-    const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1);
+    const tgtM = ctx.target === sp.id && goodRig(sp, ctx.rig) && (LURE_RIGS.has(ctx.rig) || goodBait(sp, ctx.bait)) ? TARGET_BOOST : 1;
+    const gearM = (SHY_SPECIES.includes(sp.id) ? ctx.shy ?? 1 : 1) * (LURE_RIGS.has(ctx.rig) ? ctx.lureMod ?? 1 : 1) * tgtM;
     const open = gateOpen(sp, ctx);
     out.push({ sp, base, rigM, baitM, condM, stock, gearM, lampM, open, w: open ? base * rigM * baitM * condM * (Math.max(stock, STOCK_FLOOR) / 100) * gearM * lampM : 0, ideal: !sp.gate?.time || !ctx.time || sp.gate.time.includes(ctx.time) ? base * condM * (Math.max(stock, STOCK_FLOOR) / 100) * lampM : 0 });
   }

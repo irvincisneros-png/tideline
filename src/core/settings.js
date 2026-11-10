@@ -14,6 +14,7 @@ export const DEFAULTS = {
   style: 'stylised', // 'stylised' (cosy, default) or 'realistic'
   knots: 'full',     // the knot game: 'full' (guided first time, quick re-tie after a Hold), 'quick' (always the short version) or 'off' (skipped, a Hold is credited)
   sensitivity: 1, invertY: false, volume: 0.8, reducedMotion: false,
+  trail: true,       // the fish trail: a "next fish" line on the HUD with the next step (fishing/trail.js)
   subtitles: true, minimap: false, fightCam: true,   // fightCam: ease the camera lower and side-on while a fish is on
   musicOn: true, musicVolume: 0.5,
 };
