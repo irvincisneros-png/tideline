@@ -737,12 +737,9 @@ body:not([data-mode="land"]) .sonar { display: none; }
 a.btn { display: inline-block; text-decoration: none; line-height: 1.2; }
 .btn.accent { background: var(--sun); color: var(--teal-deep); }
 .btn.accent:hover { background: #ffc46b; }
-.hub-link { position: fixed; align-self: flex-start; font-size: 13px; font-weight: 800; color: var(--teal-deep); background: var(--cream); border: 3px solid var(--teal-ink); border-radius: 99px; padding: 3px 12px; text-decoration: none; box-shadow: var(--shadow-sm); top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); z-index: 2; }
-.hub-link:hover { background: var(--cream3); }
 .load-slow, .load-fail { font-size: 13.5px; font-weight: 800; color: #c2570a; margin: 10px 0 0; line-height: 1.4; }
 .load-fail { color: var(--danger); }
 .load-fail .btn { margin-left: 6px; }
-@media (max-width: 560px) { .hub-link { font-size: 12px; padding: 2px 10px; } }
 
 /* credits */
 .credits section { margin: 12px 0; }
@@ -982,3 +979,6 @@ body:has(#modal:not(.hidden)) :is(#toast, #keys, #prompt, #site-name), body:has(
 .trail-list li.todo { outline: 2px solid var(--turq); } .trail-list li.todo ~ li.todo { outline: 0; }
 .trail-list li.soft > i { color: var(--muted); }
 .trail-list .btn.small { padding: 4px 12px; font-size: 13px; flex: 0 0 auto; }
+
+/* leave room for the shared Learning Hub pill (top-left) */
+.hud-left { margin-top: 54px; }
